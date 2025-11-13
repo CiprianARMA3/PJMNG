@@ -41,7 +41,14 @@ export default function LoginPage() {
         return;
       }
 
-      // Check if user exists in our users table and get their profile
+      // Check if email is verified
+      if (!data.user.email_confirmed_at) {
+        setErrorMsg("Please verify your email before logging in. Check your inbox for the verification link.");
+        setLoading(false);
+        return;
+      }
+
+      // Check if user exists in our users table
       const { data: profile, error: profileError } = await supabase
         .from("users")
         .select("name, surname, email_verified, auth_id")
@@ -60,7 +67,7 @@ export default function LoginPage() {
             surname: null,
             plan_id: null,
             active: true,
-            email_verified: data.user.email_confirmed_at ? true : false,
+            email_verified: true,
             created_at: new Date().toISOString(),
             updated_at: new Date().toISOString(),
             password_hash: 'supabase_auth_managed',
@@ -71,30 +78,13 @@ export default function LoginPage() {
           console.error("Failed to create user profile:", createError);
         }
 
-        // Redirect to profile setup since this is a new user
+        // Redirect to profile setup
         router.push("/profile-setup");
         return;
       }
 
-      // Check if email is verified
-      if (!data.user.email_confirmed_at && !profile?.email_verified) {
-        setErrorMsg("Please verify your email before logging in. Check your inbox for the verification link.");
-        setLoading(false);
-        
-        // Optional: You can resend verification email here
-        // await supabase.auth.resend({
-        //   type: 'signup',
-        //   email: email,
-        // });
-        return;
-      }
-
-      // Check if profile setup is complete
-      if (!profile?.name || !profile?.surname) {
-        router.push("/profile-setup");
-      } else {
-        router.push("/dashboard");
-      }
+      // All checks passed - redirect to profile setup (it will redirect to dashboard if profile is complete)
+      router.push("/profile-setup");
     } catch (err: any) {
       console.error("Login error:", err);
       setErrorMsg(err.message || "An unexpected error occurred");
@@ -320,16 +310,6 @@ export default function LoginPage() {
           {errorMsg && (
             <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-lg">
               <p className="text-red-700 text-sm">{errorMsg}</p>
-              {errorMsg.includes("verify your email") && (
-                <div className="mt-2 text-center">
-                  <Link 
-                    href="/auth/register" 
-                    className="text-purple-700 hover:text-purple-900 text-sm font-medium"
-                  >
-                    Resend verification email →
-                  </Link>
-                </div>
-              )}
             </div>
           )}
         </div>

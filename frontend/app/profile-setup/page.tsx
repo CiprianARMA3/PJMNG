@@ -17,26 +17,37 @@ export default function ProfileSetupPage() {
   const [avatarFile, setAvatarFile] = useState<File | null>(null);
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
+  const [isCheckingProfile, setIsCheckingProfile] = useState(true);
 
   // Check if profile is already complete
   useEffect(() => {
     if (!sessionUser) return;
 
     const checkProfile = async () => {
-      const { data: userData, error } = await supabase
-        .from("users")
-        .select("name,surname")
-        .eq("id", sessionUser.id)
-        .single();
+      try {
+        const { data: userData, error } = await supabase
+          .from("users")
+          .select("name, surname")
+          .eq("id", sessionUser.id) // Use 'id' instead of 'auth_id'
+          .single();
 
-      if (error) {
-        console.error("Error checking profile:", error.message);
-        return;
-      }
+        if (error) {
+          console.error("Error checking profile:", error.message);
+          setIsCheckingProfile(false);
+          return;
+        }
 
-      if (userData?.name && userData?.surname) {
-        // Profile already set -> redirect to dashboard
-        router.replace("/dashboard");
+        if (userData?.name && userData?.surname) {
+          // Profile already set -> redirect to dashboard
+          console.log("Profile is complete, redirecting to dashboard");
+          router.replace("/dashboard");
+        } else {
+          // Profile incomplete -> stay on this page
+          setIsCheckingProfile(false);
+        }
+      } catch (err) {
+        console.error("Error in checkProfile:", err);
+        setIsCheckingProfile(false);
       }
     };
 
@@ -45,6 +56,12 @@ export default function ProfileSetupPage() {
 
   const handleSaveProfile = async () => {
     if (!sessionUser) return;
+    
+    if (!name.trim() || !surname.trim()) {
+      setErrorMsg("Please fill in both name and surname.");
+      return;
+    }
+
     setLoading(true);
     setErrorMsg("");
 
@@ -67,54 +84,121 @@ export default function ProfileSetupPage() {
         avatarUrl = publicData.publicUrl;
       }
 
+      // First, let's check what columns actually exist in the users table
+      console.log("Updating user profile for user ID:", sessionUser.id);
+      
       const { error: updateError } = await supabase
         .from("users")
         .update({
-          name,
-          surname,
+          name: name.trim(),
+          surname: surname.trim(),
           metadata: { avatar_url: avatarUrl || DEFAULT_AVATAR },
+          updated_at: new Date().toISOString(),
         })
-        .eq("id", sessionUser.id);
+        .eq("id", sessionUser.id); // Use 'id' instead of 'auth_id'
 
-      if (updateError) throw updateError;
+      if (updateError) {
+        console.error("Update error details:", updateError);
+        throw updateError;
+      }
 
+      console.log("Profile updated successfully");
+      
+      // Profile setup complete - redirect to dashboard
       router.push("/dashboard");
     } catch (err: any) {
       console.error("Profile setup error:", err.message);
-      setErrorMsg(err.message);
+      setErrorMsg(err.message || "Failed to save profile. Please try again.");
     } finally {
       setLoading(false);
     }
   };
 
-  if (authLoading) return <div>Loading...</div>;
+  if (authLoading || isCheckingProfile) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <div className="max-w-md w-full bg-white rounded-lg shadow-sm p-8 text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600 mx-auto mb-4"></div>
+          <p className="text-gray-700">Loading...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <div className="p-6 max-w-md mx-auto">
-      <h1 className="text-xl font-bold mb-4">Set Up Your Profile</h1>
-      <input
-        type="text"
-        placeholder="First Name"
-        value={name}
-        onChange={(e) => setName(e.target.value)}
-        className="mb-2 p-2 border w-full"
-      />
-      <input
-        type="text"
-        placeholder="Surname"
-        value={surname}
-        onChange={(e) => setSurname(e.target.value)}
-        className="mb-2 p-2 border w-full"
-      />
-      <AvatarUpload onFileSelect={setAvatarFile} />
-      {errorMsg && <p className="text-red-500 my-2">{errorMsg}</p>}
-      <button
-        onClick={handleSaveProfile}
-        disabled={loading}
-        className="bg-blue-500 text-white p-2 w-full mt-2 disabled:opacity-50"
-      >
-        {loading ? "Saving..." : "Save Profile"}
-      </button>
+    <div className="min-h-screen flex items-center justify-center bg-gray-50 p-4">
+      <div className="max-w-md w-full bg-white rounded-lg shadow-sm p-8">
+        <h1 className="text-2xl font-bold text-gray-800 mb-2">Complete Your Profile</h1>
+        <p className="text-gray-600 text-sm mb-6">Please fill in your information to get started</p>
+
+        {/* First Name Input */}
+        <div className="mb-4">
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            First Name
+          </label>
+          <input
+            type="text"
+            placeholder="Enter your first name"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            disabled={loading}
+            className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 outline-none transition-all disabled:opacity-50"
+          />
+        </div>
+
+        {/* Last Name Input */}
+        <div className="mb-6">
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            Last Name
+          </label>
+          <input
+            type="text"
+            placeholder="Enter your last name"
+            value={surname}
+            onChange={(e) => setSurname(e.target.value)}
+            disabled={loading}
+            className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 outline-none transition-all disabled:opacity-50"
+          />
+        </div>
+
+        {/* Avatar Upload */}
+        <div className="mb-6">
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            Profile Picture (Optional)
+          </label>
+          <AvatarUpload onFileSelect={setAvatarFile} />
+        </div>
+
+        {/* Error Message */}
+        {errorMsg && (
+          <div className="mb-6 p-3 bg-red-50 border border-red-200 rounded-lg">
+            <p className="text-red-700 text-sm">{errorMsg}</p>
+          </div>
+        )}
+
+        {/* Save Button */}
+        <button
+          onClick={handleSaveProfile}
+          disabled={loading || !name.trim() || !surname.trim()}
+          className="w-full bg-purple-700 text-white py-3 px-4 rounded-lg font-medium hover:bg-purple-900 disabled:opacity-50 disabled:cursor-not-allowed transition-colors shadow-sm"
+        >
+          {loading ? (
+            <div className="flex items-center justify-center space-x-2">
+              <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+              <span>Saving...</span>
+            </div>
+          ) : (
+            "Complete Profile"
+          )}
+        </button>
+
+        {/* Info Message */}
+        <div className="mt-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+          <p className="text-blue-700 text-sm">
+            <strong>Note:</strong> You must complete your profile to access the dashboard.
+          </p>
+        </div>
+      </div>
     </div>
   );
 }
