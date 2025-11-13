@@ -12,19 +12,35 @@ export default function useRequireAuth(redirectTo: string = "/auth/login") {
 
   useEffect(() => {
     const checkAuth = async () => {
-      const {
-        data: { session },
-      } = await supabase.auth.getSession();
+      try {
+        // Get both session and user for more reliable check
+        const { data: { session } } = await supabase.auth.getSession();
+        const { data: { user } } = await supabase.auth.getUser();
 
-      if (!session?.user) {
-        router.replace(redirectTo); // Not logged in → redirect
-      } else {
-        setUser(session.user);
+        console.log("Auth check:", { session: !!session, user: !!user });
+
+        if (!session?.user || !user) {
+          console.log("No valid auth, redirecting to login");
+          router.replace(redirectTo);
+        } else {
+          console.log("User authenticated:", user.id);
+          setUser(user);
+        }
+      } catch (error) {
+        console.error("Error checking auth:", error);
+        // On error, redirect to login for safety
+        router.replace(redirectTo);
+      } finally {
+        setLoading(false);
       }
-      setLoading(false);
     };
 
-    checkAuth();
+    // Small delay to ensure auth state is settled
+    const timer = setTimeout(() => {
+      checkAuth();
+    }, 100);
+
+    return () => clearTimeout(timer);
   }, [router, redirectTo]);
 
   return { user, loading };

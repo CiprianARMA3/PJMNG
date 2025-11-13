@@ -4,6 +4,7 @@ import { useState } from "react";
 import { createClient } from "@/utils/supabase/client";
 import useRedirectIfAuth from "@/hooks/useRedirectIfAuth";
 import Image from "next/image";
+import Link from "next/link";
 
 const supabase = createClient();
 
@@ -23,7 +24,7 @@ export default function RegisterPage() {
     setLoading(true);
 
     try {
-      // 1️⃣ Optional: check users table for existing profile
+      // 1️⃣ Check users table for existing profile
       const { data: existingUser } = await supabase
         .from("users")
         .select("id")
@@ -36,17 +37,42 @@ export default function RegisterPage() {
         return;
       }
 
-      // 2️⃣ Sign up via Supabase Auth (will automatically error if email exists)
-      const { error } = await supabase.auth.signUp({
+      // 2️⃣ Sign up via Supabase Auth
+      const { data, error } = await supabase.auth.signUp({
         email,
         password,
-        options: { emailRedirectTo: `${window.location.origin}/auth/confirm` },
+        options: { 
+          emailRedirectTo: `${window.location.origin}/auth/confirm`,
+          // Don't auto-confirm - let user verify via email
+        },
       });
 
       if (error) {
         setErrorMsg(error.message);
-      } else {
-        setSuccessMsg("Check your email to confirm registration before logging in!");
+      } else if (data.user) {
+        // Create user profile in database but don't log them in
+        const { error: dbError } = await supabase
+          .from("users")
+          .insert({
+            auth_id: data.user.id,
+            email: data.user.email,
+            name: null,
+            surname: null,
+            plan_id: null,
+            active: true,
+            email_verified: false,
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+            password_hash: 'supabase_auth_managed',
+            metadata: {},
+          });
+
+        if (dbError && !dbError.message.includes('duplicate key')) {
+          console.error('Database error:', dbError);
+          // Continue anyway - the user can verify their email
+        }
+
+        setSuccessMsg("Check your email to confirm your account! After verification, you'll need to sign in manually.");
       }
     } catch (err: any) {
       setErrorMsg(err.message || "An unexpected error occurred.");
@@ -166,12 +192,10 @@ export default function RegisterPage() {
                 className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500 hover:text-gray-700 transition-colors"
               >
                 {showPassword ? (
-                  // Eye closed SVG (when password is visible)
                   <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21" />
                   </svg>
                 ) : (
-                  // Eye open SVG (when password is hidden)
                   <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
@@ -184,18 +208,18 @@ export default function RegisterPage() {
           {/* Continue Button */}
           <button
             onClick={handleRegister}
-            disabled={loading}
+            disabled={loading || !email || !password}
             className="w-full bg-purple-700 text-white py-3 px-4 rounded-lg font-medium hover:bg-purple-900 disabled:opacity-50 disabled:cursor-not-allowed transition-colors mb-6 shadow-sm"
           >
-            {loading ? "Continuing..." : "Continue"}
+            {loading ? "Creating Account..." : "Create Account"}
           </button>
 
-          {/* Sign up Link */}
+          {/* Sign in Link */}
           <div className="text-center text-sm text-gray-600">
-            Don't have an account?{" "}
-            <a className="text-blue-600 font-medium hover:text-blue-700 underline" href="/auth/login">
-              Sign up
-            </a>
+            Already have an account?{" "}
+            <Link className="text-purple-700 font-medium hover:text-blue-700 underline" href="/auth/login">
+              Sign in
+            </Link>
           </div>
 
           {/* Messages */}
