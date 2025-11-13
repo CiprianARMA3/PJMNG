@@ -1,135 +1,82 @@
-'use client'
+"use client";
+import { useState, useEffect } from "react";
+import { createClient } from "@/utils/supabase/client";
+import { useRouter } from "next/navigation";
+import useRequireAuth from "@/hooks/useRequireAuth";
 
-import { useEffect, useState } from 'react'
-import { supabase } from '@/utils/supabase/client'
-import { useRouter } from 'next/navigation'
+const supabase = createClient();
+const DEFAULT_AVATAR = "/default-avatar.png"; // put a default image in public folder
 
-export default function Dashboard() {
-  const [user, setUser] = useState<any>(null)
-  const [userData, setUserData] = useState<any>(null)
-  const [loading, setLoading] = useState(true)
-  const router = useRouter()
+export default function DashboardPage() {
+  const router = useRouter();
+  const { user: sessionUser, loading } = useRequireAuth();
+
+  const [user, setUser] = useState<{
+    id: string;
+    email: string;
+    name: string | null;
+    surname: string | null;
+    avatar_url: string;
+  } | null>(null);
 
   useEffect(() => {
-    const checkAuthAndProfile = async () => {
-      const { data: { session } } = await supabase.auth.getSession()
-      
-      if (!session) {
-        router.push('/auth/login')
-        return
-      }
-      
-      // Fetch user data from public.users table
+    const fetchUser = async () => {
+      if (!sessionUser) return;
+
       const { data: userData, error } = await supabase
-        .from('users')
-        .select('*')
-        .eq('auth_id', session.user.id)
-        .single()
-      
-      if (error || !userData) {
-        router.push('/auth/login')
-        return
+        .from("users")
+        .select("id, email, name, surname, metadata")
+        .eq("id", sessionUser.id)
+        .single();
+
+      if (error) {
+        console.error("Error fetching user data:", error);
+        return;
       }
 
-      // Check if profile needs completion
-      if (!userData.name || !userData.surname) {
-        router.push('/auth/complete-profile')
-        return
-      }
+      setUser({
+        id: userData.id,
+        email: userData.email,
+        name: userData.name,
+        surname: userData.surname,
+        avatar_url: userData.metadata?.avatar_url || DEFAULT_AVATAR,
+      });
+    };
 
-      setUser(session.user)
-      setUserData(userData)
-      setLoading(false)
-    }
+    fetchUser();
+  }, [sessionUser]);
 
-    checkAuthAndProfile()
+  const handleLogout = async () => {
+    const { error } = await supabase.auth.signOut();
+    if (error) console.error("Logout error:", error.message);
+    else router.push("/auth/login");
+  };
 
-    // Listen for auth changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
-        if (event === 'SIGNED_OUT') {
-          router.push('/auth/login')
-        } else if (session) {
-          // Re-check profile completion on auth state change
-          const { data: userData } = await supabase
-            .from('users')
-            .select('name, surname')
-            .eq('auth_id', session.user.id)
-            .single()
-
-          if (!userData?.name || !userData?.surname) {
-            router.push('/auth/complete-profile')
-          } else {
-            setUser(session.user)
-            setLoading(false)
-          }
-        }
-      }
-    )
-
-    return () => subscription.unsubscribe()
-  }, [router])
-
-  const handleSignOut = async () => {
-    await supabase.auth.signOut()
-    router.push('/auth/login')
-  }
-
-  if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
-      </div>
-    )
-  }
+  if (loading || !user) return <div>Loading...</div>;
 
   return (
-    <div className="min-h-screen bg-gray-50 p-8">
-      <div className="max-w-7xl mx-auto">
-        <div className="flex justify-between items-center mb-8">
-          <h1 className="text-3xl font-bold text-gray-900">Dashboard</h1>
-          <button
-            onClick={handleSignOut}
-            className="bg-red-600 text-white px-4 py-2 rounded-md hover:bg-red-700"
-          >
-            Sign Out
-          </button>
-        </div>
-        
-        <div className="bg-white rounded-lg shadow p-6">
-          <div className="flex items-center space-x-4 mb-4">
-            {userData?.metadata?.profile_picture ? (
-              <img
-                src={userData.metadata.profile_picture}
-                alt="Profile"
-                className="h-16 w-16 rounded-full object-cover"
-              />
-            ) : (
-              <div className="h-16 w-16 rounded-full bg-gray-200 flex items-center justify-center">
-                <span className="text-gray-500 text-sm">No PFP</span>
-              </div>
-            )}
-            <div>
-              <h2 className="text-xl font-semibold">
-                Welcome, {userData?.name} {userData?.surname}!
-              </h2>
-              <p className="text-gray-600">{user?.email}</p>
-              <p className="text-sm text-green-600 mt-1">✓ Profile completed</p>
-            </div>
-          </div>
-          
-          <div className="mt-4 p-4 bg-blue-50 rounded-md">
-            <p className="text-blue-700">
-              User ID: {user?.id}
-            </p>
-            {userData?.metadata?.profile_picture && (
-              <p className="text-blue-700 mt-2">
-                Profile Picture: {userData.metadata.profile_picture}
-              </p>
-            )}
-          </div>
-        </div>
+    <div className="p-6 space-y-6">
+      <h1 className="text-3xl font-bold">Dashboard</h1>
+      <div className="border p-4 rounded max-w-md space-y-2">
+        <p><strong>ID:</strong> {user.id}</p>
+        <p><strong>Email:</strong> {user.email}</p>
+        <p><strong>Name:</strong> {user.name || "-"}</p>
+        <p><strong>Surname:</strong> {user.surname || "-"}</p>
+        <p>
+          <strong>Avatar:</strong>{" "}
+          <img
+            src={user.avatar_url}
+            alt="Avatar"
+            className="w-16 h-16 rounded-full"
+          />
+        </p>
       </div>
+      <button
+        onClick={handleLogout}
+        className="bg-red-500 text-white p-2 rounded"
+      >
+        Logout
+      </button>
     </div>
-  )
+  );
 }
