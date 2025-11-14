@@ -66,9 +66,9 @@ export default function UserSettings({ user }: UserSettingsProps) {
   ];
 
   return (
-    <div className="flex w-full min-h-screen text-gray-200 bg-[#0f0f10] ml-[150px] mt-[30px]">
+    <div className="flex w-full min-h-screen text-gray-200  mt-[30px] overflow-y-hidden scrollbar-hide">
       {/* LEFT SIDEBAR */}
-      <aside className="w-80 pr-6 border-r border-[#1e1e22] bg-[#0f0f10]">
+      <aside className="w-80 pr-6 border-r border-[#1e1e22]">
         <div className="sticky top-6">
           <div className="mb-8">
             <h2 className="text-2xl font-bold mb-2 text-white">Settings</h2>

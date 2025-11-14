@@ -10,8 +10,6 @@ import Subscriptions from "./components/dashboard-sections/AnalyticsSection";
 import SettingsSection from "./components/dashboard-sections/SettingsSection";
 import SearchSection from "./components/dashboard-sections/SearchSection";
 import UserSettings from "./components/profile-settings/Settings";
-
-
 import {
   Home,
   Mail,
@@ -23,13 +21,13 @@ import {
   Grid,
   HelpCircle,
   LogOut,
+  ChevronRight,
 } from "lucide-react";
 import Breadcrumb from "./components/Breadcrumb";
 
 const supabase = createClient();
 const DEFAULT_AVATAR = "/default-avatar.png";
 
-// Define the sections
 const SECTIONS = {
   HOME: "Home Page",
   MAIL: "Messages",
@@ -40,99 +38,95 @@ const SECTIONS = {
   PROFILE_SETTINGS: "profile-settings",
 };
 
+const MAIN_MENU = [
+  { icon: Home, label: "Dashboard", section: SECTIONS.HOME },
+  { icon: Mail, label: "Messages", section: SECTIONS.MAIL },
+  { icon: CreditCard, label: "Subscriptions", section: SECTIONS.CreditCard },
+  { icon: BarChart, label: "Analytics", section: SECTIONS.ANALYTICS },
+];
+
 export default function DashboardPage() {
   const router = useRouter();
   const { user: sessionUser, loading } = useRequireAuth();
   const [user, setUser] = useState<any>(null);
   const [activeSection, setActiveSection] = useState(SECTIONS.HOME);
   const [userLoading, setUserLoading] = useState(true);
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
-useEffect(() => {
-  const fetchUser = async () => {
-    if (!sessionUser) {
-      setUserLoading(false);
-      return;
-    }
-    
-    try {
-      const { data, error } = await supabase
-        .from("users")
-        .select("id, email, name, surname, metadata")
-        .eq("id", sessionUser.id)
-        .single();
+  useEffect(() => {
+    const fetchUser = async () => {
+      if (!sessionUser) {
+        setUserLoading(false);
+        return;
+      }
 
-      if (error) {
-        console.error("Error fetching user:", error);
-        // Set a default user object if there's an error
+      try {
+        const { data, error } = await supabase
+          .from("users")
+          .select("id, email, name, surname, metadata")
+          .eq("id", sessionUser.id)
+          .single();
+
+        if (error) {
+          console.error("Error fetching user:", error);
+          setUser({
+            fullName: "User",
+            avatar_url: DEFAULT_AVATAR,
+          });
+        } else if (data) {
+          const avatarUrl = data.metadata?.avatar_url || DEFAULT_AVATAR;
+          setUser({
+            ...data,
+            avatar_url: avatarUrl ? `${avatarUrl}?t=${Date.now()}` : DEFAULT_AVATAR,
+            fullName: `${data.name || ""} ${data.surname || ""}`.trim() || "User",
+          });
+        }
+      } catch (error) {
+        console.error("Error in fetchUser:", error);
         setUser({
-          fullName: 'User',
+          fullName: "User",
           avatar_url: DEFAULT_AVATAR,
         });
-      } else if (data) {
-        const avatarUrl = data.metadata?.avatar_url || DEFAULT_AVATAR;
-        setUser({
-          ...data,
-          avatar_url: avatarUrl ? `${avatarUrl}?t=${Date.now()}` : DEFAULT_AVATAR, // Add cache busting
-          fullName: `${data.name || ''} ${data.surname || ''}`.trim() || 'User',
-        });
+      } finally {
+        setUserLoading(false);
       }
-    } catch (error) {
-      console.error("Error in fetchUser:", error);
-      setUser({
-        fullName: 'User',
-        avatar_url: DEFAULT_AVATAR,
-      });
-    } finally {
-      setUserLoading(false);
-    }
-  };
-  
-  fetchUser();
-}, [sessionUser]);
+    };
+
+    fetchUser();
+  }, [sessionUser]);
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
     router.push("/auth/login");
   };
 
-  // Render content based on active section
   const renderMainContent = () => {
     switch (activeSection) {
       case SECTIONS.HOME:
-        return <HomeSection userName={user?.fullName || 'User'} />;
-
+        return <HomeSection userName={user?.fullName || "User"} />;
       case SECTIONS.MAIL:
         return <MailSection />;
-
       case SECTIONS.CreditCard:
         return <QuickActionsSection />;
-
       case SECTIONS.ANALYTICS:
         return <Subscriptions />;
-
       case SECTIONS.SETTINGS:
         return <SettingsSection />;
-
       case SECTIONS.SEARCH:
         return <SearchSection />;
-
       case SECTIONS.PROFILE_SETTINGS:
         return <UserSettings user={user} />;
-
       default:
-        return <HomeSection userName={user?.fullName || 'User'} />;
+        return <HomeSection userName={user?.fullName || "User"} />;
     }
   };
 
   if (loading || !user)
     return (
-      <div
-        role="status"
-        className="flex justify-center items-center h-screen"
-      >
+      <div role="status" className="flex justify-center items-center h-screen bg-black">
         <svg
           aria-hidden="true"
-          className="inline w-8 h-8 text-neutral-tertiary animate-spin fill-pink"
+          className="inline w-8 h-8 text-neutral-400 animate-spin fill-white"
           viewBox="0 0 100 101"
           fill="none"
           xmlns="http://www.w3.org/2000/svg"
@@ -151,84 +145,151 @@ useEffect(() => {
     );
 
   return (
-    <div className="relative flex min-h-screen bg-[#0f0f10] text-gray-200 overflow-hidden">
-      {/* === GLOW BACKGROUND === */}
-      <div
-        className="
-          fixed 
-          top-0 left-[-30px] 
-          w-[200px] h-[100%] 
-          bg-gradient-to-br 
-          from-purple-600/20 
-          via-purple-500/10 
-          to-transparent
-          blur-3xl 
-          pointer-events-none 
-          z-40
-        "
-      ></div>
+    <div className="min-h-screen bg-black text-white relative">
+      {/* <div className="fixed inset-0 z-1 overflow-hidden">
+        <Aurora
+          colorStops={["#A400F1", "#A400F1", "0"]}
+          blend={2.0}
+          amplitude={0}
+          speed={0}
+        />
+      </div> */}
 
-      {/* === SIDEBAR === */}
-      <aside className="w-16 bg-[#141417] border-r border-[#141417] flex flex-col items-center justify-between py-4 fixed top-0 left-0 h-screen z-50">        {/* Top icons */}
-        <div className="flex flex-col items-center space-y-6">
-          {[
-            { icon: Home, section: SECTIONS.HOME },
-            { icon: Mail, section: SECTIONS.MAIL },
-            { icon: CreditCard, section: SECTIONS.CreditCard },
-            { icon: BarChart, section: SECTIONS.ANALYTICS },
-          ].map(({ icon: Icon, section }, i) => (
-            <button
-              key={i}
-              onClick={() => setActiveSection(section)}
-              className={`p-2 rounded-xl transition ${
-                activeSection === section
-                  ? "text-white"
-                  : "hover:bg-purple-900 hover:text-white text-gray-400"
-              }`}
-            >
-              <Icon className="w-5 h-5" />
-            </button>
-          ))}
+
+
+      {/* === BLUR GRADIENT OVERLAY === */}
+      <div className="fixed inset-0 pointer-events-none z-40 overflow-hidden">
+        <div className="absolute inset-0 opacity-1 z-1 mask-image-linear-to-t from-transparent via-black to-transparent backdrop-blur-[0.234px]"></div>
+        <div className="absolute inset-0 opacity-1 z-2 mask-image-linear-to-t from-transparent via-black to-transparent backdrop-blur-[0.469px]"></div>
+        <div className="absolute inset-0 opacity-1 z-3 mask-image-linear-to-t from-transparent via-black to-transparent backdrop-blur-[0.938px]"></div>
+        <div className="absolute inset-0 opacity-1 z-4 mask-image-linear-to-t from-transparent via-black to-transparent backdrop-blur-[1.875px]"></div>
+        <div className="absolute inset-0 opacity-1 z-5 mask-image-linear-to-t from-transparent via-black to-transparent backdrop-blur-[3.75px]"></div>
+        <div className="absolute inset-0 opacity-1 z-6 mask-image-linear-to-t from-transparent via-black to-transparent backdrop-blur-[7.5px]"></div>
+        <div className="absolute inset-0 opacity-1 z-7 mask-image-linear-to-t from-transparent via-black to-transparent backdrop-blur-[15px]"></div>
+        <div className="absolute inset-0 opacity-1 z-8 mask-image-linear-to-t from-transparent via-black to-transparent backdrop-blur-[30px]"></div>
+      </div>
+
+      {/* === HORIZONTAL NAVIGATION BAR === */}
+      <nav className="fixed top-0 left-0 right-0 z-50 bg-[#0a0a0a]/80 backdrop-blur-sm border-b border-white/10 ">
+        <div className="max-w-7xl mx-auto px-6">
+          <div className="flex items-center justify-between h-16">
+            {/* Logo */}
+            <div className="flex items-center gap-3">
+              <img src={"/logo-white.png"} alt="" className="w-40"/>
+            </div>
+
+            {/* Desktop Navigation Links */}
+            <div className="hidden md:flex items-center gap-8">
+              {MAIN_MENU.map(({ icon: Icon, label, section }) => (
+                <button
+                  key={section}
+                  onClick={() => setActiveSection(section)}
+                  className={`flex items-center gap-2 px-3 py-2 rounded-lg transition-all duration-200 text-sm font-medium ${
+                    activeSection === section
+                      ? "text-white bg-white/10"
+                      : "text-white/60 hover:text-white hover:bg-white/5"
+                  }`}
+                >
+                  <Icon className="w-4 h-4" />
+                  {label}
+                </button>
+              ))}
+            </div>
+
+            {/* Right Side - User & Actions */}
+            <div className="flex items-center gap-4">
+              {/* Notifications */}
+              <button className="p-2 rounded-lg hover:bg-white/5 transition-colors text-white/60 hover:text-white">
+                <Bell className="w-5 h-5" />
+              </button>
+
+              {/* User Profile Dropdown */}
+              <div className="relative">
+                <button 
+                  onClick={() => setActiveSection(SECTIONS.PROFILE_SETTINGS)}
+                  className="flex items-center gap-3 p-2 rounded-lg hover:bg-white/5 transition-colors"
+                >
+                  <img
+                    src={`${user.avatar_url}?t=${Date.now()}`}
+                    alt="User Avatar"
+                    className="w-8 h-8 rounded-lg object-cover border border-white/20"
+                    key={user.avatar_url}
+                  />
+                  <div className="hidden sm:block text-left">
+                    <p className="text-sm font-medium text-white">
+                      {user?.fullName}
+                    </p>
+                    <p className="text-xs text-white/50">
+                      {user?.email}
+                    </p>
+                  </div>
+                  <ChevronRight className="w-4 h-4 text-white/60" />
+                </button>
+              </div>
+
+              {/* Mobile Menu Button */}
+              <button 
+                className="md:hidden p-2 rounded-lg hover:bg-white/5 transition-colors"
+                onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+              >
+                <div className="w-5 h-5 flex flex-col justify-center gap-1">
+                  <div className={`w-full h-0.5 bg-white/60 transition-all ${isMobileMenuOpen ? 'rotate-45 translate-y-1.5' : ''}`}></div>
+                  <div className={`w-full h-0.5 bg-white/60 transition-all ${isMobileMenuOpen ? 'opacity-0' : ''}`}></div>
+                  <div className={`w-full h-0.5 bg-white/60 transition-all ${isMobileMenuOpen ? '-rotate-45 -translate-y-1.5' : ''}`}></div>
+                </div>
+              </button>
+            </div>
+          </div>
+
+          {/* Mobile Menu */}
+          {isMobileMenuOpen && (
+            <div className="md:hidden border-t border-white/10 py-4">
+              <div className="space-y-2">
+                {MAIN_MENU.map(({ icon: Icon, label, section }) => (
+                  <button
+                    key={section}
+                    onClick={() => {
+                      setActiveSection(section);
+                      setIsMobileMenuOpen(false);
+                    }}
+                    className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-200 ${
+                      activeSection === section
+                        ? "bg-white/10 text-white"
+                        : "text-white/60 hover:text-white hover:bg-white/5"
+                    }`}
+                  >
+                    <Icon className="w-5 h-5" />
+                    <span className="text-sm font-medium">{label}</span>
+                  </button>
+                ))}
+                <div className="pt-4 border-t border-white/10">
+                  <button
+                    onClick={handleLogout}
+                    className="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-white/60 hover:text-white hover:bg-white/5 transition-all duration-200"
+                  >
+                    <LogOut className="w-5 h-5" />
+                    <span className="text-sm font-medium">Logout</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
-
-        {/* Bottom icons */}
-        <div className="flex flex-col items-center space-y-4">
-          <button className="p-2 rounded-xl hover:bg-purple-900 hover:text-white transition text-gray-400">
-            <HelpCircle className="w-5 h-5" />
-          </button>
-
-          <button
-            onClick={handleLogout}
-            className="p-2 rounded-xl hover:bg-purple-900 hover:text-white transition text-gray-400"
-          >
-            <LogOut className="w-5 h-5" />
-          </button>
-
-          {/* Avatar */}
-          <button
-            onClick={() => setActiveSection(SECTIONS.PROFILE_SETTINGS)}
-            className="w-10 h-10 rounded-full overflow-hidden border border-gray-700 hover:ring-2 hover:ring-indigo-500 transition"
-          >
-            <img
-              src={`${user.avatar_url}?t=${Date.now()}`} // Add cache busting here
-              alt="User Avatar"
-              className="w-full h-full object-cover"
-              key={user.avatar_url} // Force re-render when avatar changes
-            />
-          </button>
-        </div>
-      </aside>
+      </nav>
 
       {/* === MAIN CONTENT === */}
-      <main className="flex-1 relative p-10 z-4 ml-[150px]">
-        <Breadcrumb
-          items={[
-            "Dashboard",
-            activeSection.charAt(0).toUpperCase() +
-              activeSection.slice(1),
-          ]}
-        />
-        {renderMainContent()}
+      <main className="pt-16 min-h-screen z-10 bg-[#0a0a0a]">
+        <div className="max-w-7xl mx-auto p-8">
+          <Breadcrumb
+            items={[
+              "Dashboard",
+              activeSection.charAt(0).toUpperCase() + activeSection.slice(1),
+            ]}
+          />
+          <div className="mt-6">
+            {renderMainContent()}
+          </div>
+        </div>
       </main>
     </div>
   );
