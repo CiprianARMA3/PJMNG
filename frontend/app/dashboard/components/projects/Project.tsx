@@ -1,6 +1,7 @@
 import { Github, Plus, Users, Settings } from "lucide-react";
 import { FaDiscord } from "react-icons/fa";
 import AddProjectButton from "./component/addMore"; 
+import Image from 'next/image';
 
 export default function ProjectTemplate() {
   return (
@@ -19,11 +20,15 @@ export default function ProjectTemplate() {
               />
             </div>
             <div className="absolute inset-0">
-              <img
-                className="w-full h-full object-cover"
+
+              <Image
                 src="/cassiuscover.jpg"
                 alt="Project Banner"
+                width={1200}          // set according to your design or image aspect ratio
+                height={600}          // set according to your design or image aspect ratio
+                className="w-full h-full object-cover"
               />
+
               <div className="absolute inset-0 bg-gradient-to-t from-white/5 to-transparent"></div>
             </div>
           </div>
@@ -32,11 +37,14 @@ export default function ProjectTemplate() {
           <div className="absolute -bottom-16 left-6 flex items-end">
             {/* Project Logo */}
             <div className="border-4 border-gray-300/1 rounded-full p-1 bg-gray-800/50">
-              <img
-                className="project-pic w-25 h-25 rounded-full object-cover border-2 border-white/20"
-                src="/logo-light.png"
-                alt="Project"
-              />
+          <Image
+            src="/logo-light.png"
+            alt="Project"
+            width={100}          // approximate width matching Tailwind w-25 (25 * 4px = 100px)
+            height={100}         // approximate height matching Tailwind h-25
+            className="rounded-full object-cover border-2 border-white/20"
+            priority             // optional: use if this image is above-the-fold or critical
+          />
             </div>
             
             {/* Project Name - Bottom right of logo */}

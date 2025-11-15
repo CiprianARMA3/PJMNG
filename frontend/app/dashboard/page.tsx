@@ -10,6 +10,8 @@ import Subscriptions from "./components/dashboard-sections/AnalyticsSection";
 import SettingsSection from "./components/dashboard-sections/SettingsSection";
 import SearchSection from "./components/dashboard-sections/SearchSection";
 import UserSettings from "./components/profile-settings/Settings";
+import Image from 'next/image';
+
 import {
   Home,
   Mail,
@@ -176,8 +178,13 @@ export default function DashboardPage() {
           <div className="flex items-center justify-between h-16">
             {/* Logo */}
             <div className="flex items-center gap-3">
-              <img src={"/logo-white.png"} alt="" className="w-40"/>
-            </div>
+              <Image
+                src="/logo-white.png"
+                alt="Logo"
+                width={160}        // approximate width matching w-40 (Tailwind 10rem)
+                height={40}        // adjust height proportionally to your logo
+                className="w-40"
+              />            </div>
 
             {/* Desktop Navigation Links */}
             <div className="hidden md:flex items-center gap-8">
@@ -210,12 +217,15 @@ export default function DashboardPage() {
                   onClick={() => setActiveSection(SECTIONS.PROFILE_SETTINGS)}
                   className="flex items-center gap-3 p-2 rounded-lg hover:bg-white/5 transition-colors"
                 >
-                  <img
-                    src={`${user.avatar_url}?t=${Date.now()}`}
-                    alt="User Avatar"
-                    className="w-8 h-8 rounded-lg object-cover border border-white/20"
-                    key={user.avatar_url}
-                  />
+                    <Image
+                      src={`${user.avatar_url}?t=${Date.now()}`}
+                      alt="User Avatar"
+                      width={32}          // matches Tailwind w-8 (8 * 4px = 32px)
+                      height={32}         // matches Tailwind h-8
+                      className="rounded-lg object-cover border border-white/20"
+                      key={user.avatar_url}
+                      unoptimized         // optional: use if the avatar is from an external URL and you don’t want Next.js to optimize it
+                    />
                   <div className="hidden sm:block text-left">
                     <p className="text-sm font-medium text-white">
                       {user?.fullName}
