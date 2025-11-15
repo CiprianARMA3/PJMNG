@@ -316,16 +316,51 @@ export default function LoginPage() {
       </div>
 
       {/* Right Side - Image */}
-      <div className="flex-1 hidden lg:block relative bg-gray-100">
-        <Image
-          src="/clouds.webp"
-          alt="bg"
-          fill
-          className="object-cover blur-sm rounded-tl-2xl rounded-bl-2xl"
-          priority
-          sizes="(max-width: 1024px) 0vw, 25vw"
-        />
-      </div>
+
+    {/* Right Side - Image with Logo and Fade Edges */}
+{/* Right Side - Image with Logo and Text */}
+<div className="flex-1 hidden lg:block relative bg-gray-100">
+  {/* Background Image */}
+  <Image
+    src="/clouds.webp"
+    alt="Clouds background"
+    fill
+    className="object-cover blur-sm rounded-tl-2xl rounded-bl-2xl"
+    priority
+    sizes="(max-width: 1024px) 0vw, 25vw"
+  />
+  
+  {/* Radial Fade Overlay */}
+  <div className="absolute inset-0 bg-gradient-to-br from-transparent via-transparent to-transparent 
+    [mask-image:radial-gradient(ellipse_at_center,black_40%,transparent_70%)]">
+  </div>
+  
+  {/* Logo and Text Container */}
+  <div className="absolute inset-0 flex flex-col items-center justify-center">
+    {/* Logo */}
+    <div className="relative w-60 h-60 "> {/* Added margin-bottom */}
+      <Image
+        src="/logo-light.png"
+        alt="KapryDEV Logo"
+        fill
+        className="object-contain drop-shadow-lg"
+        priority
+      />
+    </div>
+    
+    {/* Text */}
+    <div className="text-center">
+<div className="text-center space-y-2">
+  <p className="text-white text-2xl font-bold drop-shadow-lg tracking-wide">
+    Built for Development Teams by Developers
+  </p>
+  <p className="text-white/80 text-lg font-medium tracking-wide">
+    Organize your workflow efficently
+  </p>
+</div>
+    </div>
+  </div>
+</div>
     </div>
   );
 }

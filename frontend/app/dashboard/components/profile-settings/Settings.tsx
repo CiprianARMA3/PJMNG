@@ -7,7 +7,7 @@ import { User, CreditCard, Bell, Shield, HelpCircle, Users, Home, FileText } fro
 import PublicProfilePage from "./sections/Profile";
 import AccountPage from "./sections/Account";
 import BillingPage from "./sections/Billing";
-
+import Projects from "./sections/Projects"
 // 1. Declare all available page IDs
 type PageKey = "account" | "billing" | "notifications" | "security" | "support" | "team" | "properties" | "documents";
 
@@ -35,7 +35,7 @@ export default function UserSettings({ user }: UserSettingsProps) {
     "security": <div className="text-gray-300">Security Settings - Coming Soon</div>,
     "support": <div className="text-gray-300">Support Center - Coming Soon</div>,
     "team": <div className="text-gray-300">Team Management - Coming Soon</div>,
-    "properties": <div className="text-gray-300">Property Management - Coming Soon</div>,
+    "properties": <div className="text-gray-300"><Projects /></div>,
     "documents": <div className="text-gray-300">Agreements</div>,
     };
 

@@ -1,67 +1,97 @@
-import { Github, Plus, Users } from "lucide-react";
+import { Github, Plus, Users, Settings } from "lucide-react";
 import { FaDiscord } from "react-icons/fa";
 import AddProjectButton from "./component/addMore"; 
 
 export default function ProjectTemplate() {
   return (
     <>
-      <div className="container max-w-md mx-auto bg-white/5 backdrop-blur-lg border border-white/10 rounded-2xl p-6 shadow-lg">
-      
-        {/* Title Section */}
-        <div className="flex flex-col items-center mb-4">
-          <img
-            className="project-pic w-32 h-32 rounded-full object-cover mb-2 border-2 border-white/20"
-            src="/placeholder.png"
-            alt="Project"
-          />
-          <p className="project-title text-white text-xl font-semibold">
-            Project Name
-          </p>
+      <div className="container max-w-lg mx-auto bg-white/5 backdrop-blur-lg border border-white/10 rounded-2xl shadow-lg overflow-hidden">
+        
+        {/* Banner Section - No padding, sits on border */}
+        <div className="relative mb-16">
+          {/* Banner with fade out effect */}
+          <div className="h-32 w-full relative">
+            {/* Settings Icon - Positioned above the image */}
+            <div className="absolute top-2 right-2 z-10">
+              <Settings 
+                size={24} 
+                className="text-white/80 cursor-pointer hover:text-white hover:rotate-90 transition-transform duration-300" 
+              />
+            </div>
+            <div className="absolute inset-0">
+              <img
+                className="w-full h-full object-cover"
+                src="/cassiuscover.jpg"
+                alt="Project Banner"
+              />
+              <div className="absolute inset-0 bg-gradient-to-t from-white/5 to-transparent"></div>
+            </div>
+          </div>
+          
+          {/* Project Logo and Name Container */}
+          <div className="absolute -bottom-16 left-6 flex items-end">
+            {/* Project Logo */}
+            <div className="border-4 border-gray-300/1 rounded-full p-1 bg-gray-800/50">
+              <img
+                className="project-pic w-25 h-25 rounded-full object-cover border-2 border-white/20"
+                src="/logo-light.png"
+                alt="Project"
+              />
+            </div>
+            
+            {/* Project Name - Bottom right of logo */}
+            <div className="ml-[30px] mb-2 mt-[-50px]">
+              <p className="project-title text-white text-2xl font-semibold">
+                KapryDEV
+              </p>
+            </div>
+          </div>
         </div>
 
-        {/* Description */}
-        <div className="mb-4 text-white/80">
-          <p>
-            This is a short description of the project. Explain what it does,
-            why it exists, or any other relevant info.
-          </p>
-        </div>
+        {/* Content Area with padding */}
+        <div className="px-6 pb-6">
+          {/* Description */}
+          <div className="mb-6 text-white/80 text-center mt-[90px]">
+            <p className="text-lg">
+              This is a short description of the project. Explain what it does,
+              why it exists, or any other relevant info.
+            </p>
+          </div>
 
-        {/* Project Info */}
-<div className="project-info flex justify-around text-white/80 mb-4">
-  <div className="flex flex-col items-center">
-    <p className="font-semibold">Since</p>
-    <p>2025</p>
-  </div>
-  <div className="flex flex-col items-center">
-    <p className="font-semibold">Collaborators</p>
-    <div className="flex items-center gap-1">
-      <Users size={20} />
-      <span>20</span>
-    </div>
-  </div>
-  <div className="flex flex-col items-center space-x-2">
-    <p className="font-semibold">Links</p>
-    <div className="flex gap-2 mt-1">
-      <Github size={20} className="cursor-pointer hover:text-white" />
-      <FaDiscord size={24} className=" hover:text-white" />
-    </div>
-  </div>
-</div>
+          {/* Project Info */}
+          <div className="project-info flex justify-around text-white/80 mb-6">
+            <div className="flex flex-col items-center">
+              <p className="font-semibold text-lg">Since</p>
+              <p className="text-lg">2025</p>
+            </div>
+            <div className="flex flex-col items-center">
+              <p className="font-semibold text-lg">Collaborators</p>
+              <div className="flex items-center gap-1">
+                <Users size={24} />
+                <span className="text-lg">20</span>
+              </div>
+            </div>
+            <div className="flex flex-col items-center">
+              <p className="font-semibold text-lg">Links</p>
+              <div className="flex gap-2 mt-1">
+                <Github size={24} className="cursor-pointer hover:text-white" />
+                <FaDiscord size={28} className="hover:text-white" />
+              </div>
+            </div>
+          </div>
 
-        {/* Creator Info */}
-        <div className="text-white/80 flex justify-between border-t border-white/10 pt-3">
-          <p>Created by</p>
-          <p className="font-semibold">Creator Name</p>
+          {/* Creator Info */}
+          <div className="text-white/80 flex justify-between border-t border-white/10 pt-4">
+            <p className="text-lg">Created by</p>
+            <p className="font-semibold text-lg">Creator name</p>
+          </div>
         </div>
       </div>
 
-        <div className="flex justify-center items-center ml-[-200px]">
+      <div className="flex justify-center items-center ml-[-200px]">
         <AddProjectButton />
         <p className="ml-[20px] text-white/100"></p>
-        </div>
-         
-      {/* it has to go here! */}
-      </>
+      </div>
+    </>
   );
 }
