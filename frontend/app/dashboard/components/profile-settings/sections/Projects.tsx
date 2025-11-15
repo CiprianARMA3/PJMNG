@@ -9,30 +9,6 @@ export default function Projects(){
             creator: "Alex Johnson",
             members: 15,
             status: "Active"
-        },
-        {
-            id: 2,
-            logo: "/default-avatar.png",
-            name: "WebFlow",
-            creator: "Sarah Chen",
-            members: 8,
-            status: "Active"
-        },
-        {
-            id: 3,
-            logo: "/default-avatar.png",
-            name: "DataCore",
-            creator: "Mike Rodriguez",
-            members: 12,
-            status: "Inactive"
-        },
-        {
-            id: 4,
-            logo: "/default-avatar.png",
-            name: "CloudSync",
-            creator: "Emma Wilson",
-            members: 20,
-            status: "Active"
         }
     ];
 
@@ -109,7 +85,7 @@ export default function Projects(){
                                     <ArrowRight size={16} />
                                     <span>Enter</span>
                                 </button>
-                                <button className="bg-white/10 hover:bg-white/20 text-white/90 hover:text-white p-2 rounded-lg transition-all duration-200 border border-white/20 hover:border-white/30">
+                                <button className="bg-white/10 hover:bg-red-900 text-white/90 hover:text-white p-2 rounded-lg transition-all duration-200 border border-white/20 hover:border-white/30">
                                     <LogOut size={16} />
                                 </button>
                             </div>

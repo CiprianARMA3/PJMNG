@@ -157,6 +157,7 @@ export default function DashboardPage() {
 
 
 
+
       {/* === BLUR GRADIENT OVERLAY === */}
       <div className="fixed inset-0 pointer-events-none z-40 overflow-hidden">
         <div className="absolute inset-0 opacity-1 z-1 mask-image-linear-to-t from-transparent via-black to-transparent backdrop-blur-[0.234px]"></div>
