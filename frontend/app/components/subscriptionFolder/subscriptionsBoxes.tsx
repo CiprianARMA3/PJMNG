@@ -196,7 +196,7 @@ export default function PricingInterface() {
       </div>
 
       <div className="flex justify-center items-center mt-[15px] gap-2 cursor-default">
-        <ChevronRight className="w-8 h-8 text-white/70 rotate-90" />
+        <ChevronRight className="w-8 h-8 text-white/70 rotate-90 mb-[100px]" />
       </div>
         {/* <div
           style={{
