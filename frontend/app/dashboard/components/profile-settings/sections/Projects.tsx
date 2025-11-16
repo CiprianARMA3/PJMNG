@@ -83,9 +83,9 @@ export default function Projects(){
                             <div className="col-span-2 flex items-center justify-center space-x-2">
                                 <button className="bg-white/10 hover:bg-white/20 text-white/90 hover:text-white px-3 py-2 rounded-lg transition-all duration-200 border border-white/20 hover:border-white/30 flex items-center space-x-1 text-sm">
                                     <ArrowRight size={16} />
-                                    <span>Enter</span>
+                                    <span className="cursor-pointer">Enter</span>
                                 </button>
-                                <button className="bg-white/10 hover:bg-red-900 text-white/90 hover:text-white p-2 rounded-lg transition-all duration-200 border border-white/20 hover:border-white/30">
+                                <button className="bg-white/10 hover:bg-red-900 text-white/90 hover:text-white p-2 rounded-lg transition-all duration-200 border border-white/20 hover:border-white/30 cursor-pointer">
                                     <LogOut size={16} />
                                 </button>
                             </div>

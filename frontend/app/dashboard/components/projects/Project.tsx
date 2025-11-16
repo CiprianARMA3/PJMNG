@@ -83,7 +83,7 @@ export default function ProjectTemplate() {
               <p className="font-semibold text-lg">Links</p>
               <div className="flex gap-2 mt-1">
                 <Github size={24} className="cursor-pointer hover:text-white" />
-                <FaDiscord size={28} className="hover:text-white" />
+                <FaDiscord size={28} className="hover:text-white cursor-pointer" />
               </div>
             </div>
           </div>

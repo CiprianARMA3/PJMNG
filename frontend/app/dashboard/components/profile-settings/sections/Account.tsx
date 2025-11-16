@@ -4,6 +4,9 @@ import { useState, useEffect, useRef } from "react";
 import { Eye, EyeOff, Upload, Trash2, Edit2, Check, X } from "lucide-react";
 import { createClient } from "@/utils/supabase/client";
 
+// !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!//
+// // FIX ACCOUNT PAGE FA LAGGARE TUTTO//
+// !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! //
 const supabase = createClient();
 
 interface AccountPageProps {
