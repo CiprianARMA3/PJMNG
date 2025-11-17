@@ -21,13 +21,17 @@ export default function ProjectTemplate() {
             </div>
             <div className="absolute inset-0">
 
-              <Image
-                src="/cassiuscover.jpg"
-                alt="Project Banner"
-                width={1200}          // set according to your design or image aspect ratio
-                height={600}          // set according to your design or image aspect ratio
-                className="w-full h-full object-cover"
-              />
+            <Image
+              src="/cassiuscover.jpg"
+              alt="Project Banner"
+              width={1200}
+              height={600}
+              className="w-full h-full object-cover"
+              loading="eager"
+              priority
+              sizes="(max-width: 768px) 100vw, (max-width: 1200px) 80vw, 1200px"
+              quality={85}
+            />
 
               <div className="absolute inset-0 bg-gradient-to-t from-white/5 to-transparent"></div>
             </div>

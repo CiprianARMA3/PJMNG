@@ -1,17 +1,9 @@
 "use client";
-import { useState, useEffect } from "react";
+import { useState, useEffect, Suspense, lazy } from "react";
 import { createClient } from "@/utils/supabase/client";
 import { useRouter } from "next/navigation";
 import useRequireAuth from "@/hooks/useRequireAuth";
-import HomeSection from "./components/dashboard-sections/HomeSection";
-import MailSection from "./components/dashboard-sections/MailSection";
-import QuickActionsSection from "./components/dashboard-sections/Subscriptions";
-import Subscriptions from "./components/dashboard-sections/AnalyticsSection";
-import SettingsSection from "./components/dashboard-sections/SettingsSection";
-import SearchSection from "./components/dashboard-sections/SearchSection";
-import UserSettings from "./components/profile-settings/Settings";
 import Image from 'next/image';
-
 import {
   Home,
   Mail,
@@ -20,12 +12,19 @@ import {
   Settings,
   Bell,
   Search,
-  Grid,
-  HelpCircle,
   LogOut,
   ChevronRight,
 } from "lucide-react";
 import Breadcrumb from "./components/Breadcrumb";
+
+// Dynamic imports for all section components
+const HomeSection = lazy(() => import("./components/dashboard-sections/HomeSection"));
+const MailSection = lazy(() => import("./components/dashboard-sections/MailSection"));
+const QuickActionsSection = lazy(() => import("./components/dashboard-sections/Subscriptions"));
+const AnalyticsSection = lazy(() => import("./components/dashboard-sections/AnalyticsSection"));
+const SettingsSection = lazy(() => import("./components/dashboard-sections/SettingsSection"));
+const SearchSection = lazy(() => import("./components/dashboard-sections/SearchSection"));
+const UserSettings = lazy(() => import("./components/profile-settings/Settings"));
 
 const supabase = createClient();
 const DEFAULT_AVATAR = "/default-avatar.png";
@@ -46,6 +45,13 @@ const MAIN_MENU = [
   { icon: CreditCard, label: "Subscriptions", section: SECTIONS.CreditCard },
   { icon: BarChart, label: "Analytics", section: SECTIONS.ANALYTICS },
 ];
+
+// Loading fallback component
+const SectionSkeleton = () => (
+  <div className="animate-pulse bg-white/10 rounded-lg h-64 flex items-center justify-center">
+    <div className="text-white/40">Loading...</div>
+  </div>
+);
 
 export default function DashboardPage() {
   const router = useRouter();
@@ -102,28 +108,75 @@ export default function DashboardPage() {
     router.push("/auth/login");
   };
 
+  // Safe avatar URL with fallback
+  const getAvatarUrl = () => {
+    if (!user || !user.avatar_url) {
+      return `${DEFAULT_AVATAR}?t=${Date.now()}`;
+    }
+    return user.avatar_url.includes('?') 
+      ? user.avatar_url 
+      : `${user.avatar_url}?t=${Date.now()}`;
+  };
+
   const renderMainContent = () => {
+    const sectionProps = {
+      userName: user?.fullName || "User",
+      user: user
+    };
+
     switch (activeSection) {
       case SECTIONS.HOME:
-        return <HomeSection userName={user?.fullName || "User"} />;
+        return (
+          <Suspense fallback={<SectionSkeleton />}>
+            <HomeSection {...sectionProps} />
+          </Suspense>
+        );
       case SECTIONS.MAIL:
-        return <MailSection />;
+        return (
+          <Suspense fallback={<SectionSkeleton />}>
+            <MailSection />
+          </Suspense>
+        );
       case SECTIONS.CreditCard:
-        return <QuickActionsSection />;
+        return (
+          <Suspense fallback={<SectionSkeleton />}>
+            <QuickActionsSection />
+          </Suspense>
+        );
       case SECTIONS.ANALYTICS:
-        return <Subscriptions />;
+        return (
+          <Suspense fallback={<SectionSkeleton />}>
+            <AnalyticsSection />
+          </Suspense>
+        );
       case SECTIONS.SETTINGS:
-        return <SettingsSection />;
+        return (
+          <Suspense fallback={<SectionSkeleton />}>
+            <SettingsSection />
+          </Suspense>
+        );
       case SECTIONS.SEARCH:
-        return <SearchSection />;
+        return (
+          <Suspense fallback={<SectionSkeleton />}>
+            <SearchSection />
+          </Suspense>
+        );
       case SECTIONS.PROFILE_SETTINGS:
-        return <UserSettings user={user} />;
+        return (
+          <Suspense fallback={<SectionSkeleton />}>
+            <UserSettings user={user} />
+          </Suspense>
+        );
       default:
-        return <HomeSection userName={user?.fullName || "User"} />;
+        return (
+          <Suspense fallback={<SectionSkeleton />}>
+            <HomeSection {...sectionProps} />
+          </Suspense>
+        );
     }
   };
 
-  if (loading || !user)
+  if (loading || userLoading || !user) {
     return (
       <div role="status" className="flex justify-center items-center h-screen bg-black">
         <svg
@@ -145,35 +198,19 @@ export default function DashboardPage() {
         <span className="sr-only">Loading...</span>
       </div>
     );
+  }
 
   return (
     <div className="min-h-screen bg-black text-white relative">
-      {/* <div className="fixed inset-0 z-1 overflow-hidden">
-        <Aurora
-          colorStops={["#A400F1", "#A400F1", "0"]}
-          blend={2.0}
-          amplitude={0}
-          speed={0}
-        />
-      </div> */}
-
-
-
-
-      {/* === BLUR GRADIENT OVERLAY === */}
+      {/* Simplified blur overlay for better performance */}
       <div className="fixed inset-0 pointer-events-none z-40 overflow-hidden">
-        <div className="absolute inset-0 opacity-1 z-1 mask-image-linear-to-t from-transparent via-black to-transparent backdrop-blur-[0.234px]"></div>
-        <div className="absolute inset-0 opacity-1 z-2 mask-image-linear-to-t from-transparent via-black to-transparent backdrop-blur-[0.469px]"></div>
-        <div className="absolute inset-0 opacity-1 z-3 mask-image-linear-to-t from-transparent via-black to-transparent backdrop-blur-[0.938px]"></div>
-        <div className="absolute inset-0 opacity-1 z-4 mask-image-linear-to-t from-transparent via-black to-transparent backdrop-blur-[1.875px]"></div>
-        <div className="absolute inset-0 opacity-1 z-5 mask-image-linear-to-t from-transparent via-black to-transparent backdrop-blur-[3.75px]"></div>
-        <div className="absolute inset-0 opacity-1 z-6 mask-image-linear-to-t from-transparent via-black to-transparent backdrop-blur-[7.5px]"></div>
-        <div className="absolute inset-0 opacity-1 z-7 mask-image-linear-to-t from-transparent via-black to-transparent backdrop-blur-[15px]"></div>
-        <div className="absolute inset-0 opacity-1 z-8 mask-image-linear-to-t from-transparent via-black to-transparent backdrop-blur-[30px]"></div>
+        <div className="absolute inset-0 opacity-1 backdrop-blur-[0.5px]"></div>
+        <div className="absolute inset-0 opacity-1 backdrop-blur-[2px]"></div>
+        <div className="absolute inset-0 opacity-1 backdrop-blur-[8px]"></div>
       </div>
 
-      {/* === HORIZONTAL NAVIGATION BAR === */}
-      <nav className="fixed top-0 left-0 right-0 z-50 bg-[#0a0a0a]/80 backdrop-blur-sm border-b border-white/10 ">
+      {/* Navigation Bar */}
+      <nav className="fixed top-0 left-0 right-0 z-50 bg-[#0a0a0a]/80 backdrop-blur-sm border-b border-white/10">
         <div className="max-w-7xl mx-auto px-6">
           <div className="flex items-center justify-between h-16">
             {/* Logo */}
@@ -181,12 +218,14 @@ export default function DashboardPage() {
               <Image
                 src="/logo-white.png"
                 alt="Logo"
-                width={160}        // approximate width matching w-40 (Tailwind 10rem)
-                height={40}        // adjust height proportionally to your logo
-                className="w-40"
-              />            </div>
+                width={160}
+                height={40}
+                className="w-40 h-auto"
+                priority
+              />
+            </div>
 
-            {/* Desktop Navigation Links */}
+            {/* Desktop Navigation */}
             <div className="hidden md:flex items-center gap-8">
               {MAIN_MENU.map(({ icon: Icon, label, section }) => (
                 <button
@@ -204,34 +243,34 @@ export default function DashboardPage() {
               ))}
             </div>
 
-            {/* Right Side - User & Actions */}
+            {/* User & Actions */}
             <div className="flex items-center gap-4">
               {/* Notifications */}
               <button className="p-2 rounded-lg hover:bg-white/5 transition-colors text-white/60 hover:text-white">
                 <Bell className="w-5 h-5" />
               </button>
 
-              {/* User Profile Dropdown */}
+              {/* User Profile - WITH SAFE AVATAR URL */}
               <div className="relative">
                 <button 
                   onClick={() => setActiveSection(SECTIONS.PROFILE_SETTINGS)}
                   className="flex items-center gap-3 p-2 rounded-lg hover:bg-white/5 transition-colors"
                 >
-                    <Image
-                      src={`${user.avatar_url}?t=${Date.now()}`}
-                      alt="User Avatar"
-                      width={32}          // matches Tailwind w-8 (8 * 4px = 32px)
-                      height={32}         // matches Tailwind h-8
-                      className="rounded-lg object-cover border border-white/20"
-                      key={user.avatar_url}
-                      unoptimized         // optional: use if the avatar is from an external URL and you don’t want Next.js to optimize it
-                    />
+                  <Image
+                    src={getAvatarUrl()}
+                    alt="User Avatar"
+                    width={32}
+                    height={32}
+                    className="rounded-lg object-cover border border-white/20"
+                    key={getAvatarUrl()} // Use the safe URL as key
+                    unoptimized
+                  />
                   <div className="hidden sm:block text-left">
                     <p className="text-sm font-medium text-white">
-                      {user?.fullName}
+                      {user?.fullName || "User"}
                     </p>
                     <p className="text-xs text-white/50">
-                      {user?.email}
+                      {user?.email || ""}
                     </p>
                   </div>
                   <ChevronRight className="w-4 h-4 text-white/60" />
@@ -288,7 +327,7 @@ export default function DashboardPage() {
         </div>
       </nav>
 
-      {/* === MAIN CONTENT === */}
+      {/* Main Content */}
       <main className="pt-16 min-h-screen z-10 bg-[#0a0a0a]">
         <div className="max-w-7xl mx-auto p-8">
           <Breadcrumb
