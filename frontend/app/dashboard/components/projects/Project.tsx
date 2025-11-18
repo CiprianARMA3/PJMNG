@@ -30,7 +30,7 @@ export default function ProjectTemplate() {
               loading="eager"
               priority
               sizes="(max-width: 768px) 100vw, (max-width: 1200px) 80vw, 1200px"
-              quality={85}
+              quality={60}
             />
 
               <div className="absolute inset-0 bg-gradient-to-t from-white/5 to-transparent"></div>

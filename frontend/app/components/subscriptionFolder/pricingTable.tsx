@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo, memo } from 'react';
 import { ArrowRight, Check, X, HelpCircle } from 'lucide-react';
 
 // Types
@@ -16,8 +16,8 @@ interface PricingTableProps {
   className?: string;
 }
 
-// Tooltip Component
-const Tooltip = ({ content }: { content: string }) => (
+// Memoized Tooltip Component
+const Tooltip = memo(({ content }: { content: string }) => (
   <div className="relative flex group">
     <HelpCircle className="w-5 h-5 text-gray-400 cursor-help" />
     <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 bg-[#1a1a1a] rounded-lg text-white text-sm w-48 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-10">
@@ -25,9 +25,35 @@ const Tooltip = ({ content }: { content: string }) => (
       <div className="absolute top-full left-1/2 transform -translate-x-1/2 border-4 border-transparent border-t-[#1a1a1a]"></div>
     </div>
   </div>
-);
+));
+Tooltip.displayName = 'Tooltip';
 
-// Rewritten Tier Data from JSON
+// Memoized Feature Value Component
+const FeatureValue = memo(({ value }: { value: string | boolean | number }) => {
+  if (typeof value === 'boolean') {
+    return value ? (
+      <Check className="w-5 h-5 text-purple-600 flex-shrink-0" />
+    ) : (
+      <X className="w-5 h-5 text-gray-400 flex-shrink-0" />
+    );
+  }
+  return <p className="text-white text-sm text-center m-0">{value}</p>;
+});
+FeatureValue.displayName = 'FeatureValue';
+
+// Memoized CTA Link Component
+const CtaLink = memo(({ tier }: { tier: PricingTier }) => (
+  <a
+    href={tier.ctaLink}
+    className="flex items-center gap-2 text-white opacity-80 hover:opacity-100 transition-opacity no-underline"
+  >
+    <span className="text-sm">{tier.ctaText}</span>
+    <ArrowRight className="w-4 h-4 flex-shrink-0" />
+  </a>
+));
+CtaLink.displayName = 'CtaLink';
+
+// Constants
 const defaultTiers: PricingTier[] = [
   {
     name: 'Individual',
@@ -97,7 +123,6 @@ const defaultTiers: PricingTier[] = [
   }
 ];
 
-// Feature categories for JSON-based structure
 const featureCategories = [
   {
     name: 'Productivity',
@@ -145,66 +170,65 @@ const featureCategories = [
 
 // Main Component
 const PricingTable: React.FC<PricingTableProps> = ({ tiers = defaultTiers, className = '' }) => {
-  const safeTiers = tiers || defaultTiers;
+  const safeTiers = useMemo(() => tiers || defaultTiers, [tiers]);
 
-  const renderFeatureValue = (value: string | boolean | number) => {
-    if (typeof value === 'boolean') {
-      return value ? (
-        <Check className="w-5 h-5 text-purple-600" />
-      ) : (
-        <X className="w-5 h-5 text-gray-400" />
-      );
-    }
-    return <p className="text-white text-sm text-center">{value}</p>;
-  };
+  const isDevelopersTier = useMemo(() => 
+    (tierName: string) => tierName === 'Developers',
+    []
+  );
 
-  return (
-    <div className={`w-full text-white font-sans ${className}`}>
-      {/* Header */}
-      <div className="grid grid-cols-4 border border-[#222225]">
-        <div></div>
-        {safeTiers.map((tier) => (
-          <div
-            key={tier.name}
-            className={`p-5 border ${tier.name === 'Developers' ? 'border-purple-600' : 'border-[#222225]'}`}
-          >
-            <h4 className="text-xl font-semibold m-0">{tier.name}</h4>
+  // Memoized header section
+  const headerSection = useMemo(() => (
+    <div className="grid grid-cols-4 border border-[#222225]">
+      <div></div>
+      {safeTiers.map((tier) => (
+        <div
+          key={tier.name}
+          className={`p-5 border ${
+            isDevelopersTier(tier.name) ? 'border-purple-600' : 'border-[#222225]'
+          }`}
+        >
+          <h4 className="text-xl font-semibold m-0 mb-2">{tier.name}</h4>
+          <CtaLink tier={tier} />
+        </div>
+      ))}
+    </div>
+  ), [safeTiers, isDevelopersTier]);
 
-            <a
-              href={tier.ctaLink}
-              className="flex items-center gap-2 text-white opacity-80 hover:opacity-100 transition-opacity"
-            >
-              <span className="text-sm">{tier.ctaText}</span>
-              <ArrowRight className="w-4 h-4" />
-            </a>
+  // Memoized feature sections
+  const featureSections = useMemo(() => 
+    featureCategories.map((category) => (
+      <div key={category.name} className="border border-[#222225]">
+        <div className="grid grid-cols-4 bg-[#121212] p-4 font-medium">
+          {category.name}
+        </div>
+
+        {category.features.map((feature) => (
+          <div key={feature.key} className="grid grid-cols-4 border-t border-[#222225]">
+            <div className="p-4 text-sm opacity-90 flex items-center">
+              {feature.label}
+            </div>
+            {safeTiers.map((tier) => (
+              <div
+                key={`${tier.name}-${feature.key}`}
+                className={`p-4 flex items-center justify-center border-l border-[#222225]`}
+              >
+                <FeatureValue value={tier.features[feature.key]} />
+              </div>
+            ))}
           </div>
         ))}
       </div>
+    )),
+    [safeTiers]
+  );
 
-      {/* Feature Sections */}
-      {featureCategories.map((category) => (
-        <div key={category.name} className="border border-[#222225]">
-          <div className="grid grid-cols-4 bg-[#121212] p-4 font-medium">{category.name}</div>
-
-          {category.features.map((feature) => (
-            <div key={feature.key} className="grid grid-cols-4 border-t border-[#222225]">
-              <div className="p-4 text-sm opacity-90">{feature.label}</div>
-              {safeTiers.map((tier) => (
-                <div
-                  key={tier.name + feature.key}
-                  className={`p-4 flex items-center justify-center border-l ${
-                    tier.name === 'Developers' ? 'border-[#222225]' : 'border-[#222225]'
-                  }`}
-                >
-                  {renderFeatureValue(tier.features[feature.key])}
-                </div>
-              ))}
-            </div>
-          ))}
-        </div>
-      ))}
+  return (
+    <div className={`w-full text-white font-sans ${className}`}>
+      {headerSection}
+      {featureSections}
     </div>
   );
 };
 
-export default PricingTable;
+export default memo(PricingTable);
