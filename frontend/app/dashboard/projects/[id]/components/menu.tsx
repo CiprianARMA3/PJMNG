@@ -33,11 +33,11 @@ export default function Menu({ project, user }: MenuProps) {
           icon: LayoutGrid,
           href: `/dashboard/projects/${project.id}`,
         },
-        {
-          label: "Concepts",
-          icon: BookOpen,
-          href: `/dashboard/projects/${project.id}/concepts`,
-        },
+        // {
+        //   label: "Concepts",
+        //   icon: BookOpen,
+        //   href: `/dashboard/projects/${project.id}/concepts`,
+        // },
         {
           label: "Board",
           icon: KanbanSquare,
@@ -100,7 +100,7 @@ export default function Menu({ project, user }: MenuProps) {
   return (
     <>
       {/* Top bar */}
-      <header className="fixed top-0 left-0 right-0 h-16 bg-[#0a0a0a]/20 backdrop-blur-md border-b border-white/10 z-50 flex items-center justify-between px-6 ml-64">
+      <header className="fixed top-0 left-0 right-0 h-16 bg-[#0a0a0a]/20 backdrop-blur-xl border-b border-white/10 z-50 flex items-center justify-between px-6 ml-64">
         {/* Left: search bar */}
         <div className="flex items-center gap-2 w-1/2">
           <Search className="w-5 h-5 text-white/50" />
@@ -141,6 +141,8 @@ export default function Menu({ project, user }: MenuProps) {
 
       {/* Sidebar */}
       <aside className="w-64 bg-[#0c0c0c] border-r border-white/10 flex flex-col fixed inset-y-0 top-0 z-40 mt-[-50px]">
+
+
         <div>
           {/* Project Header */}
           <div className="p-6 flex items-center gap-3 mt-16">

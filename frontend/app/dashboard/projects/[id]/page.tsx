@@ -2,6 +2,11 @@ import { createClient } from "@/utils/supabase/server";
 import { redirect } from "next/navigation";
 import { cookies } from "next/headers";
 import Menu from "./components/menu";
+import HEATMAP from "./components/charts/contributions-heatmap";
+import PIECHART from "./components/charts/piechart";
+import PIECHARTSISSUES from "./components/charts/piechart-issues";
+import CALENDAR from "./components/charts/calendar";
+import AIUSAGE from "./components/charts/ai-usage";
 import {
   ArrowLeft,
   ExternalLink,
@@ -19,6 +24,12 @@ import {
   Workflow,
   Bot,
   Code,
+  MessageCircle,
+  Twitter,
+  Youtube,
+  Facebook,
+  Linkedin,
+  Instagram,
 } from "lucide-react";
 import Link from "next/link";
 
@@ -34,6 +45,23 @@ interface Project {
   metadata: any;
   created_at: string;
 }
+
+// Function to get platform icon
+const getPlatformIcon = (platform: string) => {
+  const platformIcons: { [key: string]: any } = {
+    github: Github,
+    discord: MessageCircle,
+    twitter: Twitter,
+    youtube: Youtube,
+    facebook: Facebook,
+    linkedin: Linkedin,
+    instagram: Instagram,
+    website: Globe,
+    default: ExternalLink,
+  };
+
+  return platformIcons[platform] || platformIcons.default;
+};
 
 export default async function ProjectPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -65,6 +93,25 @@ export default async function ProjectPage({ params }: { params: Promise<{ id: st
 
   const getAvatarUrl = () => user?.user_metadata?.avatar_url || "/default-avatar.png";
 
+  // Get all link metadata and generate buttons
+  const metadataLinks = Object.entries(project.metadata || {})
+    .filter(([key, value]) => {
+      // Only include keys that end with "-link", have a value, and are not project-icon or project-banner
+      return key.endsWith('-link') && 
+             value && 
+             value !== '' && 
+             !key.includes('project-icon') && 
+             !key.includes('project-banner');
+    })
+    .map(([key, value]) => {
+      const platform = key.replace('-link', '');
+      return {
+        key,
+        url: value as string,
+        platform
+      };
+    });
+
   const navItems = [
     { label: "Dashboard", icon: LayoutGrid, href: `/dashboard/projects/${project.id}` },
     { label: "Concepts", icon: BookOpen, href: `/dashboard/projects/${project.id}/concepts` },
@@ -81,10 +128,9 @@ export default async function ProjectPage({ params }: { params: Promise<{ id: st
 
       {/* Left Sidebar */}
       <Menu project={project} user={user} />
-
       {/* Main Content */}
       <main className="flex-1 ml-64 min-h-screen overflow-y-auto bg-[#0a0a0a]">
-        <div className="max-w-6xl mx-auto pt-16">
+        <div className="mx-auto pt-16">
 
           {/* Project Header */}
           <div className="relative">
@@ -98,7 +144,7 @@ export default async function ProjectPage({ params }: { params: Promise<{ id: st
               <div className="w-full h-64 bg-gradient-to-r from-purple-600/20 to-blue-600/20"></div>
             )}
 
-            <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black to-transparent p-8">
+            <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-[#0a0a0a] to-transparent p-8">
               <div className="flex items-end justify-between">
                 <div className="flex items-end gap-6">
                   {project.metadata?.["project-icon"] && (
@@ -126,10 +172,23 @@ export default async function ProjectPage({ params }: { params: Promise<{ id: st
                       Visit Website
                     </a>
                   )}
-                  <button className="flex items-center gap-2 px-4 py-2 bg-purple-600 hover:bg-purple-700 rounded-lg text-white transition-colors">
-                    <Share2 size={16} />
-                    Share
-                  </button>
+                  
+                  {/* Auto-generated metadata links */}
+                  {metadataLinks.map((link) => {
+                    const IconComponent = getPlatformIcon(link.platform);
+                    return (
+                      <a
+                        key={link.key}
+                        href={link.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex items-center justify-center w-10 h-10 bg-white hover:bg-gray-100 rounded-full transition-colors border border-gray-200 hover:border-gray-300"
+                        title={link.platform.charAt(0).toUpperCase() + link.platform.slice(1)}
+                      >
+                        <IconComponent className="w-5 h-5 text-gray-800" />
+                      </a>
+                    );
+                  })}
                 </div>
               </div>
             </div>
@@ -144,93 +203,28 @@ export default async function ProjectPage({ params }: { params: Promise<{ id: st
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+              <HEATMAP/>
+              <PIECHART />
+              <PIECHARTSISSUES/>
+
+               <div className="lg:col-span-2 ">
+                <CALENDAR />
+              </div>
+              <AIUSAGE/>
 
               {/* Main Panel */}
               <div className="lg:col-span-2 space-y-6">
-                {/* Quick Stats */}
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                  <div className="bg-white/5 rounded-xl p-4 text-center">
-                    <div className="text-2xl font-bold text-white">{project.collaborators}</div>
-                    <div className="text-white/60 text-sm">Collaborators</div>
-                  </div>
-                  <div className="bg-white/5 rounded-xl p-4 text-center">
-                    <div className="text-2xl font-bold text-white">{project.max_collaborators}</div>
-                    <div className="text-white/60 text-sm">Max Capacity</div>
-                  </div>
-                  <div className="bg-white/5 rounded-xl p-4 text-center">
-                    <div className="text-2xl font-bold text-white">{new Date(project.created_at).toLocaleDateString()}</div>
-                    <div className="text-white/60 text-sm">Created</div>
-                  </div>
-                  <div className="bg-white/5 rounded-xl p-4 text-center">
-                    <div className="text-2xl font-bold text-white">{isCreator ? "Owner" : "Collaborator"}</div>
-                    <div className="text-white/60 text-sm">Your Role</div>
-                  </div>
-                </div>
-
-                {/* Project Links */}
-                <div className="bg-white/5 backdrop-blur-lg border border-white/10 rounded-xl p-6">
-                  <h2 className="text-lg font-semibold text-white mb-4">Project Links</h2>
-                  <div className="space-y-3">
-                    {project.website_url && (
-                      <a href={project.website_url} target="_blank" rel="noopener noreferrer" className="flex items-center justify-between p-3 bg-white/5 rounded-lg hover:bg-white/10 transition-colors group">
-                        <div className="flex items-center gap-3"><Globe className="w-5 h-5 text-blue-400" /> <span className="text-white">Website</span></div>
-                        <ExternalLink className="w-4 h-4 text-white/40 group-hover:text-white" />
-                      </a>
-                    )}
-                    {project.github_repo_url && (
-                      <a href={project.github_repo_url} target="_blank" rel="noopener noreferrer" className="flex items-center justify-between p-3 bg-white/5 rounded-lg hover:bg-white/10 transition-colors group">
-                        <div className="flex items-center gap-3"><Github className="w-5 h-5 text-gray-400" /> <span className="text-white">GitHub Repository</span></div>
-                        <ExternalLink className="w-4 h-4 text-white/40 group-hover:text-white" />
-                      </a>
-                    )}
-                    {Object.entries(project.metadata || {}).map(([key, value]) => {
-                      if (key.includes("link") && value && !key.includes("project-")) {
-                        const platform = key.replace("-link", "");
-                        return (
-                          <a key={key} href={value as string} target="_blank" rel="noopener noreferrer" className="flex items-center justify-between p-3 bg-white/5 rounded-lg hover:bg-white/10 transition-colors group">
-                            <div className="flex items-center gap-3"><div className="w-5 h-5 flex items-center justify-center"><span className="text-sm capitalize">{platform[0]}</span></div><span className="text-white capitalize">{platform}</span></div>
-                            <ExternalLink className="w-4 h-4 text-white/40 group-hover:text-white" />
-                          </a>
-                        );
-                      }
-                      return null;
-                    })}
-                  </div>
-                </div>
-
-                {/* Project Description */}
-                <div className="bg-white/5 backdrop-blur-lg border border-white/10 rounded-xl p-6">
-                  <h2 className="text-lg font-semibold text-white mb-4">About</h2>
-                  <p className="text-white/70 leading-relaxed">{project.description || "No description provided."}</p>
-                </div>
+                {/* Your existing content */}
               </div>
 
               {/* Sidebar Panel */}
               <div className="space-y-6">
-                {/* Quick Actions */}
-                <div className="bg-white/5 backdrop-blur-lg border border-white/10 rounded-xl p-6">
-                  <h3 className="text-lg font-semibold text-white mb-4">Quick Actions</h3>
-                  <div className="space-y-3">
-                    <Link href={`/dashboard/projects/${project.id}/settings`} className="w-full flex items-center gap-3 px-4 py-3 bg-white/10 hover:bg-white/20 rounded-lg text-white transition-colors"><Settings size={18} /> Project Settings</Link>
-                    <Link href={`/dashboard/projects/${project.id}/team`} className="w-full flex items-center gap-3 px-4 py-3 bg-white/10 hover:bg-white/20 rounded-lg text-white transition-colors"><Users size={18} /> Manage Team</Link>
-                  </div>
-                </div>
-
-                {/* Project Info */}
-                <div className="bg-white/5 backdrop-blur-lg border border-white/10 rounded-xl p-6">
-                  <h3 className="text-lg font-semibold text-white mb-4">Project Info</h3>
-                  <div className="space-y-3 text-sm">
-                    <div className="flex justify-between"><span className="text-white/60">Status</span><span className="text-green-400">Active</span></div>
-                    <div className="flex justify-between"><span className="text-white/60">Created</span><span className="text-white">{new Date(project.created_at).toLocaleDateString()}</span></div>
-                    <div className="flex justify-between"><span className="text-white/60">Collaborators</span><span className="text-white">{project.collaborators}/{project.max_collaborators}</span></div>
-                    <div className="flex justify-between"><span className="text-white/60">Your Role</span><span className="text-white">{isCreator ? "Owner" : "Collaborator"}</span></div>
-                  </div>
-                </div>
+                {/* Your existing content */}
               </div>
 
             </div>
           </div>
-                    <br /><br /><br /><br />
+          <br /><br /><br /><br />
         </div>
       </main>
     </div>
