@@ -1,116 +1,84 @@
-'use client';
+"use client";
 
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts';
 
 const data = [
-  { name: 'Management', value: 2, color: '#8b5cf6' },
-  { name: 'Frontend', value: 10, color: '#3b82f6' },
-  { name: 'Backend', value: 10, color: '#06b6d4' },
+  { name: 'Management', value: 2, color: '#8b5cf6' }, // Purple
+  { name: 'Frontend', value: 10, color: '#3b82f6' },  // Blue
+  { name: 'Backend', value: 10, color: '#06b6d4' },   // Cyan
 ];
+
+const CustomTooltip = ({ active, payload }: any) => {
+  if (active && payload && payload.length) {
+    return (
+      <div className="bg-[#0a0a0a]/95 backdrop-blur border border-white/10 p-3 rounded-lg shadow-xl">
+        <p className="text-white font-medium text-sm mb-1">{payload[0].name}</p>
+        <p className="text-white/60 text-xs">
+          {payload[0].value} members
+        </p>
+      </div>
+    );
+  }
+  return null;
+};
 
 export default function TeamCompositionChart() {
   const total = data.reduce((sum, item) => sum + item.value, 0);
 
-  const renderTooltip = ({ active, payload }: any) => {
-    if (active && payload && payload.length) {
-      return (
-        <div className="bg-[#0a0a0a] border border-gray-700 rounded-lg p-3">
-          <p className="text-white font-medium">{payload[0].name}</p>
-          <p className="text-blue-400">{payload[0].value} members</p>
-          <p className="text-gray-400 text-sm">
-            {((payload[0].value / total) * 100).toFixed(1)}%
-          </p>
-        </div>
-      );
-    }
-    return null;
-  };
-
   return (
-    <div className="bg-transparent border border-white/10 rounded-lg p-6">
-      {/* Title */}
-      <h3 className="text-white font-semibold text-lg mb-8">Team Composition</h3>
+    <div className="bg-[#0a0a0a] border border-white/10 rounded-xl p-6 h-full flex flex-col">
+      <div className="flex items-center justify-between mb-4">
+        <h3 className="text-white font-semibold text-lg">Team</h3>
+        <button className="text-xs text-white/40 hover:text-white transition-colors">View All</button>
+      </div>
       
-      <div className="flex items-start gap-8">
-        {/* Donut Chart - Left */}
-        <div className="flex-1 max-w-[180px] h-48">
+      <div className="flex-1 flex flex-col items-center justify-center">
+        {/* Chart */}
+        <div className="h-[200px] w-full relative">
           <ResponsiveContainer width="100%" height="100%">
             <PieChart>
               <Pie
                 data={data}
                 cx="50%"
                 cy="50%"
-                innerRadius={45}
-                outerRadius={65}
-                paddingAngle={2}
+                innerRadius={60}
+                outerRadius={80}
+                paddingAngle={4}
                 dataKey="value"
                 stroke="none"
               >
                 {data.map((entry, index) => (
-                  <Cell 
-                    key={`cell-${index}`} 
-                    fill={entry.color}
-                  />
+                  <Cell key={`cell-${index}`} fill={entry.color} />
                 ))}
               </Pie>
-              <Tooltip content={renderTooltip} />
-              {/* Center text */}
-              <text 
-                x="50%" 
-                y="45%" 
-                textAnchor="middle" 
-                dominantBaseline="middle"
-                className="fill-white text-xs font-medium"
-              >
-                Total
-              </text>
-              <text 
-                x="50%" 
-                y="60%" 
-                textAnchor="middle" 
-                dominantBaseline="middle"
-                className="fill-white text-xl font-bold"
-              >
-                {total}
-              </text>
+              <Tooltip content={<CustomTooltip />} />
             </PieChart>
           </ResponsiveContainer>
+          
+          {/* Center Text */}
+          <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+            <span className="text-3xl font-bold text-white">{total}</span>
+            <span className="text-xs text-white/40 uppercase tracking-wider font-medium">Total</span>
+          </div>
         </div>
 
-        {/* Labels with amounts - Right */}
-        <div className="flex-1">
-          <div className="space-y-2">
-            {data.map((item) => (
-              <div 
-                key={item.name} 
-                className="flex items-center justify-between group px-3 py-2 rounded-lg transition-all duration-200 hover:bg-[#0a0a0a] cursor-pointer"
-              >
-                <div className="flex items-center gap-3 flex-1">
-                  <div 
-                    className="w-3 h-3 rounded-sm transition-transform group-hover:scale-110"
-                    style={{ backgroundColor: item.color }}
-                  />
-                  <span className="text-white font-medium text-m">{item.name}</span>
+        {/* Legend */}
+        <div className="w-full mt-4 space-y-1">
+          {data.map((item) => {
+             const percentage = ((item.value / total) * 100).toFixed(0);
+             return (
+              <div key={item.name} className="flex items-center justify-between p-2 rounded hover:bg-white/5 transition-colors cursor-default group">
+                <div className="flex items-center gap-3">
+                  <div className="w-2 h-2 rounded-full shadow-lg shadow-white/10" style={{ backgroundColor: item.color }} />
+                  <span className="text-sm text-white/70 group-hover:text-white transition-colors">{item.name}</span>
                 </div>
-                <div className="text-right">
-                  <div className="text-white font-semibold text-m">{item.value}</div>
-                  <div className="text-gray-400 text-xs">
-                    {((item.value / total) * 100).toFixed(0)}%
-                  </div>
+                <div className="flex items-center gap-3">
+                  <span className="text-sm font-medium text-white">{item.value}</span>
+                  <span className="text-xs text-white/30 w-8 text-right">{percentage}%</span>
                 </div>
               </div>
-            ))}
-            
-            {/* Total Separator */}
-            <div className="border-t border-white/10 pt-2 mt-2">
-              <div className="flex items-center justify-between px-3 py-2 rounded-lg transition-all duration-200 hover:bg-[#0a0a0a] cursor-pointer">
-                <span className="text-white font-semibold text-sm">Total Members</span>
-                <div className="text-right">
-                  <div className="text-white font-bold text-sm">{total}</div>
-                </div>
-              </div>
-            </div>
-          </div>
+             )
+          })}
         </div>
       </div>
     </div>

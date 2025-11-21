@@ -1,4 +1,4 @@
-'use client';
+"use client";
 
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, ReferenceLine } from 'recharts';
 
@@ -12,98 +12,91 @@ const data = [
   { day: 'Sun', tokens: 1900 },
 ];
 
+const CustomTooltip = ({ active, payload, label }: any) => {
+  if (active && payload && payload.length) {
+    return (
+      <div className="bg-[#0a0a0a]/90 backdrop-blur-md border border-white/10 p-3 rounded-lg shadow-xl">
+        <p className="text-white/60 text-xs mb-1">{label}</p>
+        <p className="text-white font-bold text-sm">
+          {payload[0].value.toLocaleString()} <span className="text-purple-400 font-normal">tokens</span>
+        </p>
+      </div>
+    );
+  }
+  return null;
+};
+
 const AITokenUsageChart = () => {
   const dailyAverage = data.reduce((sum, day) => sum + day.tokens, 0) / data.length;
   const weeklyTotal = data.reduce((sum, day) => sum + day.tokens, 0);
   const remainingCredits = 100000 - weeklyTotal;
 
   return (
-    <div className="bg-transparent border border-white/10 rounded-lg p-6 h-full min-h-[400px] flex flex-col">
-      {/* Credits Header */}
-      <div className="flex items-center justify-between mb-6 p-4 bg-white/2 rounded-lg border border-white/10">
-        <div className="flex items-center gap-3">
-          <div className="w-3 h-3 bg-gradient-to-r from-purple-500 to-blue-500 rounded-full"></div>
-          <span className="text-white font-semibold text-lg">AI CREDITS</span>
+    <div className="bg-[#0a0a0a] border border-white/10 rounded-xl p-6 h-full min-h-[400px] flex flex-col relative overflow-hidden group">
+      {/* Subtle glow effect behind */}
+      <div className="absolute -top-20 -right-20 w-64 h-64 bg-purple-500/5 rounded-full blur-3xl pointer-events-none" />
+
+      {/* Header */}
+      <div className="flex items-start justify-between mb-8 z-10">
+        <div>
+          <h3 className="text-white font-semibold text-lg">Token Usage</h3>
+          <p className="text-white/40 text-sm">Weekly consumption monitoring</p>
         </div>
         <div className="text-right">
-          <div className="text-white font-bold text-2xl">{remainingCredits.toLocaleString()}</div>
-          <div className="text-gray-400 text-sm">remaining</div>
+          <div className="text-2xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-white to-white/60">
+            {remainingCredits.toLocaleString()}
+          </div>
+          <div className="flex items-center justify-end gap-1.5">
+             <div className="w-1.5 h-1.5 rounded-full bg-purple-500 animate-pulse" />
+             <span className="text-purple-400 text-xs font-medium uppercase tracking-wide">Credits Left</span>
+          </div>
         </div>
       </div>
 
       {/* Chart */}
-      <div className="flex-1 flex flex-col">
-        <h3 className="text-white font-semibold text-lg text-center mb-6">Token Usage This Week</h3>
-        <div className="flex-1 flex items-end">
-          <ResponsiveContainer width="100%" height="100%">
-            <BarChart 
-              data={data}
-              margin={{ top: 0, right: 20, left: 20, bottom: 10 }}
-              barSize={32}
-            >
-              <defs>
-                <linearGradient id="aiGradient" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor="#8b5cf6" stopOpacity={0.9}/>
-                  <stop offset="50%" stopColor="#6366f1" stopOpacity={0.7}/>
-                  <stop offset="100%" stopColor="#3b82f6" stopOpacity={0.5}/>
-                </linearGradient>
-              </defs>
-              <CartesianGrid 
-                strokeDasharray="2 2" 
-                stroke="#374151" 
-                vertical={false} 
-                horizontal={true}
-              />
-              <XAxis 
-                dataKey="day" 
-                axisLine={false}
-                tickLine={false}
-                tick={{ fill: '#9ca3af', fontSize: 12 }}
-              />
-              <YAxis 
-                axisLine={false}
-                tickLine={false}
-                tick={{ fill: '#9ca3af', fontSize: 11 }}
-                width={35}
-                tickFormatter={(value) => `${(value / 1000).toFixed(0)}k`}
-              />
-              <Tooltip
-                cursor={false}
-                contentStyle={{ 
-                  backgroundColor: '#0a0a0a',
-                  border: '1px solid #374151',
-                  borderRadius: '8px',
-                  color: '#ffffff'
-                }}
-                formatter={(value) => [`${value} tokens`, '']}
-                labelFormatter={(label) => `${label}`}
-              />
-              {/* Daily Average Line */}
-              <ReferenceLine 
-                y={dailyAverage} 
-                stroke="#10b981" 
-                strokeDasharray="3 3"
-                strokeWidth={1.5}
-              />
-              <Bar 
-                dataKey="tokens" 
-                fill="url(#aiGradient)"
-                radius={[6, 6, 0, 0]}
-              />
-            </BarChart>
-          </ResponsiveContainer>
-        </div>
+      <div className="flex-1 w-full min-h-[200px]">
+        <ResponsiveContainer width="100%" height="100%">
+          <BarChart data={data} margin={{ top: 10, right: 0, left: -20, bottom: 0 }} barSize={28}>
+            <defs>
+              <linearGradient id="aiGradient" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stopColor="#8b5cf6" stopOpacity={1} />
+                <stop offset="100%" stopColor="#6366f1" stopOpacity={0.4} />
+              </linearGradient>
+            </defs>
+            <CartesianGrid strokeDasharray="3 3" stroke="#ffffff10" vertical={false} />
+            <XAxis 
+              dataKey="day" 
+              axisLine={false} 
+              tickLine={false} 
+              tick={{ fill: '#737373', fontSize: 12 }} 
+              dy={10}
+            />
+            <YAxis 
+              axisLine={false} 
+              tickLine={false} 
+              tick={{ fill: '#737373', fontSize: 11 }} 
+              tickFormatter={(value) => `${(value / 1000).toFixed(0)}k`}
+            />
+            <Tooltip content={<CustomTooltip />} cursor={{ fill: '#ffffff05' }} />
+            <ReferenceLine y={dailyAverage} stroke="#10b981" strokeDasharray="3 3" strokeOpacity={0.5} />
+            <Bar 
+              dataKey="tokens" 
+              fill="url(#aiGradient)" 
+              radius={[6, 6, 0, 0]} 
+            />
+          </BarChart>
+        </ResponsiveContainer>
       </div>
 
-      {/* Averages Footer - Smaller and Compact */}
-      <div className="grid grid-cols-2 gap-3 mt-4 pt-4 border-t border-white/10">
-        <div className="text-center p-2 bg-white/5 rounded-lg border border-white/10">
-          <div className="text-gray-400 text-xs mb-1">Daily Avg</div>
-          <div className="text-green-400 font-bold text-lg">{dailyAverage.toFixed(0)}</div>
+      {/* Footer Stats */}
+      <div className="grid grid-cols-2 gap-4 mt-6 pt-6 border-t border-white/5">
+        <div>
+          <p className="text-white/40 text-xs uppercase tracking-wider font-medium mb-1">Daily Average</p>
+          <p className="text-white font-medium">{dailyAverage.toFixed(0)} tokens</p>
         </div>
-        <div className="text-center p-2 bg-white/5 rounded-lg border border-white/10">
-          <div className="text-gray-400 text-xs mb-1">Weekly Total</div>
-          <div className="text-blue-400 font-bold text-lg">{(weeklyTotal / 1000).toFixed(1)}k</div>
+        <div className="text-right">
+           <p className="text-white/40 text-xs uppercase tracking-wider font-medium mb-1">Weekly Total</p>
+           <p className="text-white font-medium">{(weeklyTotal / 1000).toFixed(1)}k tokens</p>
         </div>
       </div>
     </div>

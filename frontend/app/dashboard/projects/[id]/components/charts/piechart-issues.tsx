@@ -1,4 +1,4 @@
-'use client';
+"use client";
 
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts';
 import { useEffect } from 'react';
@@ -13,84 +13,45 @@ const data = [
   { day: 'Sun', issues: 3 },
 ];
 
+const CustomTooltip = ({ active, payload, label }: any) => {
+  if (active && payload && payload.length) {
+    return (
+      <div className="bg-[#0a0a0a]/90 backdrop-blur border border-white/10 p-2 rounded-md shadow-lg">
+        <p className="text-white/60 text-[10px] mb-1">{label}</p>
+        <p className="text-rose-400 font-bold text-sm">
+          {payload[0].value} <span className="text-white font-normal">Issues</span>
+        </p>
+      </div>
+    );
+  }
+  return null;
+};
+
 const IssuesBarChart = () => {
-  useEffect(() => {
-    // Remove recharts default hover styles
-    const style = document.createElement('style');
-    style.textContent = `
-      .recharts-bar-rectangle:hover { 
-        fill: url(#redGradient) !important; 
-      }
-      .recharts-active-shape { 
-        fill: url(#redGradient) !important; 
-      }
-      .recharts-tooltip-cursor {
-        fill: transparent !important;
-      }
-      .recharts-layer.recharts-bar-rectangle {
-        outline: none !important;
-      }
-    `;
-    document.head.appendChild(style);
-
-    return () => {
-      document.head.removeChild(style);
-    };
-  }, []);
-
   return (
-    <div className="bg-transparent border border-white/10 rounded-lg p-6 h-full min-h-[300px] flex flex-col">
-      <h3 className="text-white font-semibold text-lg text-center mb-6">Issues This Week</h3>
-      <div className="flex-1 flex items-end">
+    <div className="bg-[#0a0a0a] border border-white/10 rounded-xl p-6 h-full min-h-[300px] flex flex-col">
+      <div className="flex items-center justify-between mb-6">
+         <h3 className="text-white font-semibold text-lg">Reported Issues</h3>
+         <span className="text-xs text-rose-400 bg-rose-400/10 px-2 py-1 rounded border border-rose-400/20 font-medium">+2.4%</span>
+      </div>
+      
+      <div className="flex-1 flex items-end w-full min-h-[150px]">
         <ResponsiveContainer width="100%" height="100%">
-          <BarChart 
-            data={data}
-            margin={{ top: 0, right: 20, left: 20, bottom: 10 }}
-            barSize={32}
-          >
+          <BarChart data={data} margin={{ top: 0, right: 0, left: -25, bottom: 0 }} barSize={32}>
             <defs>
-              <linearGradient id="redGradient" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor="#ef4444" stopOpacity={0.9}/>
-                <stop offset="100%" stopColor="#ef4444" stopOpacity={0.5}/>
+              <linearGradient id="roseGradient" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stopColor="#f43f5e" stopOpacity={0.9}/>
+                <stop offset="100%" stopColor="#be123c" stopOpacity={0.6}/>
               </linearGradient>
             </defs>
-            <CartesianGrid 
-              strokeDasharray="3 3" 
-              stroke="#374151" 
-              vertical={false} 
-              horizontal={true}
-            />
-            <XAxis 
-              dataKey="day" 
-              axisLine={false}
-              tickLine={false}
-              tick={{ fill: '#9ca3af', fontSize: 12 }}
-            />
-            <YAxis 
-              axisLine={false}
-              tickLine={false}
-              tick={{ fill: '#9ca3af', fontSize: 12 }}
-              width={30}
-            />
-            <Tooltip
-              cursor={false} // This removes the background highlight
-              contentStyle={{ 
-                backgroundColor: '#0a0a0a',
-                border: '1px solid #374151',
-                borderRadius: '8px',
-                color: '#ffffff'
-              }}
-              formatter={(value) => [`${value} issues`, '']}
-              labelFormatter={(label) => `${label}`}
-            />
+            <CartesianGrid strokeDasharray="3 3" stroke="#ffffff05" vertical={false} />
+            <XAxis dataKey="day" axisLine={false} tickLine={false} tick={{ fill: '#525252', fontSize: 11 }} dy={10} />
+            <YAxis axisLine={false} tickLine={false} tick={{ fill: '#525252', fontSize: 11 }} />
+            <Tooltip content={<CustomTooltip />} cursor={{ fill: '#ffffff05' }} />
             <Bar 
               dataKey="issues" 
-              fill="url(#redGradient)"
+              fill="url(#roseGradient)" 
               radius={[4, 4, 0, 0]}
-              onMouseOver={(data, index, e) => {
-                // Prevent any default hover behaviors
-                e?.stopPropagation();
-              }}
             />
           </BarChart>
         </ResponsiveContainer>
