@@ -121,7 +121,7 @@ export default function Menu({ project, user }: MenuProps) {
             <div className="flex-1 min-w-0">
                <h2 className="text-sm font-medium text-zinc-100 truncate group-hover:text-white transition-colors">{project.name}</h2>
             </div>
-            <ChevronDown className="w-4 h-4 text-zinc-500 group-hover:text-zinc-300" />
+            {/* <ChevronDown className="w-4 h-4 text-zinc-500 group-hover:text-zinc-300" /> */}
           </div>
         </div>
 

@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { createClient } from "@/utils/supabase/client";
 import Menu from "../components/menu";
+import Image from 'next/image';
 import { 
   Check, 
   MoreHorizontal, 
@@ -20,6 +21,16 @@ interface PageProps {
 }
 
 type Tag = { name: string; color: string; textColor?: string };
+
+type Creator = {
+  id: string;
+  name: string | null;
+  surname: string | null;
+  metadata: {
+    avatar_url?: string;
+    [key: string]: any;
+  };
+}
 
 type Group = {
   id: string;
@@ -39,6 +50,7 @@ type Concept = {
   metadata?: { tags?: Tag[]; completed?: boolean } | null;
   created_at?: string;
   updated_at?: string;
+  creator: Creator | null;
 };
 
 export default function Board({ params }: PageProps) {
@@ -94,8 +106,48 @@ export default function Board({ params }: PageProps) {
       const { data: groupsData } = await supabase.from("groups").select("*").eq("project_id", id).order("created_at", { ascending: true });
       setGroups(groupsData ?? []);
 
-      const { data: conceptsData } = await supabase.from("concepts").select("*").eq("project_id", id).order("created_at", { ascending: true });
-      setConcepts(conceptsData ?? []);
+const { data: conceptsRaw, error: conceptsError } = await supabase
+  .from("concepts")
+  .select(`
+    *,
+    creator:users (
+      id,
+      name,
+      surname,
+      metadata
+    )
+  `)
+  .eq("project_id", id)
+  .order("created_at", { ascending: true });
+
+// Safe fallback if Supabase returns null
+const safeData = Array.isArray(conceptsRaw) ? conceptsRaw : [];
+
+// Normalize creator structure safely
+const normalized = safeData.map((c: any) => ({
+  ...c,
+  creator: c?.creator ? {
+    id: c.creator.id,
+    name: c.creator.name,
+    surname: c.creator.surname,
+    metadata: c.creator.metadata || {}
+  } : null
+}));
+
+// Fallback to original query ONLY IF supabase errored
+if (conceptsError) {
+  const { data: fallbackData } = await supabase
+    .from("concepts")
+    .select("*")
+    .eq("project_id", id)
+    .order("created_at", { ascending: true });
+
+  setConcepts(fallbackData ?? []);
+} else {
+  setConcepts(normalized);
+}
+
+
 
       setLoading(false);
     }
@@ -224,7 +276,29 @@ export default function Board({ params }: PageProps) {
   const closeGroupModal = () => { setEditingGroup(null); setGroupName(""); setGroupTags([]); setShowGroupModal(false); };
   const closeConceptModal = () => { setCurrentConcept(null); setNewTitle(""); setNewDescription(""); setNewTags([]); setShowConceptModal(false); };
 
-  if (loading) return <div className="h-screen bg-[#0a0a0a] text-white flex items-center justify-center">Loading Board...</div>;
+ if (loading) {
+    return (
+      <div role="status" className="flex justify-center items-center h-screen bg-[#0a0a0a]">
+        <svg
+          aria-hidden="true"
+          className="inline w-8 h-8 text-neutral-400 animate-spin fill-white"
+          viewBox="0 0 100 101"
+          fill="none"
+          xmlns="http://www.w3.org/2000/svg"
+        >
+          <path
+            d="M100 50.5908C100 78.2051 77.6142 100.591 50 100.591C22.3858 100.591 0 78.2051 0 50.5908C0 22.9766 22.3858 0.59082 50 0.59082C77.6142 0.59082 100 22.9766 100 50.5908ZM9.08144 50.5908C9.08144 73.1895 27.4013 91.5094 50 91.5094C72.5987 91.5094 90.9186 73.1895 90.9186 50.5908C90.9186 27.9921 72.5987 9.67226 50 9.67226C27.4013 9.67226 9.08144 27.9921 9.08144 50.5908Z"
+            fill="currentColor"
+          />
+          <path
+            d="M93.9676 39.0409C96.393 38.4038 97.8624 35.9116 97.0079 33.5539C95.2932 28.8227 92.871 24.3692 89.8167 20.348C85.8452 15.1192 80.8826 10.7238 75.2124 7.41289C69.5422 4.10194 63.2754 1.94025 56.7698 1.05124C51.7666 0.367541 46.6976 0.446843 41.7345 1.27873C39.2613 1.69328 37.813 4.19778 38.4501 6.62326C39.0873 9.04874 41.5694 10.4717 44.0505 10.1071C47.8511 9.54855 51.7191 9.52689 55.5402 10.0491C60.8642 10.7766 65.9928 12.5457 70.6331 15.2552C75.2735 17.9648 79.3347 21.5619 82.5849 25.841C84.9175 28.9121 86.7997 32.2913 88.1811 35.8758C89.083 38.2158 91.5421 39.6781 93.9676 39.0409Z"
+            fill="currentFill"
+          />
+        </svg>
+        <span className="sr-only">Loading...</span>
+      </div>
+    );
+  }
 
   return (
     <div className="h-screen bg-[#0a0a0a] text-white flex overflow-hidden">
@@ -276,9 +350,16 @@ export default function Board({ params }: PageProps) {
                    <div className="p-3 pl-4 flex justify-between items-start group cursor-grab active:cursor-grabbing">
                       <div className="flex flex-col gap-1">
                         <h2 className="text-sm font-bold text-gray-200 uppercase tracking-wider">{group.name}</h2>
-                        <div className="flex flex-wrap gap-1">
+                        {/* NEW CODE: Full pill tags with text */}
+                        <div className="flex flex-wrap gap-1.5">
                           {group.metadata?.tags?.map((t, i) => (
-                            <div key={i} className="h-1.5 w-6 rounded-full" style={{ backgroundColor: t.color }} title={t.name} />
+                            <span 
+                              key={i} 
+                              style={{ backgroundColor: `${t.color}20`, color: t.color }} 
+                              className="text-[10px] font-bold px-2 py-0.5 rounded border border-transparent"
+                            >
+                              {t.name}
+                            </span>
                           ))}
                         </div>
                       </div>
@@ -308,9 +389,68 @@ export default function Board({ params }: PageProps) {
                             </div>
                           )}
                           {c.description && <div className="mt-2 text-xs text-white/50 line-clamp-2">{c.description}</div>}
-                          <button onClick={(e) => { e.stopPropagation(); toggleCompleted(c); }} className={`absolute bottom-2 right-2 w-6 h-6 flex items-center justify-center rounded-full transition-all duration-200 z-10 ${c.metadata?.completed ? "bg-green-900/50 text-green-500 opacity-100" : "bg-black/40 text-white/20 opacity-0 group-hover:opacity-100 hover:bg-green-900/30 hover:text-green-400"}`}>
-                            <Check size={12} strokeWidth={3} />
-                          </button>
+                          {/* pfp_ */}
+                            {/* Top-right: conditional row if no description and no tags */}
+<div className="absolute top-2 right-2 z-20 flex items-center gap-2">
+  {(!c.metadata?.tags || c.metadata.tags.length === 0) ? (
+    // Top row inline: button left, avatar right (description can exist)
+    <>
+      <button
+        onClick={(e) => { e.stopPropagation(); toggleCompleted(c); }}
+        className={`w-7 h-7 flex items-center justify-center rounded-full transition-all duration-200 ${
+          c.metadata?.completed
+            ? "bg-green-900/50 text-green-500"
+            : "bg-black/40 text-white/20 opacity-0 group-hover:opacity-100 hover:bg-green-900/30 hover:text-green-400"
+        }`}
+      >
+        <Check size={12} strokeWidth={3} />
+      </button>
+
+      <div className="relative group/avatar">
+        <img
+          src={c.creator?.metadata?.avatar_url}
+          className="w-7 h-7 rounded-full border border-white/10 shadow-sm"
+        />
+        {(c.creator?.name || c.creator?.surname) && (
+          <div className="absolute top-8 right-0 whitespace-nowrap px-3 py-2 rounded-md bg-[#111] text-white text-xs opacity-0 group-hover/avatar:opacity-100 transition-opacity duration-200 shadow-lg pointer-events-none">
+            {c.creator.name} {c.creator.surname}
+          </div>
+        )}
+      </div>
+    </>
+  ) : (
+    // Default: avatar top-right, button bottom-right
+    <>
+      {c.creator?.metadata?.avatar_url && (
+        <div className="relative group/avatar">
+          <img
+            src={c.creator.metadata.avatar_url}
+            className="w-7 h-7 rounded-full border border-white/10 shadow-sm"
+          />
+          {(c.creator.name || c.creator.surname) && (
+            <div className="absolute top-[-2] right-10 whitespace-nowrap px-3 py-2 rounded-md bg-[#111] text-white text-xs opacity-0 group-hover/avatar:opacity-100 transition-opacity duration-200 shadow-lg pointer-events-none">
+              {c.creator.name} {c.creator.surname}
+            </div>
+          )}
+        </div>
+      )}
+    </>
+  )}
+</div>
+
+{/* Bottom-right check button for normal cards (only if there are tags) */}
+{(c.metadata?.tags && c.metadata.tags.length > 0) && (
+  <button
+    onClick={(e) => { e.stopPropagation(); toggleCompleted(c); }}
+    className={`absolute bottom-2 right-2 w-7 h-7 flex items-center justify-center rounded-full transition-all duration-200 z-10 ${
+      c.metadata?.completed
+        ? "bg-green-900/50 text-green-500 opacity-100"
+        : "bg-black/40 text-white/20 opacity-0 group-hover:opacity-100 hover:bg-green-900/30 hover:text-green-400"
+    }`}
+  >
+    <Check size={12} strokeWidth={3} />
+  </button>
+)}
                         </div>
                       ))}
                     </div>
@@ -464,81 +604,168 @@ export default function Board({ params }: PageProps) {
       )}
 
       {/* --- MODAL: ADD/EDIT CARD (Concept) --- */}
-      {showConceptModal && (
-        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-in fade-in duration-200">
-          <div className="bg-[#161616] w-full max-w-lg rounded-2xl border border-white/10 shadow-2xl overflow-hidden">
-            <div className="p-6 border-b border-white/5 flex justify-between items-center">
-               <div>
-                <h2 className="text-lg font-semibold text-white">{currentConcept ? "Edit Card" : "New Card"}</h2>
-                <p className="text-xs text-white/40 mt-0.5">in list <span className="text-white/70 font-medium">{conceptGroup}</span></p>
-               </div>
-              <button onClick={closeConceptModal} className="text-white/40 hover:text-white"><X size={20} /></button>
-            </div>
-            <div className="p-6 space-y-5">
-              <input autoFocus className="w-full bg-transparent text-xl font-semibold placeholder:text-white/20 outline-none border-none p-0 focus:ring-0" placeholder="Card Title" value={newTitle} onChange={e => setNewTitle(e.target.value)} />
-              <div>
-                 <label className="text-xs font-bold text-white/40 uppercase mb-2 block">Description</label>
-                 <textarea className="w-full bg-[#0a0a0a] text-white/90 text-sm p-4 rounded-lg border border-white/10 focus:border-purple-500 focus:ring-1 focus:ring-purple-500 outline-none transition-all resize-none min-h-[120px]" placeholder="Add a more detailed description..." value={newDescription} onChange={e => setNewDescription(e.target.value)} />
-              </div>
-              
-              {/* TAGS SECTION */}
-              <div>
-                <label className="text-xs font-bold text-white/40 uppercase mb-2 block">Tags</label>
-                
-                {/* Active Tags on Card */}
-                <div className="flex flex-wrap gap-2 mb-3 min-h-[28px]">
-                  {newTags.map((t, idx) => (
-                    <span key={idx} style={{ backgroundColor: t.color, color: t.textColor ?? "#fff" }} className="text-xs px-2.5 py-1 rounded-md font-medium flex items-center gap-2">{t.name}<button onClick={() => setNewTags(prev => prev.filter((_, i) => i !== idx))}><X size={12} /></button></span>
-                  ))}
-                </div>
+ {showConceptModal && (
+  <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-in fade-in duration-200">
+    <div className="bg-[#161616] w-full max-w-lg rounded-2xl border border-white/10 shadow-2xl overflow-hidden">
+      
+      {/* --- Modal Header --- */}
+      <div className="p-6 border-b border-white/5 flex justify-between items-start">
+        <div className="flex flex-col gap-1">
+          <h2 className="text-lg font-semibold text-white">{currentConcept ? "Edit Card" : "New Card"}</h2>
+          <p className="text-xs text-white/40 mt-0.5">
+            In list <span className="text-white/70 font-medium">{conceptGroup}</span>
+          </p>
 
-                {/* Global Tags Quick Select */}
-                {project?.metadata?.global_tags && project.metadata.global_tags.length > 0 && (
-                   <div className="mb-3">
-                      <p className="text-[10px] text-white/30 uppercase font-bold mb-2">Quick Add Global Tags</p>
-                      <div className="flex flex-wrap gap-2">
-                        {project.metadata.global_tags.map((gt: Tag, idx: number) => {
-                          const isAlreadyAdded = newTags.some(t => t.name === gt.name);
-                          if (isAlreadyAdded) return null;
-                          return (
-                            <button 
-                              key={idx}
-                              onClick={() => setNewTags([...newTags, gt])}
-                              className="text-xs px-2 py-1 rounded border border-white/10 hover:bg-white/5 transition-colors flex items-center gap-2 opacity-70 hover:opacity-100"
-                            >
-                              <div className="w-2 h-2 rounded-full" style={{ backgroundColor: gt.color }}></div>
-                              {gt.name}
-                            </button>
-                          );
-                        })}
-                      </div>
-                   </div>
-                )}
-
-                {/* Manual Tag Creation */}
-                <div className="flex gap-2 items-center">
-                   <div className="flex-1 flex gap-2 bg-[#0a0a0a] p-1.5 rounded-lg border border-white/10">
-                      <input type="text" className="bg-transparent text-sm p-1 flex-1 outline-none ml-1" placeholder="Or create new tag..." value={newTagName} onChange={e => setNewTagName(e.target.value)} onKeyDown={(e) => { if(e.key === 'Enter' && newTagName) { setNewTags([...newTags,{name:newTagName,color:newTagColor,textColor:"#fff"}]); setNewTagName(""); } }}/>
-                      <input type="color" className="w-6 h-6 rounded cursor-pointer bg-transparent border-none self-center" value={newTagColor} onChange={e => setNewTagColor(e.target.value)} />
-                   </div>
-                   <button onClick={() => { if(newTagName){ setNewTags([...newTags,{name:newTagName,color:newTagColor,textColor:"#fff"}]); setNewTagName(""); } }} className="px-4 py-2 bg-white/10 hover:bg-white/20 rounded-lg text-xs font-medium transition-colors">Add</button>
-                </div>
-              </div>
-            </div>
-            <div className="p-4 bg-[#0a0a0a]/50 border-t border-white/5 flex justify-between items-center gap-3">
-              {currentConcept && (
-                 <button onClick={deleteConcept} className="flex items-center gap-2 px-3 py-2 text-red-400 hover:bg-red-500/10 rounded-lg text-sm transition-colors">
-                    <Trash2 size={16} /> Delete
-                 </button>
+          {/* --- Creator + Timestamps --- */}
+          {currentConcept?.creator && (
+            <div className="flex items-center gap-2 text-xs text-white/50 mt-1">
+              {currentConcept.creator.metadata?.avatar_url && (
+                <img
+                  src={currentConcept.creator.metadata.avatar_url}
+                  className="w-5 h-5 rounded-full border border-white/10 shadow-sm "
+                />
               )}
-              <div className="flex gap-3 ml-auto">
-                <button onClick={closeConceptModal} className="px-4 py-2 text-white/60 hover:text-white text-sm font-medium">Cancel</button>
-                <button onClick={saveConcept} className="px-6 py-2 bg-purple-600 hover:bg-purple-500 text-white text-sm font-medium rounded-lg shadow-lg shadow-purple-900/20 transition-all">Save Card</button>
+              <span>
+                Created by{" "}
+                <strong>
+                  {currentConcept.creator.name || currentConcept.creator.id}{" "}
+                  {currentConcept.creator.surname || ""}
+                </strong>
+                , {currentConcept.created_at ? new Date(currentConcept.created_at).toLocaleString() : "unknown"}
+              </span>
+              {currentConcept.updated_at && (
+                <span className="ml-2">
+                  • Updated: {new Date(currentConcept.updated_at).toLocaleString()}
+                </span>
+              )}
+            </div>
+          )}
+        </div>
+
+        <button onClick={closeConceptModal} className="text-white/40 hover:text-white">
+          <X size={20} />
+        </button>
+      </div>
+
+      {/* --- Modal Body --- */}
+      <div className="p-6 space-y-5">
+        <input
+          autoFocus
+          className="w-full bg-transparent text-xl font-semibold placeholder:text-white/20 outline-none border-none p-0 focus:ring-0"
+          placeholder="Card Title"
+          value={newTitle}
+          onChange={e => setNewTitle(e.target.value)}
+        />
+
+        {/* Description */}
+        <div>
+          <label className="text-xs font-bold text-white/40 uppercase mb-2 block">Description</label>
+          <textarea
+            className="w-full bg-[#0a0a0a] text-white/90 text-sm p-4 rounded-lg border border-white/10 focus:border-purple-500 focus:ring-1 focus:ring-purple-500 outline-none transition-all resize-none min-h-[120px]"
+            placeholder="Add a more detailed description..."
+            value={newDescription}
+            onChange={e => setNewDescription(e.target.value)}
+          />
+        </div>
+
+        {/* Tags */}
+        <div>
+          <label className="text-xs font-bold text-white/40 uppercase mb-2 block">Tags</label>
+
+          {/* Active Tags */}
+          <div className="flex flex-wrap gap-2 mb-3 min-h-[28px]">
+            {newTags.map((t, idx) => (
+              <span
+                key={idx}
+                style={{ backgroundColor: t.color, color: t.textColor ?? "#fff" }}
+                className="text-xs px-2.5 py-1 rounded-md font-medium flex items-center gap-2"
+              >
+                {t.name}
+                <button onClick={() => setNewTags(prev => prev.filter((_, i) => i !== idx))}><X size={12} /></button>
+              </span>
+            ))}
+          </div>
+
+          {/* Quick Add Global Tags */}
+          {project?.metadata?.global_tags && project.metadata.global_tags.length > 0 && (
+            <div className="mb-3">
+              <p className="text-[10px] text-white/30 uppercase font-bold mb-2">Quick Add Global Tags</p>
+              <div className="flex flex-wrap gap-2">
+                {project.metadata.global_tags.map((gt: Tag, idx: number) => {
+                  const isAlreadyAdded = newTags.some(t => t.name === gt.name);
+                  if (isAlreadyAdded) return null;
+                  return (
+                    <button
+                      key={idx}
+                      onClick={() => setNewTags([...newTags, gt])}
+                      className="text-xs px-2 py-1 rounded border border-white/10 hover:bg-white/5 transition-colors flex items-center gap-2 opacity-70 hover:opacity-100"
+                    >
+                      <div className="w-2 h-2 rounded-full" style={{ backgroundColor: gt.color }}></div>
+                      {gt.name}
+                    </button>
+                  );
+                })}
               </div>
             </div>
+          )}
+
+          {/* Manual Tag Creation */}
+          <div className="flex gap-2 items-center">
+            <div className="flex-1 flex gap-2 bg-[#0a0a0a] p-1.5 rounded-lg border border-white/10">
+              <input
+                type="text"
+                className="bg-transparent text-sm p-1 flex-1 outline-none ml-1"
+                placeholder="Or create new tag..."
+                value={newTagName}
+                onChange={e => setNewTagName(e.target.value)}
+                onKeyDown={(e) => { if(e.key === 'Enter' && newTagName) { setNewTags([...newTags,{name:newTagName,color:newTagColor,textColor:"#fff"}]); setNewTagName(""); } }}
+              />
+              <input
+                type="color"
+                className="w-6 h-6 rounded cursor-pointer bg-transparent border-none self-center"
+                value={newTagColor}
+                onChange={e => setNewTagColor(e.target.value)}
+              />
+            </div>
+            <button
+              onClick={() => { if(newTagName){ setNewTags([...newTags,{name:newTagName,color:newTagColor,textColor:"#fff"}]); setNewTagName(""); } }}
+              className="px-4 py-2 bg-white/10 hover:bg-white/20 rounded-lg text-xs font-medium transition-colors"
+            >
+              Add
+            </button>
           </div>
         </div>
-      )}
+      </div>
+
+      {/* --- Modal Footer --- */}
+      <div className="p-4 bg-[#0a0a0a]/50 border-t border-white/5 flex justify-between items-center gap-3">
+        {currentConcept && (
+          <button
+            onClick={deleteConcept}
+            className="flex items-center gap-2 px-3 py-2 text-red-400 hover:bg-red-500/10 rounded-lg text-sm transition-colors"
+          >
+            <Trash2 size={16} /> Delete
+          </button>
+        )}
+        <div className="flex gap-3 ml-auto">
+          <button
+            onClick={closeConceptModal}
+            className="px-4 py-2 text-white/60 hover:text-white text-sm font-medium"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={saveConcept}
+            className="px-6 py-2 bg-purple-600 hover:bg-purple-500 text-white text-sm font-medium rounded-lg shadow-lg shadow-purple-900/20 transition-all"
+          >
+            Save Card
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+)}
+
     </div>
   );
 }
