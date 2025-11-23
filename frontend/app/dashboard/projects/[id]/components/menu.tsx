@@ -15,6 +15,10 @@ import {
   Settings,
   Users,
   ChevronDown,
+  Database,
+  Logs,
+  UserCog,
+  BrainCog,
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -44,20 +48,32 @@ export default function Menu({ project, user }: MenuProps) {
       items: [
         { label: "Issues", icon: Bug, href: `/dashboard/projects/${project.id}/issues` },
         { label: "Workflows", icon: Workflow, href: `/dashboard/projects/${project.id}/workflow` },
+        { label: "Repository logs", icon: Logs, href: `/dashboard/projects/${project.id}/workflow` },
       ],
     },
     {
-      title: "Intelligence",
+      title: "Artificial Intelligence",
       items: [
-        { label: "Assistant", icon: Bot, href: `/dashboard/projects/${project.id}/ai` },
-        { label: "Code Review", icon: Code, href: `/dashboard/projects/${project.id}/code-review` },
+        { label: "AI Assistant", icon: Bot, href: `/dashboard/projects/${project.id}/ai` },
+        { label: "AI Code Review", icon: Code, href: `/dashboard/projects/${project.id}/code-review` },
+        { label: "AI SQL Helper", icon: Database, href: `/dashboard/projects/${project.id}/ai-schema` },
+        { label: "AI Roadmap Visualizer", icon: Code, href: `/dashboard/projects/${project.id}/ai-schema` },
       ],
     },
-    {
+        {
       title: "Settings",
       items: [
-        { label: "Project Settings", icon: Settings, href: `/dashboard/projects/${project.id}/settings` },
-        { label: "Team", icon: Users, href: `/dashboard/projects/${project.id}/team` },
+        { label: "Project Settings", icon: Settings, href: `/dashboard/projects/${project.id}/project-settings` },
+        { label: "Collaborators", icon: UserCog, href: `/dashboard/projects/${project.id}/manage-team` },
+        { label: "AI Informations", icon: BrainCog, href: `/dashboard/projects/${project.id}/manage-team` },
+      ],
+    },
+    {
+      title: "Manager Settings",
+      items: [
+        { label: "Project Settings", icon: Settings, href: `/dashboard/projects/${project.id}/project-settings` },
+        { label: "Manage Team", icon: UserCog, href: `/dashboard/projects/${project.id}/manage-team` },
+        { label: "Manage AI Assistant", icon: BrainCog, href: `/dashboard/projects/${project.id}/manage-team` },
       ],
     },
   ];
