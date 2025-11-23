@@ -3,38 +3,38 @@
 import { useEffect, useState } from "react";
 import { createClient } from "@/utils/supabase/client";
 import { 
-  ChevronLeft, 
-  ChevronRight, 
-  Plus, 
-  X, 
-  Calendar as CalendarIcon, 
-  Trash2,
-  Maximize2,
-  Tag as TagIcon
+  ChevronLeft, ChevronRight, X, 
+  Calendar as CalendarIcon, Maximize2, 
+  Bug, Zap, Hammer, CheckCircle2, AlertTriangle, Layers,
+  Clock, Hash
 } from "lucide-react";
 import { useParams } from "next/navigation";
 
 // --- TYPES ---
 type Tag = { name: string; color: string; textColor?: string };
 
-type Creator = {
+type UserProfile = {
   id: string;
   name: string | null;
   surname: string | null;
   metadata: { avatar_url?: string; [key: string]: any };
-}
+};
 
-type Concept = {
+type CalendarItem = {
   id: string;
-  project_id: string;
+  type: 'concept' | 'issue';
   title: string;
   description?: string | null;
-  group_name?: string | null;
-  created_by?: string | null;
-  metadata?: { tags?: Tag[]; completed?: boolean; due_date?: string } | null;
-  created_at?: string;
-  updated_at?: string;
-  creator: Creator | null;
+  date: Date;
+  creator: UserProfile | null;
+  // Concept specific
+  group_name?: string;
+  // Issue specific
+  status?: string;
+  priority?: string;
+  issue_type?: string;
+  // Shared metadata
+  tags?: Tag[];
 };
 
 export default function Calendar() {
@@ -42,106 +42,77 @@ export default function Calendar() {
   const params = useParams();
   const projectId = params.id as string;
 
-  // State
+  // --- STATE ---
   const [currentDate, setCurrentDate] = useState(new Date());
-  const [concepts, setConcepts] = useState<Concept[]>([]);
+  const [items, setItems] = useState<CalendarItem[]>([]);
   const [loading, setLoading] = useState(true);
   
-  // Edit Card Modal State
-  const [showEditModal, setShowEditModal] = useState(false);
-  const [currentConcept, setCurrentConcept] = useState<Concept | null>(null);
-  const [newTitle, setNewTitle] = useState("");
-  const [newDescription, setNewDescription] = useState("");
-  
-  // Tag Editing State
-  const [editTags, setEditTags] = useState<Tag[]>([]);
-  const [newTagName, setNewTagName] = useState("");
-  const [newTagColor, setNewTagColor] = useState("#6366f1"); // Default Indigo
+  // Filters
+  const [showConcepts, setShowConcepts] = useState(true);
+  const [showIssues, setShowIssues] = useState(true);
+
+  // View Modal State
+  const [showModal, setShowModal] = useState(false);
+  const [selectedItem, setSelectedItem] = useState<CalendarItem | null>(null);
 
   // Day Zoom Modal State
   const [zoomedDay, setZoomedDay] = useState<Date | null>(null);
 
   // --- DATA FETCHING ---
   useEffect(() => {
-    fetchConcepts();
+    fetchData();
   }, [projectId]);
 
-  async function fetchConcepts() {
+  async function fetchData() {
     if (!projectId) return;
-    
-    const { data: conceptsRaw, error } = await supabase
-      .from("concepts")
-      .select(`*, creator:users ( id, name, surname, metadata )`)
-      .eq("project_id", projectId);
+    setLoading(true);
 
-    if (!error && conceptsRaw) {
-      const normalized = conceptsRaw.map((c: any) => ({
-        ...c,
-        creator: c?.creator ? {
-          id: c.creator.id,
-          name: c.creator.name,
-          surname: c.creator.surname,
-          metadata: c.creator.metadata || {}
-        } : null
-      }));
-      setConcepts(normalized);
+    const [conceptsRes, issuesRes] = await Promise.all([
+      supabase
+        .from("concepts")
+        .select(`*, creator:users ( id, name, surname, metadata )`)
+        .eq("project_id", projectId),
+      supabase
+        .from("issues")
+        .select(`*, creator:users ( id, name, surname, metadata )`)
+        .eq("project_id", projectId)
+    ]);
+
+    let combinedItems: CalendarItem[] = [];
+
+    if (conceptsRes.data) {
+      combinedItems = combinedItems.concat(conceptsRes.data.map((c: any) => ({
+        id: c.id,
+        type: 'concept',
+        title: c.title,
+        description: c.description,
+        date: new Date(c.created_at),
+        creator: c.creator,
+        group_name: c.group_name,
+        tags: c.metadata?.tags || []
+      })));
     }
+
+    if (issuesRes.data) {
+      combinedItems = combinedItems.concat(issuesRes.data.map((i: any) => ({
+        id: i.id,
+        type: 'issue',
+        title: i.title,
+        description: i.content,
+        date: new Date(i.created_at),
+        creator: i.creator,
+        status: i.status,
+        priority: i.priority,
+        issue_type: i.type,
+        tags: i.metadata?.tags || []
+      })));
+    }
+
+    setItems(combinedItems);
     setLoading(false);
   }
 
-  // --- ACTIONS ---
-  
-  async function saveConcept() {
-    if (!currentConcept || !newTitle.trim()) return;
-    
-    // Create updated metadata preserving other fields (like completed status)
-    const updatedMetadata = { 
-        ...currentConcept.metadata, 
-        tags: editTags 
-    };
-
-    const updatedConcept = { 
-        ...currentConcept, 
-        title: newTitle, 
-        description: newDescription,
-        metadata: updatedMetadata
-    };
-
-    setConcepts(prev => prev.map(c => c.id === currentConcept.id ? updatedConcept : c));
-    setShowEditModal(false);
-
-    await supabase
-      .from("concepts")
-      .update({ 
-          title: newTitle, 
-          description: newDescription, 
-          metadata: updatedMetadata,
-          updated_at: new Date().toISOString() 
-      })
-      .eq("id", currentConcept.id);
-  }
-
-  async function deleteConcept() {
-    if(!currentConcept) return;
-    if(!confirm("Delete this card?")) return;
-    setConcepts(prev => prev.filter(c => c.id !== currentConcept.id));
-    setShowEditModal(false);
-    await supabase.from("concepts").delete().eq("id", currentConcept.id);
-  }
-
-  // Tag Actions
-  function addTag() {
-    if (!newTagName.trim()) return;
-    setEditTags([...editTags, { name: newTagName, color: newTagColor, textColor: "#fff" }]);
-    setNewTagName("");
-  }
-
-  function removeTag(indexToRemove: number) {
-    setEditTags(editTags.filter((_, idx) => idx !== indexToRemove));
-  }
-
   // --- CALENDAR LOGIC ---
-
   const getDaysInMonth = (date: Date) => {
     const year = date.getFullYear();
     const month = date.getMonth();
@@ -165,15 +136,37 @@ export default function Calendar() {
   
   const isSameDay = (d1: Date, d2: Date) => d1.getDate() === d2.getDate() && d1.getMonth() === d2.getMonth() && d1.getFullYear() === d2.getFullYear();
   
-  const openConcept = (c: Concept) => { 
-    setCurrentConcept(c); 
-    setNewTitle(c.title); 
-    setNewDescription(c.description || ""); 
-    setEditTags(c.metadata?.tags || []); // Load existing tags
-    setNewTagName(""); // Reset input
-    setShowEditModal(true); 
+  const openItem = (item: CalendarItem) => { 
+    setSelectedItem(item);
+    setShowModal(true); 
   };
 
+  // --- UI HELPERS ---
+  const getIssueIcon = (type?: string) => {
+      if (type === 'Bug') return <Bug size={10} className="text-red-400" />;
+      if (type === 'Feature') return <Zap size={10} className="text-yellow-400" />;
+      return <Hammer size={10} className="text-blue-400" />;
+  };
+
+  const getItemStyle = (item: CalendarItem) => {
+      if (item.type === 'concept') {
+          return "bg-[#1a1a1a] border border-white/5 border-l-2 border-l-purple-500 hover:bg-[#222]";
+      }
+      if (item.status === 'Resolved') {
+          return "bg-[#111] opacity-60 border border-white/5 bg-[linear-gradient(45deg,transparent_25%,rgba(255,255,255,0.02)_50%,transparent_75%,transparent_100%)] bg-[length:10px_10px]";
+      }
+      switch (item.priority) {
+          case 'Urgent': return "bg-red-950/20 border border-red-500/30 hover:bg-red-900/20";
+          case 'High': return "bg-orange-950/20 border border-orange-500/30 hover:bg-orange-900/20";
+          default: return "bg-[#161616] border border-white/5 hover:bg-white/5";
+      }
+  };
+
+  const filteredItems = items.filter(i => {
+      if (i.type === 'concept' && !showConcepts) return false;
+      if (i.type === 'issue' && !showIssues) return false;
+      return true;
+  });
 
  if (loading) {
     return (
@@ -199,8 +192,7 @@ export default function Calendar() {
     );
   }
   return (
-    <div className="flex-1 flex flex-col h-full bg-[#0a0a0a] text-white overflow-hidden relative">
-      
+    <div className="flex-1 flex flex-col h-full bg-[#0a0a0a] text-white overflow-hidden relative font-sans">
       <style jsx global>{`
         .scrollbar-hide::-webkit-scrollbar { display: none; }
         .scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
@@ -208,23 +200,41 @@ export default function Calendar() {
 
       {/* Header */}
       <div className="flex-none px-6 py-4 flex items-center justify-between border-b border-white/5 bg-[#0a0a0a]">
-        <div className="flex items-center gap-4">
-          <h2 className="text-2xl font-bold tracking-tight flex items-center gap-2">
-            {currentDate.toLocaleString('default', { month: 'long' })} 
-            <span className="text-white/30 font-light">{currentDate.getFullYear()}</span>
-          </h2>
-          <div className="flex items-center bg-[#161616] rounded-lg border border-white/10 p-0.5">
-             <button onClick={prevMonth} className="p-1.5 hover:bg-white/10 rounded-md text-white/60 hover:text-white transition-colors"><ChevronLeft size={18} /></button>
-             <button onClick={goToToday} className="px-3 py-1 text-xs font-bold uppercase tracking-wider text-white/60 hover:text-white transition-colors">Today</button>
-             <button onClick={nextMonth} className="p-1.5 hover:bg-white/10 rounded-md text-white/60 hover:text-white transition-colors"><ChevronRight size={18} /></button>
-          </div>
+        <div className="flex items-center gap-6">
+            <div className="flex items-center gap-4">
+              <h2 className="text-2xl font-bold tracking-tight flex items-center gap-2">
+                {currentDate.toLocaleString('default', { month: 'long' })} 
+                <span className="text-white/30 font-light">{currentDate.getFullYear()}</span>
+              </h2>
+              <div className="flex items-center bg-[#161616] rounded-lg border border-white/5 p-0.5">
+                 <button onClick={prevMonth} className="p-1.5 hover:bg-white/10 rounded-md text-white/60 hover:text-white transition-colors"><ChevronLeft size={16} /></button>
+                 <button onClick={goToToday} className="px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-white/60 hover:text-white transition-colors">Today</button>
+                 <button onClick={nextMonth} className="p-1.5 hover:bg-white/10 rounded-md text-white/60 hover:text-white transition-colors"><ChevronRight size={16} /></button>
+              </div>
+            </div>
+
+            <div className="h-6 w-px bg-white/5 hidden md:block"></div>
+            <div className="flex items-center gap-2">
+                <button 
+                    onClick={() => setShowConcepts(!showConcepts)} 
+                    className={`px-3 py-1.5 rounded-md text-[10px] font-bold uppercase tracking-wider border transition-all flex items-center gap-2 ${showConcepts ? 'bg-purple-500/10 border-purple-500/20 text-purple-400' : 'bg-transparent border-white/5 text-white/40 hover:text-white'}`}
+                >
+                    <Layers size={12}/> Concepts
+                </button>
+                <button 
+                    onClick={() => setShowIssues(!showIssues)} 
+                    className={`px-3 py-1.5 rounded-md text-[10px] font-bold uppercase tracking-wider border transition-all flex items-center gap-2 ${showIssues ? 'bg-blue-500/10 border-blue-500/20 text-blue-400' : 'bg-transparent border-white/5 text-white/40 hover:text-white'}`}
+                >
+                    <Bug size={12}/> Issues
+                </button>
+            </div>
         </div>
       </div>
 
       {/* Weekday Headers */}
       <div className="flex-none grid grid-cols-7 border-b border-white/5 bg-[#0a0a0a]">
         {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map(day => (
-          <div key={day} className="py-2 text-center text-xs font-bold uppercase tracking-wider text-white/30">
+          <div key={day} className="py-2 text-center text-[10px] font-bold uppercase tracking-wider text-white/30">
             {day}
           </div>
         ))}
@@ -233,70 +243,65 @@ export default function Calendar() {
       {/* Main Grid */}
       <div className="flex-1 grid grid-cols-7 grid-rows-6 bg-[#161616] gap-px border-b border-white/5 min-h-0">
         {calendarDays.map((cell, idx) => {
-          const dayConcepts = concepts.filter(c => {
-             const targetDate = c.created_at ? new Date(c.created_at) : new Date();
-             return isSameDay(targetDate, cell.date);
-          });
+          const dayItems = filteredItems.filter(i => isSameDay(i.date, cell.date));
           const isToday = isSameDay(cell.date, new Date());
           
-          const MAX_VISIBLE = 3;
-          const visibleConcepts = dayConcepts.slice(0, MAX_VISIBLE);
-          const hiddenCount = dayConcepts.length - MAX_VISIBLE;
+          const MAX_VISIBLE = 4;
+          const visibleItems = dayItems.slice(0, MAX_VISIBLE);
+          const hiddenCount = dayItems.length - MAX_VISIBLE;
 
           return (
             <div 
               key={idx} 
               className={`
-                relative bg-[#0a0a0a] p-2 flex flex-col gap-1 group transition-colors hover:bg-[#0f0f0f] min-h-0 overflow-hidden
+                relative bg-[#0a0a0a] p-1.5 flex flex-col gap-1 group transition-colors hover:bg-[#0f0f0f] min-h-0 overflow-hidden
                 ${!cell.currentMonth ? "bg-[#0a0a0a]/50 text-white/20" : "text-white"}
               `}
               onClick={(e) => { if(e.target === e.currentTarget) setZoomedDay(cell.date); }}
             >
-              {/* Date Header */}
               <div className="flex-none flex justify-between items-start mb-1">
                  <span className={`
-                    text-sm font-medium w-7 h-7 flex items-center justify-center rounded-full
-                    ${isToday ? "bg-purple-600 text-white shadow-lg shadow-purple-900/40" : "text-white/40 group-hover:text-white"}
+                    text-xs font-medium w-6 h-6 flex items-center justify-center rounded-full
+                    ${isToday ? "bg-purple-600 text-white" : "text-white/40 group-hover:text-white"}
                  `}>
                     {cell.day}
-                    {cell.day === 1 && cell.currentMonth && <span className="ml-1 text-[10px] opacity-50">{cell.date.toLocaleString('default', { month: 'short' })}</span>}
                  </span>
                  <button 
                     onClick={(e) => { e.stopPropagation(); setZoomedDay(cell.date); }}
-                    className="opacity-0 group-hover:opacity-100 p-1 hover:bg-white/10 rounded text-white/40 hover:text-white transition-all"
+                    className="opacity-0 group-hover:opacity-100 p-0.5 hover:bg-white/10 rounded text-white/40 hover:text-white transition-all"
                  >
-                    <Maximize2 size={12} />
+                    <Maximize2 size={10} />
                  </button>
               </div>
 
-              {/* Cards List */}
+              {/* Items List (Tiny) */}
               <div className="flex-1 flex flex-col gap-1 overflow-hidden">
-                 {visibleConcepts.map(c => (
+                 {visibleItems.map(item => (
                     <div 
-                      key={c.id}
-                      onClick={(e) => { e.stopPropagation(); openConcept(c); }}
+                      key={item.id}
+                      onClick={(e) => { e.stopPropagation(); openItem(item); }}
                       className={`
-                        cursor-pointer p-2 rounded border border-white/5 hover:border-white/20 transition-all text-xs shadow-sm group/card flex-shrink-0
-                        ${c.metadata?.completed ? "bg-[#111] opacity-60" : "bg-[#1a1a1a] hover:bg-[#222]"}
+                        cursor-pointer px-1.5 py-1 rounded text-[10px] shadow-sm group/card flex-shrink-0 flex items-center gap-1.5
+                        ${getItemStyle(item)}
                       `}
                     >
-                       {c.metadata?.tags && c.metadata.tags.length > 0 && (
-                         <div className="flex flex-wrap gap-1 mb-1.5">
-                           {c.metadata.tags.map((t, i) => (
-                             <div key={i} className="h-0.5 w-3 rounded-full" style={{ backgroundColor: t.color }} />
-                           ))}
-                         </div>
+                       {item.type === 'issue' ? (
+                           <>
+                             {getIssueIcon(item.issue_type)}
+                             <span className={`truncate ${item.status === 'Resolved' ? 'line-through text-white/30' : 'text-gray-300'}`}>{item.title}</span>
+                           </>
+                       ) : (
+                           <span className="truncate text-gray-300 pl-1">{item.title}</span>
                        )}
-                       <div className="font-medium truncate leading-tight text-gray-200">{c.title}</div>
                     </div>
                  ))}
                  
                  {hiddenCount > 0 && (
                     <button 
                         onClick={(e) => { e.stopPropagation(); setZoomedDay(cell.date); }}
-                        className="mt-auto text-[10px] font-bold text-white/40 hover:text-white text-left hover:bg-white/5 p-1 rounded transition-colors"
+                        className="mt-auto text-[9px] font-bold text-white/40 hover:text-white text-left hover:bg-white/5 p-1 rounded transition-colors"
                     >
-                        + {hiddenCount} more cards...
+                        + {hiddenCount} more
                     </button>
                  )}
               </div>
@@ -307,8 +312,8 @@ export default function Calendar() {
 
       {/* --- DAY ZOOM MODAL --- */}
       {zoomedDay && (
-        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-[40] p-4 animate-in fade-in duration-200">
-            <div className="bg-[#161616] w-full max-w-lg rounded-2xl border border-white/10 shadow-2xl overflow-hidden flex flex-col max-h-[85vh]">
+        <div className="fixed inset-0 bg-black/90 backdrop-blur-sm flex items-center justify-center z-[40] p-4 animate-in fade-in duration-200">
+            <div className="bg-[#161616] w-full max-w-lg rounded-2xl border border-white/5 shadow-2xl overflow-hidden flex flex-col max-h-[85vh]">
                 <div className="p-6 border-b border-white/5 flex justify-between items-center bg-[#161616]">
                     <div>
                         <div className="text-xs text-white/40 uppercase font-bold tracking-wider mb-1">
@@ -323,179 +328,179 @@ export default function Calendar() {
                     </button>
                 </div>
                 
-                <div className="p-6 overflow-y-auto scrollbar-hide bg-[#0a0a0a]">
-                     <div className="space-y-3">
-                        {concepts
-                            .filter(c => {
-                                const targetDate = c.created_at ? new Date(c.created_at) : new Date();
-                                return isSameDay(targetDate, zoomedDay);
-                            })
-                            .map(c => (
-                                <div 
-                                    key={c.id}
-                                    onClick={() => openConcept(c)}
-                                    className={`
-                                        cursor-pointer p-3 rounded-xl border border-white/5 hover:border-white/20 transition-all group/card flex flex-col gap-2
-                                        ${c.metadata?.completed ? "bg-[#111] opacity-60" : "bg-[#161616] hover:bg-[#222]"}
-                                    `}
-                                >
-                                    <div className="flex justify-between items-start gap-3">
-                                        <h3 className={`font-medium text-sm flex-1 ${c.metadata?.completed ? "line-through text-white/30" : "text-gray-100"}`}>
-                                            {c.title}
-                                        </h3>
-                                        {c.metadata?.tags && c.metadata.tags.length > 0 && (
-                                            <div className="flex flex-wrap gap-1.5 justify-end max-w-[60%]">
-                                                {c.metadata.tags.map((t, i) => (
-                                                    <span key={i} style={{ backgroundColor: t.color, color: t.textColor || "#fff" }} className="text-[10px] font-bold px-2 py-0.5 rounded-md whitespace-nowrap">
+                <div className="p-4 overflow-y-auto scrollbar-hide bg-[#0a0a0a]">
+                     {(() => {
+                        const dayItems = filteredItems.filter(i => isSameDay(i.date, zoomedDay));
+                        
+                        if (dayItems.length === 0) {
+                            return (
+                                <div className="flex flex-col items-center justify-center py-12 text-white/30">
+                                    <CalendarIcon size={32} className="mb-3 opacity-30" />
+                                    <p className="text-sm font-medium">No events happened in that day.</p>
+                                </div>
+                            );
+                        }
+
+                        return (
+                            <div className="space-y-2">
+                                {dayItems.map(item => (
+                                    <div 
+                                        key={item.id}
+                                        onClick={() => openItem(item)}
+                                        className={`
+                                            cursor-pointer p-4 rounded-lg border transition-all group/card flex flex-col gap-2 relative overflow-hidden
+                                            ${getItemStyle(item)}
+                                        `}
+                                    >
+                                        <div className="flex justify-between items-start gap-3">
+                                            <div className="flex items-center gap-2 flex-1 min-w-0">
+                                                {item.type === 'issue' && (
+                                                    <div className="flex-none p-1 rounded bg-black/30 border border-white/5">
+                                                        {getIssueIcon(item.issue_type)}
+                                                    </div>
+                                                )}
+                                                <h3 className={`font-medium text-sm truncate ${item.status === 'Resolved' ? "line-through text-white/30" : "text-gray-100"}`}>
+                                                    {item.title}
+                                                </h3>
+                                            </div>
+                                            {item.type === 'concept' && <span className="text-[10px] uppercase font-bold tracking-wider text-purple-400 bg-purple-500/10 px-1.5 py-0.5 rounded border border-purple-500/20">Concept</span>}
+                                            {item.type === 'issue' && <span className={`text-[10px] uppercase font-bold tracking-wider px-1.5 py-0.5 rounded border ${item.status === 'Resolved' ? 'bg-green-900/10 text-green-500 border-green-500/20' : 'bg-white/5 text-white/40 border-white/10'}`}>{item.status}</span>}
+                                        </div>
+
+                                        {item.description && <p className="text-xs text-white/40 line-clamp-1 pl-1">{item.description}</p>}
+                                        
+                                        <div className="flex items-center justify-between pt-3 border-t border-white/5 border-dashed mt-1">
+                                            <div className="flex items-center gap-2">
+                                                {item.creator?.metadata?.avatar_url && (
+                                                    <img src={item.creator.metadata.avatar_url} className="w-6 h-6 rounded-full border border-white/10" alt="" />
+                                                )}
+                                                <span className="text-[10px] text-white/30">
+                                                    {item.creator?.name || "Unknown"}
+                                                </span>
+                                            </div>
+                                            <div className="flex flex-wrap gap-1.5 justify-end">
+                                                {item.tags && item.tags.slice(0, 4).map((t, i) => (
+                                                    <span 
+                                                        key={i} 
+                                                        className="text-[9px] px-1.5 py-0.5 rounded border font-medium"
+                                                        style={{ 
+                                                            backgroundColor: `${t.color}15`,
+                                                            borderColor: `${t.color}30`,
+                                                            color: t.color 
+                                                        }}
+                                                    >
                                                         {t.name}
                                                     </span>
                                                 ))}
+                                                {item.tags && item.tags.length > 4 && <span className="text-[9px] text-white/20 px-1">+{item.tags.length - 4}</span>}
                                             </div>
-                                        )}
-                                    </div>
-                                    {c.description && <p className="text-xs text-white/40 line-clamp-2">{c.description}</p>}
-                                    <div className="flex items-center justify-between pt-1 border-t border-white/5 mt-1">
-                                        <div className="flex items-center gap-2 pt-2">
-                                            {c.creator?.metadata?.avatar_url && (
-                                                <img src={c.creator.metadata.avatar_url} className="w-5 h-5 rounded-full border border-white/10" alt="" />
-                                            )}
-                                            <span className="text-[10px] text-white/30">
-                                                {c.creator?.name || "Unknown"}
-                                            </span>
                                         </div>
-                                        {c.group_name && <span className="text-[9px] uppercase tracking-wide border border-white/10 px-1.5 py-0.5 rounded text-white/30 mt-2">{c.group_name}</span>}
                                     </div>
-                                </div>
-                            ))
-                        }
-                        {concepts.filter(c => {
-                             const targetDate = c.created_at ? new Date(c.created_at) : new Date();
-                             return isSameDay(targetDate, zoomedDay);
-                        }).length === 0 && (
-                            <div className="text-center py-12 text-white/20 text-sm border-2 border-dashed border-white/5 rounded-xl">
-                                No cards for this day.
+                                ))}
                             </div>
-                        )}
-                     </div>
+                        );
+                     })()}
                 </div>
             </div>
         </div>
       )}
 
-      {/* --- EDIT CARD MODAL --- */}
-      {showEditModal && currentConcept && (
-        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-[50] p-4 animate-in fade-in duration-200">
-            <div className="bg-[#161616] w-full max-w-lg rounded-2xl border border-white/10 shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
-                <div className="p-6 border-b border-white/5 flex justify-between items-start">
+      {/* --- READ-ONLY DETAILS MODAL --- */}
+      {showModal && selectedItem && (
+        <div className="fixed inset-0 bg-black/90 backdrop-blur-sm flex items-center justify-center z-[50] p-4 animate-in fade-in duration-200">
+            <div className="bg-[#161616] w-full max-w-lg rounded-2xl border border-white/5 shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
+                
+                {/* Modal Header */}
+                <div className="p-6 border-b border-white/5 flex justify-between items-start bg-[#1a1a1a]">
                     <div className="flex flex-col gap-1">
                         <div className="flex items-center gap-2 text-xs text-white/40 uppercase font-bold tracking-wider mb-1">
                             <CalendarIcon size={12} /> 
-                            {currentConcept.created_at && new Date(currentConcept.created_at).toLocaleDateString()}
+                            {new Date(selectedItem.date).toLocaleDateString()}
+                            <span className="text-white/20">•</span>
+                            <span className={selectedItem.type === 'issue' ? "text-blue-400" : "text-purple-400"}>
+                                {selectedItem.type === 'issue' ? 'Issue' : 'Concept'}
+                            </span>
                         </div>
-                        <h2 className="text-lg font-semibold text-white">Edit Card</h2>
+                        <h2 className="text-xl font-bold text-white leading-tight">
+                            {selectedItem.title}
+                        </h2>
                     </div>
-                    <button onClick={() => setShowEditModal(false)} className="text-white/40 hover:text-white"><X size={20} /></button>
+                    <button onClick={() => setShowModal(false)} className="text-white/40 hover:text-white transition-colors bg-white/5 p-2 rounded-lg hover:bg-white/10"><X size={20} /></button>
                 </div>
 
-                <div className="p-6 space-y-6 overflow-y-auto scrollbar-hide">
-                    {/* Title Input */}
-                    <div>
-                        <label className="text-xs font-bold text-white/40 uppercase mb-2 block">Title</label>
-                        <input 
-                            className="w-full bg-[#0a0a0a] text-white p-3 rounded-lg border border-white/10 focus:border-purple-500 outline-none transition-all"
-                            value={newTitle}
-                            onChange={e => setNewTitle(e.target.value)}
-                        />
-                    </div>
-
-                    {/* Description Input */}
-                    <div>
-                        <label className="text-xs font-bold text-white/40 uppercase mb-2 block">Description</label>
-                        <textarea 
-                            className="w-full bg-[#0a0a0a] text-white/80 p-3 rounded-lg border border-white/10 focus:border-purple-500 outline-none transition-all min-h-[100px] resize-none"
-                            value={newDescription}
-                            onChange={e => setNewDescription(e.target.value)}
-                        />
-                    </div>
-
-                    {/* --- NEW: TAGS SECTION --- */}
-                    <div>
-                        <label className="text-xs font-bold text-white/40 uppercase mb-2 block flex items-center gap-2">
-                            <TagIcon size={12} /> Tags
-                        </label>
-                        
-                        {/* Active Tags List */}
-                        <div className="flex flex-wrap gap-2 mb-3">
-                            {editTags.map((tag, idx) => (
+                {/* Modal Body */}
+                <div className="p-6 space-y-6 overflow-y-auto scrollbar-hide bg-[#161616]">
+                    
+                    {/* Tags Section */}
+                    {selectedItem.tags && selectedItem.tags.length > 0 && (
+                        <div className="flex flex-wrap gap-2">
+                            {selectedItem.tags.map((tag, idx) => (
                                 <span 
                                     key={idx} 
-                                    style={{ backgroundColor: tag.color, color: tag.textColor || "#fff" }} 
-                                    className="text-xs px-2.5 py-1 rounded-md font-medium flex items-center gap-2 shadow-sm"
+                                    className="text-xs px-2.5 py-1 rounded-md font-medium border"
+                                    style={{ 
+                                        backgroundColor: `${tag.color}15`, 
+                                        borderColor: `${tag.color}30`,
+                                        color: tag.color 
+                                    }}
                                 >
                                     {tag.name}
-                                    <button 
-                                        onClick={() => removeTag(idx)} 
-                                        className="hover:bg-black/20 rounded-full p-0.5 transition-colors"
-                                    >
-                                        <X size={10} />
-                                    </button>
                                 </span>
                             ))}
                         </div>
+                    )}
 
-                        {/* Add New Tag Input */}
-                        <div className="flex gap-2 items-center bg-[#0a0a0a] p-1.5 rounded-lg border border-white/10">
-                            <input 
-                                type="text" 
-                                className="bg-transparent text-sm p-1 flex-1 outline-none placeholder:text-white/20" 
-                                placeholder="Add a tag..." 
-                                value={newTagName} 
-                                onChange={e => setNewTagName(e.target.value)}
-                                onKeyDown={(e) => { if(e.key === 'Enter') addTag(); }}
-                            />
-                            <input 
-                                type="color" 
-                                className="w-6 h-6 rounded cursor-pointer bg-transparent border-none" 
-                                value={newTagColor} 
-                                onChange={e => setNewTagColor(e.target.value)} 
-                            />
-                            <button 
-                                onClick={addTag} 
-                                className="px-3 py-1 bg-white/10 hover:bg-white/20 rounded text-xs font-medium transition-colors"
-                            >
-                                Add
-                            </button>
+                    {/* Description Section */}
+                    <div className="p-4 bg-[#0a0a0a] rounded-xl border border-white/5">
+                        <label className="text-[10px] font-bold text-white/30 uppercase block mb-3 flex items-center gap-2">
+                            Description
+                        </label>
+                        <div className="text-sm text-white/70 leading-relaxed whitespace-pre-wrap font-light">
+                            {selectedItem.description || <span className="text-white/20 italic">No description provided.</span>}
                         </div>
                     </div>
-                    {/* --- END TAGS SECTION --- */}
-
-                    {/* Info Footer inside Body */}
-                    <div className="flex gap-4 p-4 bg-white/5 rounded-lg border border-white/5">
-                        <div className="flex items-center gap-3">
-                             <div className="w-8 h-8 rounded-full bg-purple-500/20 text-purple-400 flex items-center justify-center font-bold">
-                                {currentConcept.creator?.name?.[0] || "U"}
-                             </div>
-                             <div>
-                                <div className="text-xs text-white/40 uppercase">Created By</div>
-                                <div className="text-sm font-medium">{currentConcept.creator?.name || "Unknown"}</div>
-                             </div>
-                        </div>
-                        <div className="w-px bg-white/10"></div>
-                        <div>
-                             <div className="text-xs text-white/40 uppercase">List</div>
-                             <div className="text-sm font-medium">{currentConcept.group_name}</div>
-                        </div>
+                    
+                    {/* Metadata Grid */}
+                    <div className="grid grid-cols-2 gap-4">
+                        {selectedItem.type === 'issue' && (
+                            <>
+                                <div className="p-3 bg-[#0a0a0a] rounded border border-white/5">
+                                    <label className="text-[10px] font-bold text-white/30 uppercase block mb-1">Priority</label>
+                                    <div className="flex items-center gap-2 text-sm text-white/80">
+                                        {selectedItem.priority === 'Urgent' ? <AlertTriangle size={14} className="text-red-500"/> : <Hash size={14} className="text-white/20"/>}
+                                        {selectedItem.priority}
+                                    </div>
+                                </div>
+                                <div className="p-3 bg-[#0a0a0a] rounded border border-white/5">
+                                    <label className="text-[10px] font-bold text-white/30 uppercase block mb-1">Status</label>
+                                    <div className="flex items-center gap-2 text-sm text-white/80">
+                                        {selectedItem.status === 'Resolved' ? <CheckCircle2 size={14} className="text-green-500"/> : <Clock size={14} className="text-white/20"/>}
+                                        {selectedItem.status}
+                                    </div>
+                                </div>
+                            </>
+                        )}
+                        {selectedItem.type === 'concept' && selectedItem.group_name && (
+                            <div className="p-3 bg-[#0a0a0a] rounded border border-white/5 col-span-2">
+                                <label className="text-[10px] font-bold text-white/30 uppercase block mb-1">Group List</label>
+                                <div className="text-sm text-white/80">{selectedItem.group_name}</div>
+                            </div>
+                        )}
                     </div>
-                </div>
 
-                {/* Footer Actions */}
-                <div className="p-4 bg-[#0a0a0a]/50 border-t border-white/5 flex justify-between items-center">
-                    <button onClick={deleteConcept} className="flex items-center gap-2 px-3 py-2 text-red-400 hover:bg-red-500/10 rounded-lg text-sm transition-colors">
-                        <Trash2 size={16} /> Delete
-                    </button>
-                    <div className="flex gap-3">
-                        <button onClick={() => setShowEditModal(false)} className="px-4 py-2 text-white/60 hover:text-white text-sm font-medium">Cancel</button>
-                        <button onClick={saveConcept} className="px-6 py-2 bg-purple-600 hover:bg-purple-500 text-white text-sm font-medium rounded-lg shadow-lg shadow-purple-900/20 transition-all">Save Changes</button>
+                    {/* Creator Footer */}
+                    <div className="flex gap-4 p-4 bg-white/5 rounded-lg border border-white/5 items-center">
+                         <div className="w-10 h-10 rounded-full bg-[#222] border border-white/10 flex items-center justify-center font-bold text-white/60 overflow-hidden">
+                            {selectedItem.creator?.metadata?.avatar_url ? (
+                                <img src={selectedItem.creator.metadata.avatar_url} className="w-full h-full object-cover"/>
+                            ) : (
+                                selectedItem.creator?.name?.[0] || "?"
+                            )}
+                         </div>
+                         <div>
+                            <div className="text-[10px] text-white/40 uppercase font-bold tracking-wider">Created By</div>
+                            <div className="text-sm font-medium text-white">{selectedItem.creator?.name || "Unknown User"} {selectedItem.creator?.surname}</div>
+                         </div>
                     </div>
                 </div>
             </div>
