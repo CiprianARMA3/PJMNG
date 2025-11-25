@@ -48,7 +48,7 @@ export default function Menu({ project, user }: MenuProps) {
       items: [
         { label: "Issues", icon: Bug, href: `/dashboard/projects/${project.id}/issues` },
         { label: "Workflows", icon: Workflow, href: `/dashboard/projects/${project.id}/workflow` },
-        { label: "Repository logs", icon: Logs, href: `/dashboard/projects/${project.id}/workflow` },
+        { label: "Repository logs", icon: Logs, href: `/dashboard/projects/${project.id}/repository-logs` },
       ],
     },
     {
