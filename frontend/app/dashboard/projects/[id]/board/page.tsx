@@ -316,8 +316,12 @@ if (conceptsError) {
         {/* Header */}
         <div className="flex-none h-14 mt-[55px] px-6 border-b border-white/5 flex items-center justify-between bg-[#0a0a0a]/50 backdrop-blur-sm z-10">
           <div className="flex items-center gap-4">
-             <h1 className="text-lg font-bold tracking-tight">{project?.name || "Project Board"}</h1>
-             <span className="px-2 py-0.5 bg-white/5 text-white/40 text-[10px] uppercase font-bold tracking-wider rounded border border-white/5">Board View</span>
+             {/* <h1 className="text-lg font-bold tracking-tight">{project?.name || "Project Board"}</h1>
+             <span className="px-2 py-0.5 bg-white/5 text-white/40 text-[10px] uppercase font-bold tracking-wider rounded border border-white/5">Board View</span> */}
+            <h1 className="text-xl font-bold tracking-tight">Board <span className="text-white/30 text-lg font-light">Overview</span></h1>
+
+            {/* <h1 className="text-xl font-bold tracking-tight">{project.name} <span className="text-white/30 text-lg font-light ml-2">Board</span></h1> */}
+
           </div>
           <div className="flex items-center gap-2">
             <button 

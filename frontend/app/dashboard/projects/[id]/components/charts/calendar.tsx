@@ -1,742 +1,509 @@
-'use client';
+"use client";
 
-import { useEffect, useState, useMemo, useCallback } from "react";
-import { ChevronLeft, ChevronRight, Clock, MoreHorizontal, Calendar as CalendarIcon, Loader2, Tag as TagIcon, X, Users, Info, ExternalLink } from 'lucide-react';
+import { useEffect, useState, useMemo } from "react";
+import { createClient } from "@/utils/supabase/client";
+import { 
+  Calendar as CalendarIcon, Table as TableIcon, 
+  X, ChevronLeft, ChevronRight,
+  Clock, Video, ExternalLink, Minimize2, Maximize2, Tag as TagIcon
+} from "lucide-react";
+import { useParams } from "next/navigation";
 
-// --- GOOGLE API CONFIGURATION (Sample Keys Provided) ---
-// IMPORTANT: These are sample keys and will not work. 
-// Replace them with your actual Google API Key and Calendar ID to fetch live data.
-const SAMPLE_API_KEY = "AIzaSyD_ExampleNonFunctionalKey_ReplaceMe12345";
-const SAMPLE_CALENDAR_ID = "example@group.calendar.google.com";
+// --- TYPES ---
+type Tag = { name: string; color: string; textColor?: string };
 
-const API_KEY = SAMPLE_API_KEY;
-const CALENDAR_ID = SAMPLE_CALENDAR_ID;
-const BASE_URL = "https://www.googleapis.com/calendar/v3/calendars";
-const IS_SAMPLE_KEY = API_KEY === SAMPLE_API_KEY;
-// -----------------------------------------------------------
-
-
-// --- Type Definitions ---
-
-type ApiEvent = {
-  id: string;
-  summary: string;
-  description?: string;
-  start: { dateTime: string };
-  end: { dateTime: string };
-  organizer: { email: string };
-  colorId?: string;
-  htmlLink?: string; // Added for external link
-};
-
-type Creator = {
+type UserProfile = {
   id: string;
   name: string | null;
-  surname: string | null;
-  metadata: { [key: string]: any; };
-}
+  metadata: { avatar_url?: string; [key: string]: any };
+};
 
-type Concept = {
+type LinkedIssue = {
   id: string;
+  title: string;
+  type: string;
+  metadata: { tags?: Tag[]; [key: string]: any };
+};
+
+type Task = {
+  id: string;
+  project_id: string;
   title: string;
   description?: string | null;
-  creator: Creator | null;
+  status: string;
+  task_date: string;
+  start_time: string;
+  end_time: string;
+  issue_id?: string | null;
+  issue?: LinkedIssue | null;
+  creator_id: string | null;
+  creator?: UserProfile | null; 
+  metadata: {
+    meeting_link?: string;
+    attendees?: string[]; 
+    tags?: Tag[]; 
+    [key: string]: any;
+  };
 };
 
-interface Project {
-  id: string;
-  name: string;
-  description: string;
-  created_by: string;
-  metadata: { [key: string]: any; };
-}
+export default function ProjectCalendar() {
+  const supabase = createClient();
+  const params = useParams();
+  const projectId = params.id as string;
 
-type CalendarEvent = {
-  id: string;
-  start: Date;
-  end: Date;
-  title: string;
-  description: string | null | undefined;
-  lead: string;
-  category: string;
-  categoryColor: string;
-  status: 'Done' | 'Upcoming' | 'Later' | 'Overdue';
-  concept: Concept; 
-  htmlLink?: string; // Added to main event type
-};
+  // --- STATE ---
+  const [tasks, setTasks] = useState<Task[]>([]);
+  const [userMap, setUserMap] = useState<Record<string, UserProfile>>({});
+  const [loading, setLoading] = useState(true);
+  
+  // View State
+  const [viewMode, setViewMode] = useState<'calendar' | 'table'>('calendar');
+  const [startDate, setStartDate] = useState<Date>(new Date());
+  const [numDaysInView, setNumDaysInView] = useState(7); 
+  const [hourHeight, setHourHeight] = useState(60); 
 
-// Global map to ensure color consistency across categories (mock color logic)
-const categoryColorMap: { [key: string]: string } = {};
-const defaultColors = [
-    '#A855F7', // purple (1) - Default GCal 7
-    '#EC4899', // pink (2) - Default GCal 11
-    '#3B82F6', // blue (3) - Default GCal 9
-    '#10B981', // green (4) - Default GCal 10
-    '#F59E0B', // yellow (5) - Default GCal 4
-    '#EF4444', // red (6) - Default GCal 8
-    '#0EA5E9', // sky (7) - Default GCal 5
-    '#EAB308', // amber (8) - Default GCal 6
-    '#F472B6', // rose (9) - Default GCal 3
-    '#22C55E', // emerald (10) - Default GCal 2
-    '#6366F1', // indigo (11) - Default GCal 1
-];
+  // Modal State
+  const [selectedTask, setSelectedTask] = useState<Task | null>(null);
 
-// --- Helper Functions ---
+  // --- CONFIG ---
+  const START_HOUR = 0;
+  const END_HOUR = 24;
+  const HOURS = Array.from({ length: END_HOUR - START_HOUR }, (_, i) => START_HOUR + i);
 
-const isSameDay = (d1: Date, d2: Date) => {
-    return d1.getFullYear() === d2.getFullYear() &&
-           d1.getMonth() === d2.getMonth() &&
-           d1.getDate() === d2.getDate();
-};
+  // --- DATA FETCHING ---
+  useEffect(() => {
+    if (projectId) fetchData();
+  }, [projectId]);
 
-const isDateInRange = (date: Date, start: Date, end: Date) => {
-    // Normalize date to start of day for accurate comparison
-    const normalizeDate = (d: Date) => new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
+  // --- SCROLL LOCKING EFFECT ---
+  useEffect(() => {
+    if (selectedTask) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = 'unset';
+    }
+    return () => { document.body.style.overflow = 'unset'; }
+  }, [selectedTask]);
+
+  const fetchData = async () => {
+    setLoading(true);
+    const { data: tasksData } = await supabase
+        .from("tasks")
+        .select(`*, issue:issue_id(id, title, type, metadata), creator:creator_id(id, name, metadata)`)
+        .eq("project_id", projectId);
     
-    const dateOnly = normalizeDate(date);
-    const startOnly = normalizeDate(start);
-    const endOnly = normalizeDate(end);
+    if (tasksData) setTasks(tasksData as any);
+
+    const { data: usersData } = await supabase
+        .from("project_users")
+        .select("user:users(id, name, metadata)")
+        .eq("project_id", projectId);
     
-    // We check if the day is between the start and end days (inclusive)
-    return dateOnly >= startOnly && dateOnly <= endOnly;
-};
+    if (usersData) {
+        const map: Record<string, UserProfile> = {};
+        usersData.forEach((u: any) => { if(u.user) map[u.user.id] = u.user; });
+        setUserMap(map);
+    }
+    setLoading(false);
+  };
 
-
-// --- Calendar Detail Modal Component ---
-
-const EventDetailModal = ({ event, onClose }: { event: CalendarEvent; onClose: () => void }) => {
-    if (!event) return null;
-
-    const formattedStart = event.start.toLocaleString('en-US', { dateStyle: 'medium', timeStyle: 'short' });
-    const formattedEnd = event.end.toLocaleString('en-US', { dateStyle: 'medium', timeStyle: 'short' });
-
-    return (
-        <div className="fixed inset-0 z-[60] bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
-            <div className="bg-[#111] border border-white/10 rounded-xl w-full max-w-lg shadow-2xl transform transition-all duration-300 scale-100">
-                
-                {/* Header */}
-                <div className="p-5 border-b border-white/10 flex items-center justify-between" 
-                     style={{ borderLeft: `5px solid ${event.categoryColor}`, borderTopLeftRadius: '0.75rem', borderBottomLeftRadius: '0.75rem', paddingLeft: '20px' }}>
-                    
-                    <h3 className="text-2xl font-bold text-white leading-tight">{event.title}</h3>
-                    
-                    <button onClick={onClose} className="p-2 rounded-full hover:bg-white/10 transition-colors text-white/70 hover:text-white">
-                        <X className="w-5 h-5" />
-                    </button>
-                </div>
-                
-                {/* Body */}
-                <div className="p-5 space-y-5">
-                    
-                    {/* Tags and Status */}
-                    <div className="flex flex-wrap items-center gap-3 border-b border-white/5 pb-4">
-                        <div className="flex items-center gap-2">
-                            <TagIcon className="w-4 h-4 text-white/50" />
-                            <span className="text-sm px-3 py-1 rounded-full font-medium text-white/80 border" 
-                                style={{ color: event.categoryColor, borderColor: event.categoryColor, background: `${event.categoryColor}1a` }}>
-                                {event.category}
-                            </span>
-                        </div>
-                        
-                        <div className="flex items-center gap-2">
-                            <Clock className="w-4 h-4 text-white/50" />
-                            <span className="text-sm px-3 py-1 rounded-full bg-white/10 font-medium text-white/80">
-                                Status: {event.status}
-                            </span>
-                        </div>
-                    </div>
-
-                    {/* Time Details */}
-                    <div className="space-y-3">
-                        <h4 className="flex items-center gap-2 text-white/70 font-semibold mb-1">
-                            <Clock className="w-4 h-4" /> Time
-                        </h4>
-                        <div className="ml-6 space-y-1 text-white/80">
-                            <p className="font-semibold text-sm"><span className="text-white/50 w-12 inline-block">Start:</span> {formattedStart}</p>
-                            <p className="font-semibold text-sm"><span className="text-white/50 w-12 inline-block">End:</span> {formattedEnd}</p>
-                        </div>
-                    </div>
-
-                    {/* Organizer/Lead */}
-                    <div className="space-y-2">
-                        <h4 className="flex items-center gap-2 text-white/70 font-semibold mb-1">
-                            <Users className="w-4 h-4" /> Organizer
-                        </h4>
-                        <p className="text-sm text-white/80 ml-6">
-                             {event.lead}
-                        </p>
-                    </div>
-
-                    {/* Description */}
-                    {event.description && (
-                        <div className="pt-2 border-t border-white/10 space-y-2">
-                            <h4 className="flex items-center gap-2 text-white/70 font-semibold">
-                                <Info className="w-4 h-4" /> Description
-                            </h4>
-                            <p className="text-sm text-white/60 ml-6 whitespace-pre-wrap">{event.description}</p>
-                        </div>
-                    )}
-                    
-                    {/* External Link (if available) */}
-                    {event.htmlLink && (
-                        <div className="pt-4 border-t border-white/10">
-                            <a 
-                                href={event.htmlLink} 
-                                target="_blank" 
-                                rel="noopener noreferrer"
-                                className="inline-flex items-center gap-2 px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white text-sm font-medium rounded-lg transition-colors shadow-lg shadow-purple-900/40"
-                            >
-                                View in Google Calendar <ExternalLink className="w-4 h-4" />
-                            </a>
-                        </div>
-                    )}
-                </div>
-            </div>
-        </div>
-    );
-};
-
-// --- Calendar Component ---
-
-const ProjectCalendar = ({ events, project, statusInfo }: { events: CalendarEvent[]; project: Project; statusInfo: React.ReactNode }) => {
-  // We use the start of the current week as the state anchor
-  const getStartOfWeek = (date: Date) => {
-    const day = date.getDay(); // 0 for Sunday, 1 for Monday
-    const diff = date.getDate() - day + (day === 0 ? -6 : 1); // Adjust to start on Monday
-    const newDate = new Date(date.setDate(diff));
-    newDate.setHours(0, 0, 0, 0); // Normalize time
+  // --- HELPER LOGIC ---
+  const getStartOfWeek = (d: Date) => {
+    const day = d.getDay();
+    const diff = d.getDate() - day + (day === 0 ? -6 : 1); 
+    const newDate = new Date(d.setDate(diff));
+    newDate.setHours(0,0,0,0);
     return newDate;
   };
 
-  const [startDate, setStartDate] = useState(getStartOfWeek(new Date()));
-  const [selectedEvent, setSelectedEvent] = useState<CalendarEvent | null>(null);
-
-  const MS_PER_MINUTE = 60000;
-  const TIME_SLOT_HEIGHT_PX = 60; // 60px per hour
-  const START_HOUR = 8;
-  const END_HOUR = 20; // Up to 8 PM (21 is the hour label)
-  const TOTAL_HOURS = END_HOUR - START_HOUR;
-
-  // Logic to generate a 7-day strip (Monday to Sunday)
-  const dateStrip = useMemo(() => {
-    const strip = [];
-    const msPerDay = 24 * 60 * 60 * 1000;
-    const startTime = startDate.getTime();
-
-    for (let i = 0; i < 7; i++) {
-        const date = new Date(startTime + i * msPerDay);
-        strip.push(date);
-    }
-    return strip;
-  }, [startDate]);
-
-
-  // Filter events to the current 7-day view
-  const eventsInView = useMemo(() => {
-    // Optimization: Filter once per week view
-    return events.filter(event => 
-        dateStrip.some(day => isDateInRange(day, event.start, event.end))
-    );
-  }, [events, dateStrip]);
-
-
-  // Helper functions for navigation
-  const navigateWeek = (direction: number) => {
+  const navigateDate = (direction: number) => {
     const newDate = new Date(startDate);
-    newDate.setDate(startDate.getDate() + direction * 7);
+    if (numDaysInView > 1) {
+        newDate.setDate(startDate.getDate() + (direction * numDaysInView)); 
+    } else {
+        newDate.setDate(startDate.getDate() + direction);
+    }
     setStartDate(newDate);
   };
 
-  const goToThisWeek = () => {
-    setStartDate(getStartOfWeek(new Date()));
+  const isSameDay = (d1: Date, dateStr: string) => {
+      const d2 = new Date(dateStr);
+      return d1.getFullYear() === d2.getFullYear() && d1.getMonth() === d2.getMonth() && d1.getDate() === d2.getDate();
   };
 
-  // Function to calculate event position and height
-  const getEventStyle = (event: CalendarEvent, dayDate: Date) => {
-    
-    // Check if the event starts or ends on this specific day
-    const eventStartsToday = isSameDay(event.start, dayDate);
-    const eventEndsToday = isSameDay(event.end, dayDate);
+  // --- VISUALIZATION LOGIC ---
+  const getEventStyle = (task: Task, dayTasks: Task[]) => {
+      const toMinutes = (timeStr: string) => {
+          const [h, m] = timeStr.split(':').map(Number);
+          return h * 60 + m;
+      };
 
-    // Determine effective start/end times for positioning
-    let startHour = event.start.getHours();
-    let startMinute = event.start.getMinutes();
-    let endHour = event.end.getHours();
-    let endMinute = event.end.getMinutes();
+      const startMins = toMinutes(task.start_time);
+      const endMins = toMinutes(task.end_time);
+      const durationMins = endMins - startMins;
 
-    // If event spans multiple days, treat its start/end time as the edges of the day for visualization
-    if (!eventStartsToday && isDateInRange(dayDate, event.start, event.end)) {
-        startHour = START_HOUR;
-        startMinute = 0;
-    }
-    if (!eventEndsToday && isDateInRange(dayDate, event.start, event.end)) {
-        endHour = END_HOUR;
-        endMinute = 59; // Treat as ending right before next hour/day
-    }
+      // Overlap detection
+      const overlaps = dayTasks.filter(t => {
+          const tStart = toMinutes(t.start_time);
+          const tEnd = toMinutes(t.end_time);
+          return startMins < tEnd && endMins > tStart;
+      });
 
-    // Clip to viewable hours (8 AM to 8 PM)
-    if (startHour < START_HOUR) {
-        startHour = START_HOUR;
-        startMinute = 0;
-    }
-    if (endHour > END_HOUR) {
-        endHour = END_HOUR;
-        endMinute = 0;
-    } else if (endHour === END_HOUR && endMinute > 0) {
-        // Events ending at 8:xx PM are clipped at the bottom boundary (8:00 PM line)
-        endHour = END_HOUR;
-        endMinute = 0;
-    }
+      overlaps.sort((a, b) => toMinutes(a.start_time) - toMinutes(b.start_time) || a.id.localeCompare(b.id));
+      
+      const index = overlaps.findIndex(t => t.id === task.id);
+      const total = overlaps.length;
 
-    // Convert to total minutes from the START_HOUR (8 AM)
-    const totalMinutesFromStart = (startHour - START_HOUR) * 60 + startMinute;
-    const top = (totalMinutesFromStart / 60) * TIME_SLOT_HEIGHT_PX;
+      const top = (startMins / 60) * hourHeight;
+      const height = (durationMins / 60) * hourHeight;
+      const widthPercent = 100 / total;
+      const leftPercent = index * widthPercent;
 
-    // Calculate duration (height)
-    const durationMinutes = Math.max(0, (endHour * 60 + endMinute) - (startHour * 60 + startMinute));
-    const height = (durationMinutes / 60) * TIME_SLOT_HEIGHT_PX;
+      const taskEndDateTime = new Date(`${task.task_date}T${task.end_time}`);
+      const isPast = taskEndDateTime < new Date();
+      
+      const colorMap: any = {
+          purple: { bg: 'bg-purple-600/10', border: 'border-purple-500', text: 'text-purple-100' },
+          red: { bg: 'bg-red-600/10', border: 'border-red-500', text: 'text-red-100' },
+          green: { bg: 'bg-purple-600/10', border: 'border-purple-500', text: 'text-purple-100' },
+      };
 
-    // Calculate time remaining in minutes from day start (8:00 AM) to event start time (for z-index)
-    const timeCode = startHour * 60 + startMinute;
+      let theme = colorMap.purple;
+      if (task.issue?.type === 'Bug') theme = colorMap.red;
+      if (task.issue?.type === 'Feature') theme = colorMap.purple;
 
-    return {
-        top: `${top}px`,
-        height: `${Math.max(25, height)}px`, // Min height 25px
-        backgroundColor: event.categoryColor,
-        borderColor: event.categoryColor,
-        // Z-index based on time: later events appear on top of earlier ones if they overlap visually.
-        // Also use a secondary sort (duration) to keep shorter, more recent events on top.
-        zIndex: 100 + timeCode - Math.floor(durationMinutes / 10), 
-    };
+      return {
+          style: {
+              top: `${top}px`,
+              height: `${Math.max(height, 28)}px`, 
+              left: `${leftPercent}%`,
+              width: `${widthPercent}%`,
+              zIndex: 10 + index
+          },
+          theme,
+          isPast
+      };
   };
 
-  // Calculate the vertical position of the current time marker
-  const currentTimeMarkerStyle = useMemo(() => {
-    const now = new Date();
-    const isThisWeek = isSameDay(getStartOfWeek(now), getStartOfWeek(startDate));
-    const isToday = isSameDay(now, dateStrip.find(d => isSameDay(d, now)) || new Date(0));
-
-    if (!isThisWeek || !isToday || now.getHours() < START_HOUR || now.getHours() >= END_HOUR) {
-        return null; // Don't show if not this week, not today, or outside hours
+  const dateStrip = useMemo(() => {
+    const days = [];
+    const msPerDay = 24 * 60 * 60 * 1000;
+    for (let i = 0; i < numDaysInView; i++) {
+        days.push(new Date(startDate.getTime() + i * msPerDay));
     }
+    return days;
+  }, [startDate, numDaysInView]);
 
-    const currentHour = now.getHours();
-    const currentMinute = now.getMinutes();
+  const currentTimeMarker = useMemo(() => {
+      const now = new Date();
+      const isInView = dateStrip.some(d => isSameDay(d, now.toISOString()));
+      if (!isInView) return null;
+      const mins = now.getHours() * 60 + now.getMinutes();
+      return (mins / 60) * hourHeight;
+  }, [dateStrip, hourHeight]);
 
-    const minutesFromStartHour = (currentHour - START_HOUR) * 60 + currentMinute;
-    const top = (minutesFromStartHour / 60) * TIME_SLOT_HEIGHT_PX + 20; // +20 for header height adjustment
+  const getTaskTags = (task: Task) => {
+    const issueTags = task.issue?.metadata?.tags || [];
+    const taskTags = task.metadata?.tags || [];
+    return [...issueTags, ...taskTags];
+  };
 
-    // Find the column index for today
-    const todayIndex = dateStrip.findIndex(d => isSameDay(d, now));
-
-    return {
-        top: `${top}px`,
-        gridColumnStart: todayIndex + 1,
-        gridColumnEnd: todayIndex + 2,
-    };
-  }, [startDate, dateStrip]);
-  
+  if (loading) {
+      return (
+          <div className="h-[600px] w-full rounded-xl border border-white/5 bg-[#0a0a0a] flex items-center justify-center">
+             <div className="w-6 h-6 border-2 border-white/20 border-t-purple-500 rounded-full animate-spin"></div>
+          </div>
+      );
+  }
 
   return (
-    <div className="flex-1 flex flex-col relative overflow-hidden bg-[#0a0a0a] rounded-xl shadow-inner pt-2">
+    <div className="h-[600px] bg-[#0a0a0a] rounded-xl border border-white/5 flex flex-col overflow-hidden font-sans shadow-inner relative">
+        <style jsx global>{`
+            .widget-scrollbar::-webkit-scrollbar { width: 4px; height: 4px; }
+            .widget-scrollbar::-webkit-scrollbar-track { background: transparent; }
+            .widget-scrollbar::-webkit-scrollbar-thumb { background: #333; border-radius: 2px; }
+            .widget-scrollbar::-webkit-scrollbar-thumb:hover { background: #444; }
+
+            .past-event-striped {
+                background-image: repeating-linear-gradient(
+                    45deg,
+                    transparent,
+                    transparent 5px,
+                    rgba(0,0,0,0.3) 5px,
+                    rgba(0,0,0,0.3) 10px
+                );
+            }
+        `}</style>
         
-        {/* Detail Modal */}
-        {selectedEvent && <EventDetailModal event={selectedEvent} onClose={() => setSelectedEvent(null)} />}
-        
-        {/* Status Info (Moved from top app header) */}
-        <div className="p-2 px-4 flex-none z-30 bg-[#0a0a0a]">
-            {statusInfo}
-        </div>
-      
-        {/* Calendar Navigation Header */}
-        <div className="flex items-center justify-between p-4 flex-none border-b border-white/5 z-30 bg-[#0a0a0a]">
-            <div>
-                <h2 className="text-white font-semibold text-lg">Weekly Schedule</h2>
-                <p className="text-white/40 text-xs font-medium uppercase tracking-wider">
-                    {startDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} - 
-                    {dateStrip[6].toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
-                </p>
+        {/* --- WIDGET HEADER --- */}
+        <div className="flex-none h-12 px-4 border-b border-white/5 flex items-center justify-between bg-[#0a0a0a]">
+             <div className="flex items-center gap-3">
+                 <div className="flex items-center bg-[#161616] rounded-md border border-white/5 p-0.5">
+                    <button onClick={() => navigateDate(-1)} className="p-1 hover:bg-white/10 rounded text-white/60"><ChevronLeft size={14}/></button>
+                    <button onClick={() => setStartDate(getStartOfWeek(new Date()))} className="px-2 text-[10px] font-bold uppercase text-white/60 hover:text-white">Today</button>
+                    <button onClick={() => navigateDate(1)} className="p-1 hover:bg-white/10 rounded text-white/60"><ChevronRight size={14}/></button>
+                 </div>
+                 <h2 className="text-xs font-semibold text-white/80">
+                    {startDate.toLocaleString('default', { month: 'short', day: 'numeric' })}
+                    {numDaysInView > 1 && ` - ${dateStrip[dateStrip.length-1].getDate()}`}
+                 </h2>
             </div>
             
             <div className="flex items-center gap-2">
-                <button onClick={() => navigateWeek(-1)} className="p-1.5 hover:bg-white/10 rounded-lg transition-colors border border-transparent hover:border-white/5">
-                    <ChevronLeft className="w-4 h-4 text-white/60 hover:text-white" />
-                </button>
-                <button 
-                    onClick={goToThisWeek}
-                    className="px-3 py-1 bg-purple-600/20 hover:bg-purple-600/30 border border-purple-600/30 rounded-md text-xs font-medium text-purple-300 transition-colors"
-                >
-                    This Week
-                </button>
-                <button onClick={() => navigateWeek(1)} className="p-1.5 hover:bg-white/10 rounded-lg transition-colors border border-transparent hover:border-white/5">
-                    <ChevronRight className="w-4 h-4 text-white/60 hover:text-white" />
-                </button>
+                {viewMode === 'calendar' && (
+                    <div className="flex bg-[#161616] rounded-md border border-white/5 p-0.5">
+                        <button onClick={() => setHourHeight(60)} className={`p-1.5 rounded text-white/60 hover:text-white ${hourHeight === 60 ? 'bg-white/10' : ''}`}><Minimize2 size={14}/></button>
+                        <button onClick={() => setHourHeight(120)} className={`p-1.5 rounded text-white/60 hover:text-white ${hourHeight === 120 ? 'bg-white/10' : ''}`}><Maximize2 size={14}/></button>
+                    </div>
+                )}
+                 {viewMode === 'calendar' && (
+                    <div className="hidden sm:flex bg-[#161616] rounded-md border border-white/5 p-0.5">
+                        {[1, 3, 5, 7].map(n => (
+                            <button key={n} onClick={() => setNumDaysInView(n)} className={`px-2 py-1 rounded text-[9px] font-bold uppercase transition-all ${numDaysInView === n ? 'bg-white/10 text-white' : 'text-white/40 hover:text-white'}`}>{n}D</button>
+                        ))}
+                    </div>
+                 )}
+                 <div className="flex bg-[#161616] rounded-md border border-white/5 p-0.5">
+                    <button onClick={() => setViewMode('calendar')} className={`p-1.5 rounded-md text-white/60 transition-all ${viewMode === 'calendar' ? 'bg-white/10 text-white' : 'hover:text-white'}`}><CalendarIcon size={12}/></button>
+                    <button onClick={() => setViewMode('table')} className={`p-1.5 rounded-md text-white/60 transition-all ${viewMode === 'table' ? 'bg-white/10 text-white' : 'hover:text-white'}`}><TableIcon size={12}/></button>
+                 </div>
             </div>
         </div>
-        
-        {/* Calendar Grid Container */}
-        <div className="flex-1 flex overflow-hidden">
-            
-            {/* Time Axis (Left) */}
-            <div className="w-16 flex-none pr-2 border-r border-white/5 pt-1.5 overflow-hidden bg-[#0a0a0a] z-10">
-                {[...Array(TOTAL_HOURS + 1)].map((_, i) => (
-                    <div key={i} style={{ height: TIME_SLOT_HEIGHT_PX }} className="flex justify-end items-start text-xs text-white/50 -mt-2">
-                        {new Date(0, 0, 0, START_HOUR + i).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }).replace(':00', '').replace(' ', '')}
-                    </div>
-                ))}
-            </div>
 
-            {/* Day Columns and Events */}
-            <div className="flex-1 relative overflow-x-hidden overflow-y-hidden">
+        {/* --- CALENDAR VIEW --- */}
+        {viewMode === 'calendar' && (
+            // Single Scrollable Container
+            <div className="flex-1 overflow-y-auto widget-scrollbar bg-[#0a0a0a] relative flex flex-col">
                 
-                {/* Day Headers (Top) - Sticky */}
-                <div className="sticky top-0 left-0 right-0 grid grid-cols-7 border-b border-white/5 flex-none bg-[#0a0a0a] pt-1 pb-2 z-20">
-                    {dateStrip.map((date, index) => {
-                        const isToday = isSameDay(date, new Date());
-                        return (
-                            <div key={index} className={`p-2 text-center border-r border-white/5 last:border-r-0 ${isToday ? 'bg-white/5' : ''}`}>
-                                <span className={`text-[10px] uppercase font-bold tracking-wider ${isToday ? 'text-purple-400' : 'text-white/40'}`}>
-                                    {date.toLocaleDateString('en-US', { weekday: 'short' })}
-                                </span>
-                                <div className={`
-                                    w-8 h-8 mx-auto mt-1 flex items-center justify-center rounded-full text-sm font-medium transition-all duration-200
-                                    ${isToday 
-                                        ? 'bg-purple-600 text-white shadow-lg shadow-purple-900/40 scale-105' 
-                                        : 'text-white/80'}
-                                `}>
-                                    {date.getDate()}
+                {/* Sticky Header Row */}
+                <div className="sticky top-0 z-40 bg-[#0a0a0a] border-b border-white/5 flex flex-none h-8">
+                     {/* Corner Spacer (matches time col width) */}
+                     <div className="w-10 flex-none border-r border-white/5 bg-[#0a0a0a]" />
+                     
+                     {/* Day Headers */}
+                     <div className="flex-1 flex">
+                        {dateStrip.map((day, i) => {
+                            const isToday = isSameDay(day, new Date().toISOString());
+                            return (
+                                <div key={i} className="flex-1 border-r border-white/5 flex items-center justify-center gap-1.5 last:border-r-0">
+                                    <span className={`text-[9px] uppercase font-bold tracking-wider ${isToday ? 'text-purple-400' : 'text-white/40'}`}>{day.toLocaleString('default', { weekday: 'short' })}</span>
+                                    <div className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold ${isToday ? 'bg-purple-600 text-white' : 'text-white/80'}`}>{day.getDate()}</div>
                                 </div>
-                            </div>
-                        );
-                    })}
+                            );
+                        })}
+                     </div>
                 </div>
-                
-                {/* Event Grid (Scrollable Body) */}
-                <div className="w-full relative h-[calc(100%-80px)] overflow-y-auto custom-scrollbar">
+
+                {/* Main Content (Time + Grid) */}
+                <div className="flex flex-1 relative" style={{ height: (END_HOUR - START_HOUR) * hourHeight }}>
                     
-                    {/* Time Grid Lines (Horizontal) */}
-                    {[...Array(TOTAL_HOURS + 1)].map((_, i) => (
-                        <div 
-                            key={`hour-${i}`} 
-                            style={{ height: TIME_SLOT_HEIGHT_PX }} 
-                            className="w-full border-t border-white/5 relative"
-                        >
-                            {/* Minor line for 30 minutes */}
-                            {i < TOTAL_HOURS && (
-                                <div className="absolute top-1/2 left-0 right-0 border-t border-dashed border-white/10 opacity-50" />
-                            )}
-                        </div>
-                    ))}
-
-                    {/* Current Time Marker (Red line) */}
-                    {currentTimeMarkerStyle && (
-                        <div 
-                            style={{ top: currentTimeMarkerStyle.top, 
-                                     gridColumnStart: currentTimeMarkerStyle.gridColumnStart, 
-                                     gridColumnEnd: currentTimeMarkerStyle.gridColumnEnd 
-                                  }} 
-                            className="absolute z-40 h-[1px] bg-red-500 w-full col-span-1 transform -translate-y-1/2"
-                        >
-                            <div className="absolute left-0 w-2 h-2 rounded-full bg-red-500 -ml-1 -mt-1" />
-                        </div>
-                    )}
-
-
-                    {/* Day Separators (Vertical) and Events Layer */}
-                    <div className="absolute inset-0 top-0 grid grid-cols-7">
-                        {dateStrip.map((dayDate, dayIndex) => (
-                            <div key={dayIndex} className="relative border-r border-white/5 last:border-r-0">
-                                
-                                {/* Render events for this day */}
-                                {eventsInView
-                                    .filter(e => isDateInRange(dayDate, e.start, e.end))
-                                    .map(event => (
-                                        <div 
-                                            key={event.id}
-                                            style={getEventStyle(event, dayDate)}
-                                            className={`
-                                                absolute w-[95%] left-[2.5%] p-1.5 rounded-lg shadow-xl cursor-pointer transition-all duration-150
-                                                border border-2 border-opacity-70 overflow-hidden text-xs
-                                                ${event.status === 'Done' ? 'opacity-50 line-through' : 'hover:shadow-2xl hover:scale-[1.01]'}
-                                                ${event.categoryColor === '#F59E0B' ? 'text-gray-900' : 'text-white'}
-                                            `}
-                                            onClick={() => setSelectedEvent(event)}
-                                        >
-                                            <span className="font-bold block truncate leading-tight">{event.title}</span>
-                                            <span className="text-[10px] block opacity-80 leading-tight">{event.start.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}</span>
-                                        </div>
-                                    ))
-                                }
+                    {/* Time Column (Scrolls with grid) */}
+                    <div className="w-10 flex-none border-r border-white/5 bg-[#0a0a0a] relative">
+                         {HOURS.map(h => (
+                            <div key={h} className="absolute w-full text-right pr-1.5 text-[9px] font-medium text-white/20" style={{ top: h * hourHeight, transform: 'translateY(-50%)' }}>
+                                {h === 0 ? '' : h}
                             </div>
                         ))}
                     </div>
 
-                    {/* Empty State/Footer, conditionally rendered */}
-                    {eventsInView.length === 0 && (
-                        <div className="absolute inset-0 flex items-center justify-center bg-white/5">
-                            <button className="py-3 px-6 border border-dashed border-white/20 rounded-xl text-white/50 text-sm hover:text-white/80 hover:border-white/40 hover:bg-white/[0.05] transition-all flex items-center justify-center gap-2">
-                                <CalendarIcon className="w-4 h-4" /> No scheduled events this week
-                            </button>
+                    {/* Grid Content */}
+                    <div className="flex-1 relative">
+                        {/* Horizontal Hour Lines */}
+                        {HOURS.map(h => (
+                            <div key={h} className="absolute w-full border-b border-white/5" style={{ top: h * hourHeight, height: hourHeight }}></div>
+                        ))}
+                        
+                        {/* Current Time Marker */}
+                        {currentTimeMarker !== null && (
+                            <div className="absolute w-full z-10 pointer-events-none border-t border-red-500/50" style={{ top: currentTimeMarker }}>
+                                <div className="absolute -left-1 w-2 h-2 rounded-full bg-red-500 -mt-1"></div>
+                            </div>
+                        )}
+                        
+                        {/* Columns & Events */}
+                        <div className="absolute inset-0 flex">
+                            {dateStrip.map((day, colIndex) => {
+                                const dayTasks = tasks.filter(t => isSameDay(day, t.task_date));
+                                return (
+                                    <div key={colIndex} className="flex-1 border-r border-white/5 last:border-r-0 relative h-full group/col">
+                                        {dayTasks.map(task => {
+                                            const { style, theme, isPast } = getEventStyle(task, dayTasks);
+                                            const tags = getTaskTags(task);
+                                            return (
+                                                <div 
+                                                    key={task.id}
+                                                    onClick={() => setSelectedTask(task)}
+                                                    style={style}
+                                                    className={`
+                                                        absolute rounded-[3px] px-1.5 py-1 cursor-pointer transition-all border-l-2 overflow-hidden flex flex-col justify-start
+                                                        hover:brightness-110 hover:z-50 shadow-sm
+                                                        ${theme.bg} ${theme.border} ${theme.text}
+                                                        ${isPast ? 'past-event-striped opacity-60 saturate-50' : ''}
+                                                    `}
+                                                >
+                                                    <div className="flex items-center gap-1 min-w-0">
+                                                        {task.issue && (<div className={`flex-none w-1.5 h-1.5 rounded-full ${task.issue.type === 'Bug' ? 'bg-red-400' : 'bg-purple-400'}`}></div>)}
+                                                        <span className="text-[10px] font-bold truncate leading-tight">{task.title}</span>
+                                                    </div>
+                                                    
+                                                    {/* TAGS IN CARD */}
+                                                    {parseInt(style.height) > 50 && tags.length > 0 && (
+                                                        <div className="flex gap-1 mt-1 flex-wrap overflow-hidden h-[18px]">
+                                                            {tags.slice(0, 2).map((tag, i) => (
+                                                                <span 
+                                                                    key={i} 
+                                                                    className="text-[9px] px-1 rounded-[2px] border font-medium"
+                                                                    style={{ 
+                                                                        borderColor: `${tag.color}40`, 
+                                                                        color: tag.color, 
+                                                                        backgroundColor: `${tag.color}20` 
+                                                                    }}
+                                                                >
+                                                                    {tag.name}
+                                                                </span>
+                                                            ))}
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+                                );
+                            })}
                         </div>
-                    )}
+                    </div>
                 </div>
             </div>
-        </div>
-        <style jsx global>{`
-            .custom-scrollbar::-webkit-scrollbar { width: 8px; height: 8px; }
-            .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
-            .custom-scrollbar::-webkit-scrollbar-thumb { background: #333; border-radius: 4px; }
-            .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #444; }
-        `}</style>
-    </div>
-  );
-};
+        )}
 
+        {/* --- TABLE VIEW --- */}
+        {viewMode === 'table' && (
+             <div className="flex-1 overflow-auto widget-scrollbar p-2">
+                <table className="w-full text-left text-xs text-white/70 border-collapse">
+                    <thead className="text-[9px] uppercase font-bold text-white/40 bg-[#0a0a0a] sticky top-0 border-b border-white/5 z-10">
+                        <tr>
+                            <th className="px-3 py-2">Date</th>
+                            <th className="px-3 py-2">Event</th>
+                            <th className="px-3 py-2">Tags</th>
+                            <th className="px-3 py-2">Attendees</th>
+                        </tr>
+                    </thead>
+                    <tbody className="divide-y divide-white/5">
+                        {tasks.length === 0 ? (
+                            <tr><td colSpan={4} className="text-center py-8 text-white/20 italic">No events found</td></tr>
+                        ) : tasks.sort((a,b) => a.task_date.localeCompare(b.task_date)).map(task => {
+                            const taskEnd = new Date(`${task.task_date}T${task.end_time}`);
+                            const isPast = taskEnd < new Date();
+                            const tags = getTaskTags(task);
+                            return (
+                                <tr key={task.id} onClick={() => setSelectedTask(task)} className={`cursor-pointer transition-colors ${isPast ? 'opacity-50 hover:opacity-100 past-event-striped' : 'hover:bg-[#111]'}`}>
+                                    <td className="px-3 py-2 font-mono text-[10px] text-white/50">
+                                        <div className="text-white/80">{new Date(task.task_date).toLocaleDateString()}</div>
+                                        <div className="opacity-50">{task.start_time.slice(0,5)}</div>
+                                    </td>
+                                    <td className="px-3 py-2 font-medium text-white">{task.title}</td>
+                                    <td className="px-3 py-2">
+                                        <div className="flex gap-1 flex-wrap">
+                                            {tags.map((tag, i) => (
+                                                <span key={i} className="text-[9px] px-1 rounded border" style={{ borderColor: tag.color, color: tag.color }}>{tag.name}</span>
+                                            ))}
+                                            {tags.length === 0 && <span className="text-[9px] text-white/10">-</span>}
+                                        </div>
+                                    </td>
+                                    <td className="px-3 py-2">
+                                        <div className="flex -space-x-1.5">
+                                            {(task.metadata?.attendees || []).map((uid, i) => (
+                                                <div key={i} className="w-5 h-5 rounded-full bg-[#222] border border-[#333] overflow-hidden" title={userMap[uid]?.name || ""}>
+                                                    {userMap[uid]?.metadata?.avatar_url ? <img src={userMap[uid].metadata.avatar_url} className="w-full h-full object-cover"/> : <div className="w-full h-full flex items-center justify-center text-[8px]">{userMap[uid]?.name?.[0]}</div>}
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </td>
+                                </tr>
+                            )
+                        })}
+                    </tbody>
+                </table>
+             </div>
+        )}
 
-// --- Page Wrapper (Data Fetching and Container) ---
+        {/* --- GLOBAL FIXED MODAL --- */}
+        {selectedTask && (
+            <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200">
+                <div className="bg-[#161616] border border-white/10 rounded-xl w-full max-w-sm overflow-hidden shadow-2xl flex flex-col max-h-[90vh] animate-in zoom-in-95 duration-200">
+                    <div className="p-4 border-b border-white/10 flex justify-between items-start bg-[#1a1a1a]">
+                        <div>
+                            {selectedTask.issue && (
+                                <div className={`inline-block px-1.5 py-0.5 rounded text-[9px] uppercase font-bold tracking-wider mb-1 border ${selectedTask.issue.type === 'Bug' ? 'bg-red-500/10 text-red-400 border-red-500/20' : 'bg-purple-500/10 text-purple-400 border-purple-500/20'}`}>
+                                    {selectedTask.issue.type}
+                                </div>
+                            )}
+                            <h3 className="font-bold text-lg text-white leading-tight">{selectedTask.title}</h3>
+                        </div>
+                        <button onClick={() => setSelectedTask(null)} className="p-1.5 bg-white/5 hover:bg-white/10 rounded text-white/60 hover:text-white"><X size={16} /></button>
+                    </div>
 
-export default function CalendarIntegrationExample() {
-  
-  const [events, setEvents] = useState<CalendarEvent[]>([]); 
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+                    <div className="p-4 space-y-4 overflow-y-auto widget-scrollbar">
+                        
+                        {/* Tags Section in Modal */}
+                        {getTaskTags(selectedTask).length > 0 && (
+                            <div className="flex flex-wrap gap-2">
+                                {getTaskTags(selectedTask).map((tag, i) => (
+                                    <span 
+                                        key={i} 
+                                        className="flex items-center gap-1 text-[10px] px-2 py-0.5 rounded border font-medium"
+                                        style={{ backgroundColor: `${tag.color}15`, borderColor: `${tag.color}30`, color: tag.color }}
+                                    >
+                                        <TagIcon size={10} /> {tag.name}
+                                    </span>
+                                ))}
+                            </div>
+                        )}
 
-  // Mock Project & User Data
-  const mockProject: Project = useMemo(() => ({
-    id: "mock-project-id",
-    name: "Weekly Project Scheduler",
-    description: "Sample project showing Google API events.",
-    created_by: "api-user",
-    metadata: {},
-  }), []);
-  
-  const mockUser: Creator = useMemo(() => ({
-      id: "mock-user-id",
-      name: "API",
-      surname: "User",
-      metadata: {},
-  }), []);
-  
-  /**
-   * Transforms raw API event data into the CalendarEvent structure needed for the UI.
-   * @param apiEvents Array of raw events from the API.
-   * @returns Array of formatted CalendarEvent objects.
-   */
-  const transformEvents = useCallback((apiEvents: ApiEvent[]): CalendarEvent[] => {
-    let colorIndex = 0;
-    const now = new Date();
+                        <div className="flex items-center gap-3">
+                            <div className="p-2 bg-white/5 rounded border border-white/5 text-center min-w-[50px]">
+                                <div className="text-[9px] uppercase font-bold text-white/40">{new Date(selectedTask.task_date).toLocaleString('default', { month: 'short'})}</div>
+                                <div className="text-lg font-bold text-white">{new Date(selectedTask.task_date).getDate()}</div>
+                            </div>
+                            <div className="space-y-0.5">
+                                <div className="flex items-center gap-1.5 text-white/80 text-sm font-medium">
+                                    <Clock size={14} className="text-white/40"/>
+                                    {selectedTask.start_time.slice(0,5)} - {selectedTask.end_time.slice(0,5)}
+                                </div>
+                                <div className="text-xs text-white/40">Created by {selectedTask.creator?.name || "Unknown"}</div>
+                            </div>
+                        </div>
 
-    return apiEvents.map(apiEvent => {
-      const start = apiEvent.start?.dateTime ? new Date(apiEvent.start.dateTime) : new Date();
-      const end = apiEvent.end?.dateTime ? new Date(apiEvent.end.dateTime) : new Date(start.getTime() + 60 * 60000);
-      
-      // Use the colorId or fall back to 'Default'
-      const category = apiEvent.colorId || 'Default';
-      
-      if (!categoryColorMap[category]) {
-          categoryColorMap[category] = defaultColors[colorIndex % defaultColors.length];
-          colorIndex++;
-      }
+                        {selectedTask.description && (
+                            <div className="text-xs text-white/70 leading-relaxed bg-white/5 p-3 rounded border border-white/5">
+                                {selectedTask.description}
+                            </div>
+                        )}
 
-      let status: CalendarEvent['status'] = 'Upcoming';
-      if (end < now) {
-        status = 'Done'; 
-      } else if (start < now && end > now) {
-        status = 'Upcoming'; // Currently ongoing
-      }
-      
-      const mockConcept: Concept = { id: apiEvent.id, title: apiEvent.summary, description: apiEvent.description, creator: mockUser };
+                        {selectedTask.metadata?.meeting_link && (
+                             <a href={selectedTask.metadata.meeting_link} target="_blank" className="flex items-center justify-center gap-2 p-2 rounded bg-green-500/10 border border-green-500/20 text-green-400 hover:bg-green-500/20 text-xs font-bold transition-colors">
+                                <Video size={14} /> Join Meeting <ExternalLink size={10}/>
+                             </a>
+                        )}
 
-      return {
-        id: apiEvent.id,
-        start: start,
-        end: end,
-        title: apiEvent.summary,
-        description: apiEvent.description,
-        lead: apiEvent.organizer?.email?.split('@')[0] || 'System Organizer',
-        category: `GCal Color ${category}`,
-        categoryColor: categoryColorMap[category],
-        status: status,
-        concept: mockConcept,
-        htmlLink: apiEvent.htmlLink,
-      };
-    });
-  }, [mockUser]);
-
-  /**
-   * Fetches events from the mock Google Calendar API endpoint.
-   */
-  const fetchCalendarEvents = useCallback(async () => {
-    if (IS_SAMPLE_KEY) {
-      setError("Using sample keys. Please replace API_KEY and CALENDAR_ID in the code to fetch live data.");
-      setLoading(false);
-      return;
-    }
-
-    setLoading(true);
-    setError(null);
-
-    // Fetch events for the next 4 weeks to give the calendar enough data to scroll through
-    const timeMin = new Date().toISOString();
-    const timeMax = new Date(Date.now() + 4 * 7 * 24 * 60 * 60 * 1000).toISOString();
-    
-    // Construct the URL to list events
-    const url = `${BASE_URL}/${CALENDAR_ID}/events?key=${API_KEY}&timeMin=${timeMin}&timeMax=${timeMax}&singleEvents=true&orderBy=startTime`;
-    
-    const maxRetries = 3;
-    let delay = 1000;
-
-    for (let attempt = 0; attempt < maxRetries; attempt++) {
-        try {
-            const response = await fetch(url, {
-                method: 'GET',
-                headers: { 'Accept': 'application/json' },
-            });
-
-            if (!response.ok) {
-                // Throw an error if the status code is not 2xx
-                let errorMessage = `HTTP error! Status: ${response.status}`;
-                if (response.status === 400) errorMessage += " (Check API Key format or Calendar ID.)";
-                if (response.status === 403) errorMessage += " (API Key may not be authorized for this operation or calendar.)";
-                if (response.status === 404) errorMessage += " (Calendar ID not found.)";
-                throw new Error(errorMessage);
-            }
-
-            const data = await response.json();
-            
-            if (data.error) {
-                throw new Error(`API Error: ${data.error.message}`);
-            }
-
-            const transformed = transformEvents(data.items || []);
-            setEvents(transformed);
-            setLoading(false);
-            return; // Success, exit loop
-        } catch (err) {
-            console.error(`Attempt ${attempt + 1} failed:`, err);
-            if (attempt === maxRetries - 1) {
-                setError(`Failed to fetch calendar events: ${err instanceof Error ? err.message : 'Unknown error'}`);
-                setLoading(false);
-                return;
-            }
-            // Exponential backoff
-            await new Promise(resolve => setTimeout(resolve, delay));
-            delay *= 2;
-        }
-    }
-  }, [API_KEY, CALENDAR_ID, BASE_URL, IS_SAMPLE_KEY, transformEvents]);
-  
-  // Hardcoded mock events for when the API key is not set
-  const mockEvents: ApiEvent[] = useMemo(() => {
-    const now = new Date();
-    const t = new Date(now);
-    const tomorrow = new Date(now);
-    tomorrow.setDate(now.getDate() + 1);
-    const nextWeek = new Date(now);
-    nextWeek.setDate(now.getDate() + 5);
-
-    // Find the next Sunday for an overdue event example
-    const overdueDay = new Date(now);
-    overdueDay.setDate(now.getDate() - 2);
-
-    return [
-      // Ongoing event (currently 'Upcoming' status)
-      {
-        id: "mock1",
-        summary: "Weekly Team Sync (Mock)",
-        description: "Review milestones and plan for the next sprint.",
-        start: { dateTime: new Date(t.setHours(now.getHours() - 1, 30, 0, 0)).toISOString() },
-        end: { dateTime: new Date(t.setHours(now.getHours() + 1, 30, 0, 0)).toISOString() },
-        organizer: { email: "dev@example.com" },
-        colorId: "6", // Red
-        htmlLink: "#",
-      },
-      // Event tomorrow
-      {
-        id: "mock2",
-        summary: "Client Presentation Prep (Mock)",
-        description: "Finalize deck slides and run through talking points.",
-        start: { dateTime: new Date(tomorrow.setHours(14, 0, 0, 0)).toISOString() },
-        end: { dateTime: new Date(tomorrow.setHours(16, 0, 0, 0)).toISOString() },
-        organizer: { email: "product@example.com" },
-        colorId: "5", // Yellow
-        htmlLink: "#",
-      },
-      // Event next week
-      {
-        id: "mock3",
-        summary: "Project Review Deadline (Mock)",
-        description: "Mandatory check-in for Q4 goals.",
-        start: { dateTime: new Date(nextWeek.setHours(11, 0, 0, 0)).toISOString() },
-        end: { dateTime: new Date(nextWeek.setHours(11, 30, 0, 0)).toISOString() },
-        organizer: { email: "exec@example.com" },
-        colorId: "4", // Green
-        htmlLink: "#",
-      },
-      // Event already done (Done status)
-      {
-        id: "mock4",
-        summary: "Initial Brainstorm (Done)",
-        description: "Kick-off meeting for feature X.",
-        start: { dateTime: new Date(overdueDay.setHours(10, 0, 0, 0)).toISOString() },
-        end: { dateTime: new Date(overdueDay.setHours(11, 0, 0, 0)).toISOString() },
-        organizer: { email: "ops@example.com" },
-        colorId: "11", // Pink
-        htmlLink: "#",
-      }
-    ];
-  }, []);
-
-  // Data Loading Effect
-  useEffect(() => {
-    if (!IS_SAMPLE_KEY) {
-        fetchCalendarEvents();
-    } else {
-        setEvents(transformEvents(mockEvents));
-        setError("Using sample keys. Replace API_KEY and CALENDAR_ID to fetch live data.");
-        setLoading(false);
-    }
-  }, [IS_SAMPLE_KEY, fetchCalendarEvents, mockEvents, transformEvents]);
-
-
-  // Separate component for the status/debug information
-  const StatusInfo = (
-      <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 text-xs text-white/50 w-full">
-          <h1 className="text-sm font-extrabold tracking-tight text-white/80">{mockProject.name} <span className="px-2 py-0.5 bg-purple-900/40 text-purple-400 text-[10px] uppercase font-bold tracking-wider rounded-full border border-purple-900/40">CALENDAR</span></h1>
-          
-          <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-white/50">
-            {error && <div className="text-red-400 p-1.5 bg-red-900/30 rounded-lg border border-red-700/50 flex items-center gap-2"><Info className="w-3 h-3"/> {error}</div>}
-            <span className="text-white/40">API Status: <span className={IS_SAMPLE_KEY ? "text-red-400 font-semibold" : "text-green-400 font-semibold"}>{IS_SAMPLE_KEY ? "Sample Data" : (loading ? "Connecting..." : "Connected")}</span></span>
-            <span className="hidden sm:inline text-white/40">Key: <span className="font-mono">{API_KEY.substring(0, 8)}...</span></span>
-            <span className="hidden md:inline text-white/40">Calendar ID: <span className="font-mono">{CALENDAR_ID}</span></span>
-          </div>
-      </div>
-  );
-
-
-  return (
-    // Re-added vertical centering and padding (p-4) to the outer container
-    <div className=" w-full bg-[#0a0a0a] text-white flex items-center justify-center font-sans ">
-      
-      {/* --- Main Application Box (The "Box") --- */}
-      {/* Changed h-full back to h-[750px] and added rounded-xl back for a contained look */}
-      <div className="w-full h-[750px] max-w-7xl bg-[#161616] rounded-xl border border-white/10 shadow-2xl flex flex-col overflow-hidden mx-auto">
-      
-        {/* Calendar Body (Now the main visible area) */}
-        <div className="flex-1 flex flex-col overflow-hidden bg-gradient-to-br from-[#111] to-[#181818]">
-            
-            {loading && !IS_SAMPLE_KEY ? (
-                <div className="flex justify-center items-center h-full flex-col gap-4">
-                    {StatusInfo}
-                    <Loader2 className="inline w-8 h-8 text-purple-400 animate-spin fill-white" />
-                    <span className="ml-3 text-white/70">Fetching events from Google API...</span>
+                        <div>
+                            <label className="text-[9px] uppercase font-bold text-white/40 block mb-2">Attendees ({selectedTask.metadata?.attendees?.length || 0})</label>
+                            <div className="flex flex-wrap gap-2">
+                                {(selectedTask.metadata?.attendees || []).map((uid) => (
+                                    <div key={uid} className="flex items-center gap-1.5 p-1.5 rounded bg-white/5 border border-white/5">
+                                        <div className="w-5 h-5 rounded-full bg-[#222] border border-white/10 overflow-hidden">
+                                            {userMap[uid]?.metadata?.avatar_url ? <img src={userMap[uid].metadata.avatar_url} className="w-full h-full object-cover"/> : <div className="w-full h-full flex items-center justify-center text-[8px]">{userMap[uid]?.name?.[0]}</div>}
+                                        </div>
+                                        <span className="text-[10px] text-white/70">{userMap[uid]?.name}</span>
+                                    </div>
+                                ))}
+                                {(selectedTask.metadata?.attendees || []).length === 0 && <span className="text-xs text-white/20 italic">None</span>}
+                            </div>
+                        </div>
+                    </div>
                 </div>
-            ) : (
-                <ProjectCalendar events={events} project={mockProject} statusInfo={StatusInfo} />
-            )}
-             
-        </div>
-      </div>
+            </div>
+        )}
     </div>
   );
 }

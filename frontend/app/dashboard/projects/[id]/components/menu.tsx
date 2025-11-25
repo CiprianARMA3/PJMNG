@@ -39,15 +39,15 @@ export default function Menu({ project, user }: MenuProps) {
       title: "Overview",
       items: [
         { label: "Dashboard", icon: LayoutGrid, href: `/dashboard/projects/${project.id}` },
-        { label: "Board", icon: KanbanSquare, href: `/dashboard/projects/${project.id}/board` },
-        { label: "Calendar", icon: Calendar, href: `/dashboard/projects/${project.id}/calendar` },
       ],
     },
     {
       title: "Development",
       items: [
         { label: "Issues", icon: Bug, href: `/dashboard/projects/${project.id}/issues` },
-        { label: "Workflows", icon: Workflow, href: `/dashboard/projects/${project.id}/workflow` },
+        { label: "Events and Workflow", icon: Calendar, href: `/dashboard/projects/${project.id}/events-workflow` },
+        { label: "Board", icon: KanbanSquare, href: `/dashboard/projects/${project.id}/board` },
+        { label: "Activity Overview", icon: Calendar, href: `/dashboard/projects/${project.id}/calendar` },
         { label: "Repository logs", icon: Logs, href: `/dashboard/projects/${project.id}/repository-logs` },
       ],
     },
@@ -72,6 +72,7 @@ export default function Menu({ project, user }: MenuProps) {
       title: "Manager Settings",
       items: [
         { label: "Project Settings", icon: Settings, href: `/dashboard/projects/${project.id}/project-settings` },
+        { label: "Workflow and Events Management", icon: Workflow, href: `/dashboard/projects/${project.id}/evwork-management` },
         { label: "Manage Team", icon: UserCog, href: `/dashboard/projects/${project.id}/manage-team` },
         { label: "Manage AI Assistant", icon: BrainCog, href: `/dashboard/projects/${project.id}/manage-team` },
       ],
@@ -82,9 +83,32 @@ export default function Menu({ project, user }: MenuProps) {
 
   return (
     <>
+      {/* --- SCROLLBAR STYLES --- */}
+      <style jsx global>{`
+        .custom-scrollbar::-webkit-scrollbar {
+          width: 5px;
+          height: 5px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+          background: transparent;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+          background: #262626; /* Zinc-800 */
+          border-radius: 10px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+          background: #404040; /* Zinc-700 */
+        }
+        /* Firefox fallback */
+        .custom-scrollbar {
+          scrollbar-width: thin;
+          scrollbar-color: #262626 transparent;
+        }
+      `}</style>
+
       {/* --- TOP BAR --- */}
       <header className="fixed top-0 left-0 right-0 h-14 bg-[#0a0a0a]/80 backdrop-blur-md border-b border-white/[0.08] z-50 flex items-center justify-between px-4 ml-64 transition-all">
-        
+   
         {/* Left: Search */}
         <div className="flex items-center gap-4 w-full max-w-md">
           <div className="relative group w-full">
@@ -127,17 +151,16 @@ export default function Menu({ project, user }: MenuProps) {
         <div className="h-14 flex items-center px-4 border-b border-white/[0.08]">
           <div className="flex items-center gap-3 w-full p-1.5 hover:bg-white/5 rounded-lg cursor-pointer transition-colors group">
             {/* PURPLE GRADIENT ICON */}
-{project.metadata?.["project-icon"] && (
-                    <img
-                      src={project.metadata["project-icon"]}
-                      alt="Project logo"
-                      className="w-8 h-8 rounded-2xl border-2 border-white/20 object-cover"
-                    />
-                  )}
+            {project.metadata?.["project-icon"] && (
+                <img
+                    src={project.metadata["project-icon"]}
+                    alt="Project logo"
+                    className="w-8 h-8 rounded-2xl border-2 border-white/20 object-cover"
+                />
+            )}
             <div className="flex-1 min-w-0">
                <h2 className="text-sm font-medium text-zinc-100 truncate group-hover:text-white transition-colors">{project.name}</h2>
             </div>
-            {/* <ChevronDown className="w-4 h-4 text-zinc-500 group-hover:text-zinc-300" /> */}
           </div>
         </div>
 
