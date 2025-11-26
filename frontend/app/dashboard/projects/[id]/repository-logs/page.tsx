@@ -1,16 +1,36 @@
 "use client";
 
 import { useEffect, useState, useMemo } from "react";
-import { createClient } from "@/utils/supabase/client";
 import { useParams, useRouter } from "next/navigation";
-import Menu from "../components/menu"; // Adjust path
+import { createClient } from "@/utils/supabase/client";
+
+// Components
+import Menu from "../components/menu";
+
+// Icons
 import { 
-  GitCommit, GitBranch, Github, Clock, User, ExternalLink, 
-  Calendar as CalendarIcon, List as ListIcon, 
-  ChevronLeft, ChevronRight, Loader2, AlertCircle, X 
+  GitCommit, 
+  GitBranch, 
+  Github, 
+  Clock, 
+  User, 
+  ExternalLink, 
+  Calendar as CalendarIcon, 
+  List as ListIcon, 
+  ChevronLeft, 
+  ChevronRight, 
+  Loader2, 
+  AlertCircle, 
+  X,
+  Minimize2,
+  Maximize2,
+  FileCode,
+  Hash,
+  Search
 } from "lucide-react";
 
 // --- TYPES ---
+
 type GitHubCommit = {
   sha: string;
   html_url: string;
@@ -29,35 +49,52 @@ type GitHubCommit = {
   } | null; 
 };
 
+type GitHubBranch = {
+  name: string;
+  commit: { sha: string; url: string };
+};
+
 type Project = {
   id: string;
   name: string;
   github_repo_url: string | null;
+  logo_url?: string | null; 
+  [key: string]: any;
 };
 
 export default function RepositoryPage() {
+  // --- CONFIG & HOOKS ---
   const supabase = createClient();
   const params = useParams();
   const router = useRouter();
   const projectId = params.id as string;
 
-  // --- GLOBAL STATE ---
-  const [viewMode, setViewMode] = useState<'list' | 'calendar'>('list');
+  // --- STATE ---
+
+  // Data State
   const [user, setUser] = useState<any>(null);
   const [project, setProject] = useState<Project | null>(null);
   
-  // --- REPO DATA ---
+  // GitHub Data
   const [commits, setCommits] = useState<GitHubCommit[]>([]);
+  const [branches, setBranches] = useState<GitHubBranch[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // --- CALENDAR STATE ---
+  // Filters
+  const [selectedBranch, setSelectedBranch] = useState<string>("main");
+  const [searchQuery, setSearchQuery] = useState("");
+
+  // View State
+  const [viewMode, setViewMode] = useState<'list' | 'calendar'>('list');
   const [startDate, setStartDate] = useState<Date>(new Date());
   const [numDaysInView, setNumDaysInView] = useState(7); 
-  const [hourHeight, setHourHeight] = useState(60); // px per hour
+  const [hourHeight, setHourHeight] = useState(60); 
+  
+  // Modal State
   const [selectedCommit, setSelectedCommit] = useState<GitHubCommit | null>(null);
 
-  // --- CONFIG ---
+  // Constants
   const HOURS = Array.from({ length: 24 }, (_, i) => i);
   const GRID_TOTAL_HEIGHT = 24 * hourHeight;
 
@@ -66,61 +103,150 @@ export default function RepositoryPage() {
     try {
       const cleanUrl = url.replace(/\/$/, "");
       const parts = cleanUrl.split("/");
-      if (parts.length >= 5) return { owner: parts[parts.length - 2], repo: parts[parts.length - 1] };
+      if (parts.length >= 5) {
+        return { owner: parts[parts.length - 2], repo: parts[parts.length - 1] };
+      }
       return null;
     } catch (e) { return null; }
   };
 
-  // --- INITIAL FETCH ---
+  const repoDetails = useMemo(() => {
+    return project?.github_repo_url ? getRepoDetails(project.github_repo_url) : null;
+  }, [project]);
+
+  // --- EFFECTS ---
+
+  // 1. Initial Fetch
   useEffect(() => {
     const init = async () => {
       setLoading(true);
+      
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) { router.push("/auth/login"); return; }
       setUser(user);
 
-      const { data: proj } = await supabase.from("projects").select("id, name, github_repo_url").eq("id", projectId).single();
+      const { data: proj } = await supabase
+        .from("projects")
+        .select("*")
+        .eq("id", projectId)
+        .single();
+
       if (proj) {
         setProject(proj);
-        if (proj.github_repo_url) {
-            const details = getRepoDetails(proj.github_repo_url);
-            if (details) {
-                try {
-                    // Fetching 100 to populate the calendar better
-                    const res = await fetch(`https://api.github.com/repos/${details.owner}/${details.repo}/commits?per_page=100`);
-                    if (!res.ok) throw new Error("Failed to fetch commits");
-                    const data = await res.json();
-                    setCommits(data);
-                } catch (err: any) { setError(err.message); }
-            } else { setError("Invalid GitHub URL"); }
-        }
+      } else {
+        router.push("/dashboard");
       }
-      setLoading(false);
     };
     init();
   }, [projectId]);
 
-  // --- CALENDAR HELPERS ---
-  const getStartOfWeek = (d: Date) => { const day = d.getDay(); const diff = d.getDate() - day + (day === 0 ? -6 : 1); const n = new Date(d.setDate(diff)); n.setHours(0,0,0,0); return n; };
-  const navigateDate = (dir: number) => { const n = new Date(startDate); n.setDate(startDate.getDate() + (dir * numDaysInView)); setStartDate(n); };
-  const isSameDay = (d1: Date, d2Str: string) => { const d2 = new Date(d2Str); return d1.getFullYear() === d2.getFullYear() && d1.getMonth() === d2.getMonth() && d1.getDate() === d2.getDate(); };
+  // 2. Fetch Branches
+  useEffect(() => {
+    const fetchBranches = async () => {
+      if (!repoDetails) return;
+      try {
+        const res = await fetch(`https://api.github.com/repos/${repoDetails.owner}/${repoDetails.repo}/branches`);
+        if (res.ok) {
+          const data = await res.json();
+          setBranches(data);
+          if (data.length > 0) {
+             const defaultBranch = data.find((b: any) => b.name === 'main') || data.find((b: any) => b.name === 'master') || data[0];
+             setSelectedBranch(defaultBranch.name);
+          }
+        }
+      } catch (e) { console.error(e); }
+    };
+    fetchBranches();
+  }, [repoDetails]);
+
+  // 3. Fetch Commits
+  useEffect(() => {
+    const fetchCommits = async () => {
+      if (!project) return;
+      if (!repoDetails) {
+        setLoading(false);
+        return;
+      }
+
+      setLoading(true);
+      setError(null);
+
+      try {
+        const res = await fetch(`https://api.github.com/repos/${repoDetails.owner}/${repoDetails.repo}/commits?sha=${selectedBranch}&per_page=100`);
+        
+        if (!res.ok) {
+           if (res.status === 403) throw new Error("GitHub API Rate Limit Exceeded");
+           if (res.status === 404) throw new Error("Repo not found or private");
+           throw new Error("Failed to fetch commits");
+        }
+        
+        const data = await res.json();
+        setCommits(data);
+      } catch (err: any) { 
+        setError(err.message); 
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchCommits();
+  }, [repoDetails, selectedBranch]);
+
+  useEffect(() => {
+    document.body.style.overflow = selectedCommit ? 'hidden' : 'unset';
+    return () => { document.body.style.overflow = 'unset'; }
+  }, [selectedCommit]);
+
+  // --- CALENDAR LOGIC ---
+
+  const filteredCommits = useMemo(() => {
+    if (!searchQuery) return commits;
+    const lowerQ = searchQuery.toLowerCase();
+    return commits.filter(c => 
+      c.commit.message.toLowerCase().includes(lowerQ) || 
+      c.commit.author.name.toLowerCase().includes(lowerQ) ||
+      c.sha.includes(lowerQ)
+    );
+  }, [commits, searchQuery]);
+
+  const getStartOfWeek = (d: Date) => {
+    const day = d.getDay();
+    const diff = d.getDate() - day + (day === 0 ? -6 : 1); 
+    const n = new Date(d.setDate(diff)); 
+    n.setHours(0,0,0,0); 
+    return n; 
+  };
+
+  const navigateDate = (dir: number) => {
+    const n = new Date(startDate); 
+    if (numDaysInView > 1) {
+        n.setDate(startDate.getDate() + (dir * numDaysInView)); 
+    } else {
+        n.setDate(startDate.getDate() + dir);
+    }
+    setStartDate(n); 
+  };
+
+  const isSameDay = (d1: Date, d2Str: string) => {
+      const d2 = new Date(d2Str); 
+      return d1.getFullYear() === d2.getFullYear() && d1.getMonth() === d2.getMonth() && d1.getDate() === d2.getDate(); 
+  };
 
   const dateStrip = useMemo(() => {
-    const days = []; const base = new Date(startDate); base.setHours(0,0,0,0);
-    for (let i = 0; i < numDaysInView; i++) days.push(new Date(base.getTime() + i * 86400000));
+    const days = []; 
+    const base = new Date(startDate); 
+    base.setHours(0,0,0,0);
+    for (let i = 0; i < numDaysInView; i++) {
+        days.push(new Date(base.getTime() + i * 86400000));
+    }
     return days;
   }, [startDate, numDaysInView]);
 
-  // --- COMMIT CALENDAR LAYOUT LOGIC ---
   const getCommitLayout = (commit: GitHubCommit, dayCommits: GitHubCommit[]) => {
-      // 1. Calculate time in minutes
       const date = new Date(commit.commit.author.date);
       const startMins = date.getHours() * 60 + date.getMinutes();
-      // 2. Commits are instantaneous, so we give them a visual height of 30 mins
       const durationMins = 30; 
       const endMins = startMins + durationMins;
-
-      // 3. Calculate overlaps to spread them horizontally
       const overlaps = dayCommits.filter(c => {
           const cDate = new Date(c.commit.author.date);
           const cStart = cDate.getHours() * 60 + cDate.getMinutes();
@@ -128,13 +254,11 @@ export default function RepositoryPage() {
           return startMins < cEnd && endMins > cStart;
       });
       overlaps.sort((a, b) => new Date(a.commit.author.date).getTime() - new Date(b.commit.author.date).getTime());
-      
       const idx = overlaps.findIndex(c => c.sha === commit.sha);
       const width = 100 / overlaps.length;
       const left = idx * width;
       const top = (startMins / 60) * hourHeight;
       const height = (durationMins / 60) * hourHeight;
-
       return { 
           style: { top: `${top}px`, height: `${height}px`, left: `${left}%`, width: `${width}%`, zIndex: 10 + idx },
           timeStr: date.toLocaleTimeString([], { hour: '2-digit', minute:'2-digit' })
@@ -142,12 +266,22 @@ export default function RepositoryPage() {
   };
 
   const formatTimeAgo = (iso: string) => {
-    const d = new Date(iso); const now = new Date();
+    const d = new Date(iso); 
+    const now = new Date();
     const diff = Math.ceil(Math.abs(now.getTime() - d.getTime()) / (86400000));
-    return diff < 2 ? d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : d.toLocaleDateString([], { month: 'short', day: 'numeric' });
+    if (diff < 2) return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    return d.toLocaleDateString([], { month: 'short', day: 'numeric' });
   };
 
-  if (loading) return <div className="h-screen bg-[#0a0a0a] flex items-center justify-center text-white"><Loader2 className="animate-spin text-white/20"/></div>;
+  // --- RENDER ---
+
+  if (loading && !project) {
+      return (
+        <div role="status" className="flex justify-center items-center h-screen bg-[#0a0a0a]">
+            <Loader2 className="w-8 h-8 text-neutral-400 animate-spin" />
+        </div>
+      );
+  }
 
   return (
     <div className="flex h-screen bg-[#0a0a0a] text-white overflow-hidden font-sans">
@@ -158,144 +292,231 @@ export default function RepositoryPage() {
         ::-webkit-scrollbar-thumb:hover { background: #333; }
       `}</style>
       
+      {/* --- SIDEBAR --- */}
       <Menu project={project} user={user} />
 
+      {/* --- MAIN CONTENT --- */}
       <main className="flex-1 ml-64 flex flex-col h-full bg-[#0a0a0a]">
         
         {/* --- HEADER --- */}
         <div className="flex-none h-16 mt-[60px] px-6 border-b border-white/5 flex items-center justify-between bg-[#0a0a0a] z-20">
             <div className="flex items-center gap-6">
-                <h1 className="text-xl font-bold tracking-tight">Repository <span className="text-white/30 text-lg font-light">History</span></h1>
+                <h1 className="text-xl font-bold tracking-tight">
+                    Repository <span className="text-white/30 text-lg font-light">History</span>
+                </h1>
                 
-                {project?.github_repo_url && (
-                    <div className="hidden md:flex items-center gap-2 text-[10px] uppercase font-bold text-white/40 bg-[#161616] px-3 py-1.5 rounded-lg border border-white/5">
-                        <Github size={12} /> 
-                        <span>{getRepoDetails(project.github_repo_url)?.owner} / {getRepoDetails(project.github_repo_url)?.repo}</span>
-                    </div>
-                )}
+                <div className="h-6 w-px bg-white/10"></div>
+                
+                {/* Date Navigation (Restored to Top Bar) */}
+                <div className="flex items-center gap-3">
+                    {viewMode === 'calendar' && (
+                        <>
+                            <div className="flex items-center bg-[#161616] rounded-md border border-white/5 p-0.5">
+                                <button onClick={() => navigateDate(-1)} className="p-1.5 hover:bg-white/10 rounded text-white/60 hover:text-white"><ChevronLeft size={16} /></button>
+                                <button onClick={() => setStartDate(getStartOfWeek(new Date()))} className="px-3 text-[11px] font-bold uppercase text-white/60 hover:text-white">Today</button>
+                                <button onClick={() => navigateDate(1)} className="p-1.5 hover:bg-white/10 rounded text-white/60"><ChevronRight size={16} /></button>
+                            </div>
+                            <h2 className="text-sm font-semibold text-white/90 min-w-[140px]">
+                                {startDate.toLocaleString('default', { month: 'long', day: 'numeric' })}
+                            </h2>
+                        </>
+                    )}
+                </div>
             </div>
 
-            <div className="flex items-center gap-4">
-                {/* CALENDAR CONTROLS (Only visible in Calendar mode) */}
+            <div className="flex items-center gap-3">
+                {/* View Controls (Restored) */}
                 {viewMode === 'calendar' && (
-                    <div className="flex items-center bg-[#161616] rounded-md border border-white/5 p-0.5">
-                        <button onClick={() => navigateDate(-1)} className="p-1.5 hover:bg-white/10 rounded text-white/60 hover:text-white"><ChevronLeft size={16}/></button>
-                        <button onClick={() => setStartDate(getStartOfWeek(new Date()))} className="px-3 text-[11px] font-bold uppercase text-white/60 hover:text-white">Today</button>
-                        <button onClick={() => navigateDate(1)} className="p-1.5 hover:bg-white/10 rounded text-white/60"><ChevronRight size={16}/></button>
-                    </div>
+                    <>
+                        <div className="flex bg-[#161616] rounded-md border border-white/5 p-0.5">
+                            <button onClick={() => setHourHeight(60)} className={`p-2 rounded text-white/60 hover:text-white ${hourHeight === 60 ? 'bg-white/10' : ''}`} title="Compact View"><Minimize2 size={16}/></button>
+                            <button onClick={() => setHourHeight(120)} className={`p-2 rounded text-white/60 hover:text-white ${hourHeight === 120 ? 'bg-white/10' : ''}`} title="Expanded View"><Maximize2 size={16}/></button>
+                        </div>
+                        <div className="hidden sm:flex bg-[#161616] rounded-md border border-white/5 p-0.5">
+                            {[1, 3, 5, 7].map(n => (
+                                <button key={n} onClick={() => setNumDaysInView(n)} className={`px-3 py-1.5 rounded text-[10px] font-bold uppercase transition-all ${numDaysInView === n ? 'bg-white/10 text-white' : 'text-white/40 hover:text-white'}`}>{n} Days</button>
+                            ))}
+                        </div>
+                    </>
                 )}
 
-                {/* VIEW SWITCHER */}
-                <div className="flex bg-[#161616] rounded-lg border border-white/5 p-1">
-                    <button onClick={() => setViewMode('list')} className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-[11px] font-bold uppercase transition-all ${viewMode === 'list' ? 'bg-white/10 text-white shadow-sm' : 'text-white/40 hover:text-white'}`}>
+                <div className="h-6 w-px bg-white/10"></div>
+
+                {/* View Switcher */}
+                <div className="flex bg-[#161616] rounded-md border border-white/5 p-0.5">
+                    <button 
+                        onClick={() => setViewMode('list')} 
+                        className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-[10px] font-bold uppercase transition-all ${viewMode === 'list' ? 'bg-white/10 text-white' : 'text-white/40 hover:text-white'}`}
+                    >
                         <ListIcon size={14} /> List
                     </button>
-                    <button onClick={() => setViewMode('calendar')} className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-[11px] font-bold uppercase transition-all ${viewMode === 'calendar' ? 'bg-white/10 text-white shadow-sm' : 'text-white/40 hover:text-white'}`}>
+                    <button 
+                        onClick={() => setViewMode('calendar')} 
+                        className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-[10px] font-bold uppercase transition-all ${viewMode === 'calendar' ? 'bg-white/10 text-white' : 'text-white/40 hover:text-white'}`}
+                    >
                         <CalendarIcon size={14} /> Calendar
                     </button>
                 </div>
             </div>
         </div>
 
-        {/* --- CONTENT --- */}
+        {/* --- FILTERS BAR (Secondary Header) --- */}
+        <div className="flex-none px-6 py-4 flex items-center justify-between gap-4 border-b border-white/5 bg-[#0a0a0a]">
+             <div className="flex items-center gap-3 flex-1">
+                {/* Branch Selector */}
+                <div className="relative group">
+                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-white/40">
+                        <GitBranch size={14} />
+                    </div>
+                    <select 
+                        value={selectedBranch}
+                        onChange={(e) => setSelectedBranch(e.target.value)}
+                        disabled={branches.length === 0}
+                        className="bg-[#161616] border border-white/10 text-white text-xs rounded-lg pl-9 pr-8 py-2 focus:ring-1 focus:ring-purple-500 focus:border-purple-500 block appearance-none outline-none cursor-pointer disabled:opacity-50 min-w-[140px]"
+                    >
+                        {branches.length > 0 ? (
+                            branches.map(b => <option key={b.name} value={b.name}>{b.name}</option>)
+                        ) : (
+                            <option>Main</option>
+                        )}
+                    </select>
+                    <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none text-white/40">
+                            <ChevronRight size={12} className="rotate-90" />
+                    </div>
+                </div>
+
+                {/* Search Input */}
+                <div className="relative flex-1 max-w-md">
+                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-white/40">
+                        <Search size={14} />
+                    </div>
+                    <input 
+                        type="text" 
+                        placeholder="Search messages or authors..." 
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                        className="w-full bg-[#161616] border border-white/10 text-white text-xs rounded-lg pl-9 pr-4 py-2 focus:ring-1 focus:ring-purple-500 focus:border-purple-500 outline-none placeholder:text-white/20"
+                    />
+                </div>
+            </div>
+        </div>
+
+        {/* --- CONTENT AREA --- */}
         <div className="flex-1 overflow-hidden relative flex flex-col">
             
-            {!project?.github_repo_url ? (
+            {!repoDetails ? (
                 <div className="h-full flex flex-col items-center justify-center text-center opacity-60">
                     <div className="w-16 h-16 bg-white/5 rounded-full flex items-center justify-center mb-4"><GitBranch size={32} className="text-white/40"/></div>
                     <h3 className="text-lg font-bold">No Repository Connected</h3>
                     <p className="text-sm text-white/40 max-w-xs mt-2">Add a GitHub URL to your project settings.</p>
                 </div>
+            ) : loading ? (
+                 <div role="status" className="flex justify-center items-center h-full bg-[#0a0a0a]">
+                    <Loader2 className="w-8 h-8 text-neutral-400 animate-spin" />
+                </div>
             ) : error ? (
-                <div className="p-10 flex justify-center"><div className="p-4 rounded-lg bg-red-500/10 border border-red-500/20 text-red-400 flex items-center gap-3"><AlertCircle size={20} /><span>{error}</span></div></div>
+                <div className="p-10 flex justify-center">
+                    <div className="p-4 rounded-lg bg-red-500/10 border border-red-500/20 text-red-400 flex items-center gap-3">
+                        <AlertCircle size={20} />
+                        <span>{error}</span>
+                    </div>
+                </div>
             ) : (
                 <>
-                    {/* === LIST VIEW === */}
+                    {/* List View */}
                     {viewMode === 'list' && (
                         <div className="flex-1 overflow-y-auto p-8 animate-in fade-in duration-300">
                             <div className="max-w-4xl mx-auto relative pb-20">
                                 <div className="absolute left-[19px] top-4 bottom-4 w-px bg-white/10 z-0"></div>
                                 <div className="space-y-6 relative z-10">
-                                    {commits.map((commit, index) => (
-                                        <div key={commit.sha} className="group relative flex gap-6">
-                                            <div className="flex-none mt-1">
-                                                <div className="w-10 h-10 rounded-full bg-[#111] border border-white/10 flex items-center justify-center group-hover:border-purple-500/50 group-hover:bg-purple-500/10 transition-colors shadow-sm">
-                                                    <GitCommit size={18} className="text-white/40 group-hover:text-purple-400 transition-colors" />
+                                    {filteredCommits.length === 0 ? (
+                                        <div className="pl-12 text-white/40 italic">No commits match your search.</div>
+                                    ) : (
+                                        filteredCommits.map((commit) => (
+                                            <div key={commit.sha} className="group relative flex gap-6">
+                                                <div className="flex-none mt-1">
+                                                    <div className="w-10 h-10 rounded-full bg-[#111] border border-white/10 flex items-center justify-center group-hover:border-purple-500/50 group-hover:bg-purple-500/10 transition-colors shadow-sm">
+                                                        <GitCommit size={18} className="text-white/40 group-hover:text-purple-400 transition-colors" />
+                                                    </div>
                                                 </div>
-                                            </div>
-                                            <div className="flex-1 bg-[#111] border border-white/5 rounded-xl p-4 hover:border-white/10 transition-all hover:shadow-lg hover:shadow-blue-900/5">
-                                                <div className="flex justify-between items-start gap-4">
-                                                    <div>
-                                                        <p className="text-sm font-medium text-white/90 leading-relaxed">{commit.commit.message}</p>
-                                                        <div className="flex items-center gap-3 mt-3">
-                                                            <div className="flex items-center gap-2">
-                                                                <div className="w-5 h-5 rounded-full bg-white/10 overflow-hidden">{commit.author ? <img src={commit.author.avatar_url} className="w-full h-full object-cover"/> : <User size={12} className="m-auto mt-1 text-white/50"/>}</div>
-                                                                <span className="text-xs text-white/60 font-medium">{commit.commit.author.name}</span>
+                                                <div onClick={() => setSelectedCommit(commit)} className="flex-1 bg-[#111] border border-white/5 rounded-xl p-4 hover:border-white/10 transition-all hover:shadow-lg cursor-pointer">
+                                                    <div className="flex justify-between items-start gap-4">
+                                                        <div>
+                                                            <p className="text-sm font-medium text-white/90 leading-relaxed">{commit.commit.message}</p>
+                                                            <div className="flex items-center gap-3 mt-3">
+                                                                <div className="flex items-center gap-2">
+                                                                    <div className="w-5 h-5 rounded-full bg-white/10 overflow-hidden">{commit.author ? <img src={commit.author.avatar_url} className="w-full h-full object-cover"/> : <User size={12} className="m-auto mt-1 text-white/50"/>}</div>
+                                                                    <span className="text-xs text-white/60 font-medium">{commit.commit.author.name}</span>
+                                                                </div>
+                                                                <span className="text-white/10 text-[10px]">•</span>
+                                                                <div className="flex items-center gap-1.5 text-xs text-white/40"><Clock size={12} />{formatTimeAgo(commit.commit.author.date)}</div>
                                                             </div>
-                                                            <span className="text-white/10 text-[10px]">•</span>
-                                                            <div className="flex items-center gap-1.5 text-xs text-white/40"><Clock size={12} />{formatTimeAgo(commit.commit.author.date)}</div>
+                                                        </div>
+                                                        <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-white/5 border border-white/5 text-[10px] font-bold uppercase tracking-wide text-white/60 group-hover:text-white transition-all">
+                                                            {commit.sha.substring(0, 7)} <ExternalLink size={12} />
                                                         </div>
                                                     </div>
-                                                    <a href={commit.html_url} target="_blank" className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-white/5 hover:bg-white/10 border border-white/5 text-[10px] font-bold uppercase tracking-wide text-white/60 hover:text-white transition-all">
-                                                        {commit.sha.substring(0, 7)} <ExternalLink size={12} />
-                                                    </a>
                                                 </div>
                                             </div>
-                                        </div>
-                                    ))}
+                                        ))
+                                    )}
                                 </div>
                             </div>
                         </div>
                     )}
 
-                    {/* === CALENDAR VIEW (OF COMMITS) === */}
+                    {/* Calendar View */}
                     {viewMode === 'calendar' && (
                         <div className="flex-1 overflow-y-auto relative flex flex-col animate-in fade-in duration-300">
-                             {/* Date Headers */}
+                             
+                            {/* Sticky Date Headers */}
                             <div className="sticky top-0 z-40 bg-[#0a0a0a] border-b border-white/5 flex flex-none h-12">
                                 <div className="w-14 flex-none border-r border-white/5 bg-[#0a0a0a]" />
                                 <div className="flex-1 flex">
                                     {dateStrip.map((day, i) => { 
                                         const isToday = isSameDay(day, new Date().toISOString()); 
-                                        return (<div key={i} className="flex-1 border-r border-white/5 flex items-center justify-center gap-2 last:border-r-0"><span className={`text-xs uppercase font-bold tracking-wider ${isToday ? 'text-purple-400' : 'text-white/40'}`}>{day.toLocaleString('default', { weekday: 'short' })}</span><div className={`w-7 h-7 rounded-full flex items-center justify-center text-sm font-bold ${isToday ? 'bg-purple-600 text-white' : 'text-white/80'}`}>{day.getDate()}</div></div>); 
+                                        return (
+                                            <div key={i} className="flex-1 border-r border-white/5 flex items-center justify-center gap-2 last:border-r-0">
+                                                <span className={`text-xs uppercase font-bold tracking-wider ${isToday ? 'text-purple-400' : 'text-white/40'}`}>
+                                                    {day.toLocaleString('default', { weekday: 'short' })}
+                                                </span>
+                                                <div className={`w-7 h-7 rounded-full flex items-center justify-center text-sm font-bold ${isToday ? 'bg-purple-600 text-white' : 'text-white/80'}`}>
+                                                    {day.getDate()}
+                                                </div>
+                                            </div>
+                                        ); 
                                     })}
                                 </div>
                             </div>
                             
                             {/* Time Grid */}
                             <div className="flex flex-1 relative min-h-0">
-                                {/* Y-Axis Times */}
                                 <div className="w-14 flex-none border-r border-white/5 bg-[#0a0a0a] relative" style={{ height: `${GRID_TOTAL_HEIGHT}px` }}>
-                                    {HOURS.map(h => (<div key={h} className="absolute w-full text-right pr-2 text-xs font-medium text-white/20" style={{ top: h * hourHeight, transform: 'translateY(-50%)' }}>{h === 0 ? '' : `${h.toString().padStart(2, '0')}:00`}</div>))}
+                                    {HOURS.map(h => (
+                                        <div key={h} className="absolute w-full text-right pr-2 text-xs font-medium text-white/20" style={{ top: h * hourHeight, transform: 'translateY(-50%)' }}>
+                                            {h === 0 ? '' : `${h.toString().padStart(2, '0')}:00`}
+                                        </div>
+                                    ))}
                                 </div>
-                                
-                                {/* The Grid */}
                                 <div className="flex-1 relative" style={{ height: `${GRID_TOTAL_HEIGHT}px` }}>
-                                    {/* Horizontal Lines */}
-                                    {HOURS.map(h => (<div key={h} className="absolute w-full border-b border-white/5" style={{ top: h * hourHeight, height: hourHeight }}><div className="absolute top-1/2 w-full border-t border-white/[0.02] border-dashed"></div></div>))}
-                                    
-                                    {/* Commit Blocks */}
+                                    {HOURS.map(h => (
+                                        <div key={h} className="absolute w-full border-b border-white/5" style={{ top: h * hourHeight, height: hourHeight }}>
+                                            <div className="absolute top-1/2 w-full border-t border-white/[0.02] border-dashed"></div>
+                                        </div>
+                                    ))}
                                     <div className="absolute inset-0 flex h-full">
                                         {dateStrip.map((day, colIndex) => {
-                                            const dayCommits = commits.filter(c => isSameDay(day, c.commit.author.date));
+                                            const dayCommits = filteredCommits.filter(c => isSameDay(day, c.commit.author.date));
                                             return (
-                                                <div key={colIndex} className="flex-1 border-r border-white/5 last:border-r-0 relative h-full">
+                                                <div key={colIndex} className="flex-1 border-r border-white/5 last:border-r-0 relative h-full group/col hover:bg-white/[0.01]">
                                                     {dayCommits.map(commit => {
                                                         const { style, timeStr } = getCommitLayout(commit, dayCommits);
                                                         return (
-                                                            <div 
-                                                                key={commit.sha} 
-                                                                onClick={() => setSelectedCommit(commit)}
-                                                                style={style} 
-                                                                className="absolute rounded bg-blue-500/10 border border-blue-500/30 border-l-2 border-l-blue-500 p-1 cursor-pointer hover:bg-blue-500/20 hover:z-50 transition-all overflow-hidden"
-                                                            >
-                                                                <div className="text-[10px] font-bold text-blue-200 truncate">{commit.commit.message}</div>
-                                                                <div className="flex items-center gap-1 mt-0.5">
-                                                                    <div className="w-3 h-3 rounded-full bg-white/10 overflow-hidden">
-                                                                        {commit.author ? <img src={commit.author.avatar_url} className="w-full h-full object-cover"/> : <User size={8} className="text-white/50 m-auto"/>}
-                                                                    </div>
-                                                                    <span className="text-[9px] text-white/40">{timeStr}</span>
+                                                            <div key={commit.sha} onClick={() => setSelectedCommit(commit)} style={style} className="absolute rounded px-2 py-1.5 cursor-pointer transition-all border-l-[3px] overflow-hidden flex flex-col justify-start hover:brightness-110 hover:z-50 hover:shadow-lg shadow-sm bg-purple-600/10 border-purple-500/50 border-l-purple-500 text-purple-100">
+                                                                <div className="flex items-center gap-1.5 min-w-0 mb-0.5">
+                                                                    <span className="text-xs font-bold truncate">{commit.commit.message}</span>
                                                                 </div>
+                                                                <span className="text-[9px] text-white/50">{timeStr}</span>
                                                             </div>
                                                         );
                                                     })}
@@ -312,39 +533,65 @@ export default function RepositoryPage() {
         </div>
       </main>
 
-      {/* --- COMMIT DETAILS MODAL --- */}
+      {/* --- MODAL --- */}
       {selectedCommit && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200">
-              <div className="bg-[#111] border border-white/10 rounded-xl w-full max-w-md p-6 shadow-2xl relative animate-in zoom-in-95">
-                  <button onClick={() => setSelectedCommit(null)} className="absolute top-4 right-4 p-2 bg-white/5 hover:bg-white/10 rounded-lg text-white/50 hover:text-white"><X size={16} /></button>
-                  
-                  <div className="flex items-center gap-3 mb-4">
-                      <div className="w-10 h-10 rounded-full bg-purple-500/10 flex items-center justify-center text-blue-400 border border-blue-500/20"><GitCommit size={20} /></div>
-                      <div>
-                          <div className="text-[10px] uppercase font-bold text-white/40">Commit Details</div>
-                          <div className="font-mono text-sm text-white/60">{selectedCommit.sha.substring(0,7)}</div>
-                      </div>
+          <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/60 backdrop-blur-md animate-in fade-in duration-300">
+              <div className="relative bg-neutral-900 w-full max-w-2xl rounded-2xl shadow-2xl border border-white/10 overflow-hidden flex flex-col max-h-[90vh] animate-in zoom-in-95 slide-in-from-bottom-2 duration-300" onClick={(e) => e.stopPropagation()}>
+                  <div className="absolute top-0 right-0 w-50 h-50 bg-purple-500/10 rounded-full blur-[100px] pointer-events-none -translate-y-1/2 translate-x-1/2"></div>
+                  <div className="relative p-6 border-b border-white/5 flex gap-4 bg-white/[0.02]">
+                        <div className="flex-none w-12 h-12 rounded-xl bg-purple-500/10 border border-purple-500/20 flex items-center justify-center text-purple-400">
+                            <GitCommit size={24} />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                            <div className="flex items-center justify-between gap-4 mb-2">
+                                <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-white/5 border border-white/10 text-[10px] font-bold uppercase tracking-wider text-white/50">
+                                    <GitBranch size={10} /> {selectedBranch}
+                                </span>
+                                <button onClick={() => setSelectedCommit(null)} className="p-1.5 rounded-lg text-white/40 hover:text-white hover:bg-white/10 transition-colors"><X size={20} /></button>
+                            </div>
+                            <h3 className="text-xl font-bold text-white leading-snug pr-8 break-words">{selectedCommit.commit.message}</h3>
+                        </div>
                   </div>
-
-                  <h3 className="text-lg font-bold text-white mb-4 leading-snug">{selectedCommit.commit.message}</h3>
-
-                  <div className="space-y-3 bg-white/5 p-4 rounded-lg border border-white/5 mb-4">
-                      <div className="flex items-center justify-between">
-                          <span className="text-xs text-white/40">Author</span>
-                          <div className="flex items-center gap-2">
-                              <span className="text-sm font-medium">{selectedCommit.commit.author.name}</span>
-                              <div className="w-5 h-5 rounded-full bg-white/10 overflow-hidden">{selectedCommit.author && <img src={selectedCommit.author.avatar_url} className="w-full h-full object-cover"/>}</div>
+                  <div className="relative p-6 overflow-y-auto space-y-6">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div className="p-4 bg-black/20 rounded-xl border border-white/5 flex items-center gap-4">
+                                <div className="w-12 h-12 rounded-full ring-2 ring-white/5 bg-white/5 overflow-hidden flex-none">
+                                    {selectedCommit.author ? <img src={selectedCommit.author.avatar_url} className="w-full h-full object-cover"/> : <div className="w-full h-full flex items-center justify-center"><User size={20} className="text-white/30"/></div>}
+                                </div>
+                                <div className="min-w-0">
+                                    <div className="text-[10px] uppercase font-bold text-white/30 mb-0.5">Committed By</div>
+                                    <div className="text-sm font-semibold text-white truncate">{selectedCommit.commit.author.name}</div>
+                                </div>
+                            </div>
+                            <div className="p-4 bg-black/20 rounded-xl border border-white/5 flex items-center gap-4">
+                                <div className="w-12 h-12 rounded-xl bg-white/8 border border-purple-500/20 flex flex-col items-center justify-center text-white-400 flex-none">
+                                    <span className="text-[8px] font-bold uppercase">{new Date(selectedCommit.commit.author.date).toLocaleString('default', { month: 'short'})}</span>
+                                    <span className="text-lg font-bold leading-none">{new Date(selectedCommit.commit.author.date).getDate()}</span>
+                                </div>
+                                <div>
+                                    <div className="text-[10px] uppercase font-bold text-white/30 mb-0.5">Timestamp</div>
+                                    <div className="text-sm font-semibold text-white">{new Date(selectedCommit.commit.author.date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</div>
+                                </div>
+                            </div>
+                      </div>
+                      <div className="space-y-3">
+                          <div className="flex items-center gap-2 text-xs font-bold uppercase text-white/40"><FileCode size={14} /> Commit Details</div>
+                          <div className="group relative flex items-center justify-between p-4 bg-[#050505] rounded-xl border border-white/10 hover:border-white/20 transition-colors">
+                              <div className="flex items-center gap-3 overflow-hidden">
+                                  <div className="p-2 bg-white/5 rounded-lg"><Hash size={16} className="text-white/40" /></div>
+                                  <div className="flex flex-col min-w-0">
+                                      <span className="text-[10px] text-white/30 font-medium">Full SHA-1</span>
+                                      <code className="text-xs text-purple-300 font-mono truncate select-all">{selectedCommit.sha}</code>
+                                  </div>
+                              </div>
                           </div>
                       </div>
-                      <div className="flex items-center justify-between">
-                          <span className="text-xs text-white/40">Date</span>
-                          <span className="text-sm font-medium">{new Date(selectedCommit.commit.author.date).toLocaleString()}</span>
-                      </div>
                   </div>
-
-                  <a href={selectedCommit.html_url} target="_blank" className="flex items-center justify-center gap-2 w-full py-2.5 bg-white text-black rounded-lg font-bold text-sm hover:bg-gray-200 transition-colors">
-                      View on GitHub <ExternalLink size={14} />
-                  </a>
+                  <div className="p-6 pt-2 border-t border-white/5 bg-white/[0.01]">
+                        <a href={selectedCommit.html_url} target="_blank" className="flex items-center justify-center gap-2 w-full py-3 rounded-xl bg-white text-black font-bold text-sm hover:bg-gray-200 transition-all hover:scale-[1.01] active:scale-[0.99] shadow-lg shadow-white/5">
+                            <Github size={18} /> View on GitHub <ExternalLink size={14} className="opacity-50"/>
+                        </a>
+                  </div>
               </div>
           </div>
       )}
