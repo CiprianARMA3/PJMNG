@@ -150,7 +150,7 @@ export default async function ProjectPage({ params }: { params: Promise<{ id: st
                   )}
                   <div className="-mb-2">
                     <h1 className="text-4xl font-extrabold text-white tracking-tight mb-1">{project.name}</h1>
-                    <p className="text-white/70 text-base max-w-2xl">{project.description || "A collaborative and innovative project managed through the dedicated developer dashboard."}</p>
+                    <p className="text-white/70 text-base max-w-2xl">{project.description || "No description has been provided."}</p>
                   </div>
                 </div>
 

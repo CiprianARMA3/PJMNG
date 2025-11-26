@@ -1,6 +1,8 @@
 "use client";
+
 import { Plus, ChevronDown, FolderPlus, Users } from "lucide-react";
 import { useState, useRef, useEffect } from "react";
+import Link from "next/link"; 
 
 export default function AddProjectButton() {
   const [isOpen, setIsOpen] = useState(false);
@@ -17,22 +19,15 @@ export default function AddProjectButton() {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  const handleCreate = () => {
-    console.log("Create project clicked");
-    // Add your create project logic here
-    setIsOpen(false);
-  };
-
   const handleJoin = () => {
     console.log("Join project clicked");
-    // Add your join project logic here
     setIsOpen(false);
   };
 
   return (
     <div className="relative" ref={dropdownRef}>
       <button
-        className="
+        className={`
           flex 
           items-center 
           justify-center 
@@ -50,7 +45,8 @@ export default function AddProjectButton() {
           shadow-lg 
           transition-all
           duration-200
-        "
+          ${isOpen ? 'bg-white/10 border-white/20' : ''}
+        `}
         onClick={() => setIsOpen(!isOpen)}
       >
         <Plus size={20} />
@@ -61,25 +57,28 @@ export default function AddProjectButton() {
         />
       </button>
 
-      {/* Dropdown Menu - Left aligned with icons */}
+      {/* Dropdown Menu */}
       {isOpen && (
         <div className="
           absolute 
           left-0 
           top-full 
           mt-2 
-          w-56 
-          bg-[#1a1a1a]/95
-          backdrop-blur-lg 
+          w-64 
+          bg-[#1a1a1a]
+          backdrop-blur-xl
           border 
           border-white/10 
           rounded-xl 
           shadow-2xl 
-          z-50
+          z-[100]
           overflow-hidden
+          animate-in fade-in zoom-in-95 duration-200
         ">
-          <button
-            onClick={handleCreate}
+          
+          {/* Option 1: Create Project */}
+          <Link
+            href="/create-project" 
             className="
               w-full 
               px-4 
@@ -92,21 +91,19 @@ export default function AddProjectButton() {
               border-b 
               border-white/5
               flex
-              items-center
+              items-start
               gap-3
             "
+            onClick={() => setIsOpen(false)}
           >
-            <FolderPlus size={18} className="text-purple-400" />
-            <a href="/create-project">
+            <FolderPlus size={18} className="text-purple-400 mt-1" />
             <div>
-              
               <div className="font-medium text-sm">Create Project</div>
-              <div className="text-xs text-white/60 mt-0.5">Start a new project</div>
-              
+              <div className="text-xs text-white/50 mt-0.5">Start a new workspace</div>
             </div>
-            </a>
-          </button>
+          </Link>
           
+          {/* Option 2: Join Project */}
           <button
             onClick={handleJoin}
             className="
@@ -119,14 +116,14 @@ export default function AddProjectButton() {
               transition-all 
               duration-150
               flex
-              items-center
+              items-start
               gap-3
             "
           >
-            <Users size={18} className="text-blue-400" />
+            <Users size={18} className="text-blue-400 mt-1" />
             <div>
               <div className="font-medium text-sm">Join Project</div>
-              <div className="text-xs text-white/60 mt-0.5">Collaborate on existing</div>
+              <div className="text-xs text-white/50 mt-0.5">Collaborate on existing</div>
             </div>
           </button>
         </div>
