@@ -54,7 +54,7 @@ export default function Menu({ project, user }: MenuProps) {
     {
       title: "Artificial Intelligence",
       items: [
-        { label: "AI Assistant", icon: Bot, href: `/dashboard/projects/${project.id}/ai` },
+        { label: "AI Assistant", icon: Bot, href: `/dashboard/projects/${project.id}/ai/ai-assistant` },
         { label: "AI Code Review", icon: Code, href: `/dashboard/projects/${project.id}/code-review` },
         { label: "AI SQL Helper", icon: Database, href: `/dashboard/projects/${project.id}/ai-schema` },
         { label: "AI Roadmap Visualizer", icon: Code, href: `/dashboard/projects/${project.id}/ai-schema` },
