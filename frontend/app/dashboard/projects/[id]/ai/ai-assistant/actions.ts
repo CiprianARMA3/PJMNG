@@ -141,7 +141,6 @@ export async function generateAiResponse(
 
     const text = response.text || "No response generated";
     const outputTokens = Math.ceil(text.length / 4);
-    // If regeneration, we pay for input again (API cost) but we don't store user msg
     const totalTokensUsed = estimatedInputTokens + outputTokens;
 
     let activeChatId = chatId;
@@ -164,17 +163,37 @@ export async function generateAiResponse(
         activeChatId = newChat.id;
     }
 
-    // Database Insertions
-    const messagesToInsert = [];
+    // --- DATABASE INSERT ---
+    // Using 'ai_model' column as requested
+    const messagesToInsert: any[] = [];
     
-    // Only insert user message if it's NOT a regeneration
     if (!isRegeneration) {
-        messagesToInsert.push({ chat_id: activeChatId, role: 'user', content: prompt, tokens_used: estimatedInputTokens });
+        messagesToInsert.push({ 
+            chat_id: activeChatId, 
+            role: 'user', 
+            content: prompt, 
+            tokens_used: estimatedInputTokens,
+            ai_model: null // Explicitly null for user messages to match shape
+        });
     }
     
-    messagesToInsert.push({ chat_id: activeChatId, role: 'ai', content: text, tokens_used: outputTokens });
+    messagesToInsert.push({ 
+        chat_id: activeChatId, 
+        role: 'ai', 
+        content: text, 
+        tokens_used: outputTokens, 
+        ai_model: modelKey // Saving specific model ID here
+    });
 
-    await supabase.from("ai_messages").insert(messagesToInsert);
+    const { error: insertError } = await supabase.from("ai_messages").insert(messagesToInsert);
+
+    if (insertError) {
+        console.warn("Insert failed with ai_model column. Retrying without it...", insertError.message);
+        // Fallback: Remove ai_model if column doesn't exist yet, to prevent total failure
+        const legacyMessages = messagesToInsert.map(({ ai_model, ...rest }) => rest);
+        const { error: legacyError } = await supabase.from("ai_messages").insert(legacyMessages);
+        if (legacyError) throw new Error("Failed to save message: " + legacyError.message);
+    }
 
     const { data: currentChat } = await supabase.from("ai_chats").select("total_tokens_used").eq("id", activeChatId).single();
     const newChatTotal = (currentChat?.total_tokens_used || 0) + totalTokensUsed;
@@ -202,7 +221,8 @@ export async function generateAiResponse(
         chatId: activeChatId, 
         message: text, 
         tokensUsed: totalTokensUsed,
-        newBalance: newRemaining
+        newBalance: newRemaining,
+        ai_model: modelKey // Return as ai_model to frontend
     };
 
   } catch (error: any) {
