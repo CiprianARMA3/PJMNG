@@ -425,7 +425,40 @@ export default function AiAssistantPage({ params }: PageProps) {
     }
     setIsGenerating(false);
   }
+  const CodeBlock = ({ language, children }: { language: string, children: React.ReactNode }) => {
+    const [isCopied, setIsCopied] = useState(false);
 
+    const handleCopy = () => {
+        const text = String(children).replace(/\n$/, '');
+        navigator.clipboard.writeText(text);
+        setIsCopied(true);
+        setTimeout(() => setIsCopied(false), 2000);
+    };
+
+    return (
+        <div className="rounded-md overflow-hidden border border-[#27272A] my-4 shadow-xl group/code">
+            <div className="flex items-center justify-between px-3 py-1.5 bg-[#18181B] border-b border-[#27272A]">
+                <span className="text-xs text-zinc-500 font-mono">{language}</span>
+                <button 
+                    onClick={handleCopy} 
+                    className="flex items-center gap-1.5 text-[10px] text-zinc-500 hover:text-zinc-300 transition-colors opacity-0 group-hover/code:opacity-100"
+                    title="Copy code"
+                >
+                    {isCopied ? <Check size={12} className="text-emerald-500" /> : <Copy size={12} />}
+                    {isCopied ? 'Copied!' : 'Copy'}
+                </button>
+            </div>
+            <SyntaxHighlighter
+                style={vscDarkPlus}
+                language={language}
+                PreTag="div"
+                customStyle={{ margin: 0, padding: '1rem', background: '#0E0E10', fontSize: '0.875rem' }}
+            >
+                {String(children).replace(/\n$/, '')}
+            </SyntaxHighlighter>
+        </div>
+    );
+};
   const toggleGroup = (gid: string) => setExpandedGroups(prev => ({...prev, [gid]: !prev[gid]}));
 
  if (loading) {
@@ -639,9 +672,13 @@ export default function AiAssistantPage({ params }: PageProps) {
                 <div ref={chatContainerRef} className="flex-1 overflow-y-auto px-4 md:px-12 lg:px-24 py-8 space-y-8 scroll-smooth pb-40">
                     {messages.length === 0 && (
                         <div className="h-full flex flex-col items-center justify-center text-zinc-500 select-none pb-20">
-                            <div className="w-16 h-16 bg-[#18181B] rounded-2xl flex items-center justify-center mb-6 border border-[#27272A] shadow-lg">
-                                <Sparkles size={32} className="text-zinc-200" />
-                            </div>
+                   <div className="group relative w-16 h-16 bg-[#18181B] rounded-2xl flex items-center justify-center mb-6 border border-[#27272A] shadow-lg shadow-black/20 overflow-hidden transition-all duration-300 hover:scale-105 cursor-pointer">
+                            {/* Purple Shine Effect */}
+                            <div className="absolute inset-0 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-700 ease-in-out bg-gradient-to-r from-transparent via-purple-500/40 to-transparent z-10" />
+                            
+                            {/* Sparkles Icon: Starts Zinc-500, becomes White on hover */}
+                            <Sparkles size={32} className="text-zinc-500 relative z-0 transition-colors duration-500 group-hover:text-white" />
+                        </div>
                             <h2 className="text-xl font-medium text-zinc-200 mb-2">How can I help you today?</h2>
                             <p className="text-sm text-zinc-500 max-w-md text-center">Select a model below to start chatting.</p>
                         </div>
@@ -681,34 +718,69 @@ export default function AiAssistantPage({ params }: PageProps) {
                                     <div className={`relative px-5 py-3.5 rounded-2xl text-sm leading-relaxed shadow-sm ${msg.role === 'user' ? 'bg-[#27272A] text-zinc-100 rounded-tr-sm' : 'bg-transparent text-zinc-300 px-0 py-1'}`}>
                                         {msg.role === 'ai' ? (
                                             <div className="prose prose-invert max-w-none">
-                                                <ReactMarkdown 
-                                                    remarkPlugins={[remarkGfm]}
-                                                    components={{
-                                                        code({node, inline, className, children, ...props}: any) {
-                                                            const match = /language-(\w+)/.exec(className || '')
-                                                            return !inline && match ? (
-                                                                <div className="rounded-md overflow-hidden border border-[#27272A] my-4 shadow-xl">
-                                                                    <div className="flex items-center justify-between px-3 py-1.5 bg-[#18181B] border-b border-[#27272A]">
-                                                                        <span className="text-xs text-zinc-500 font-mono">{match[1]}</span>
-                                                                    </div>
-                                                                    <SyntaxHighlighter
-                                                                        style={vscDarkPlus}
-                                                                        language={match[1]}
-                                                                        PreTag="div"
-                                                                        customStyle={{ margin: 0, padding: '1rem', background: '#0E0E10' }}
-                                                                        {...props}
-                                                                    >
-                                                                        {String(children).replace(/\n$/, '')}
-                                                                    </SyntaxHighlighter>
-                                                                </div>
-                                                            ) : (
-                                                                <code className={`${className} bg-[#27272A] text-zinc-200 px-1 py-0.5 rounded text-[13px]`} {...props}>{children}</code>
-                                                            )
-                                                        }
-                                                    }}
-                                                >
-                                                    {msg.content}
-                                                </ReactMarkdown>
+<ReactMarkdown 
+    remarkPlugins={[remarkGfm]}
+    components={{
+        // --- Code Block Styling (Existing) ---
+        code({node, inline, className, children, ...props}: any) {
+            const match = /language-(\w+)/.exec(className || '')
+            return !inline && match ? (
+                <CodeBlock language={match[1]}>{children}</CodeBlock>
+            ) : (
+                <code className={`${className} bg-[#27272A] text-zinc-200 px-1 py-0.5 rounded text-[13px]`} {...props}>{children}</code>
+            )
+        },
+        // --- NEW: Table Styling ---
+        table({children}: any) {
+            return (
+                <div className="my-6 w-full overflow-hidden rounded-lg border border-[#27272A] shadow-sm">
+                    <div className="overflow-x-auto">
+                        <table className="w-full text-left text-sm text-zinc-300">
+                            {children}
+                        </table>
+                    </div>
+                </div>
+            );
+        },
+        thead({children}: any) {
+            return (
+                <thead className="bg-[#18181B] text-xs uppercase font-semibold text-zinc-500 border-b border-[#27272A]">
+                    {children}
+                </thead>
+            );
+        },
+        tbody({children}: any) {
+            return (
+                <tbody className="divide-y divide-[#27272A] bg-transparent">
+                    {children}
+                </tbody>
+            );
+        },
+        tr({children}: any) {
+            return (
+                <tr className="transition-colors hover:bg-white/5 group/row">
+                    {children}
+                </tr>
+            );
+        },
+        th({children}: any) {
+            return (
+                <th className="px-4 py-3 whitespace-nowrap tracking-wider">
+                    {children}
+                </th>
+            );
+        },
+        td({children}: any) {
+            return (
+                <td className="px-4 py-3 align-top leading-relaxed text-zinc-300">
+                    {children}
+                </td>
+            );
+        }
+    }}
+>
+    {msg.content}
+</ReactMarkdown>
                                             </div>
                                         ) : (
                                             <div className="whitespace-pre-wrap">{msg.content}</div>

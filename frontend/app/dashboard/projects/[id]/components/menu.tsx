@@ -45,8 +45,8 @@ export default function Menu({ project, user }: MenuProps) {
       title: "Development",
       items: [
         { label: "Issues", icon: Bug, href: `/dashboard/projects/${project.id}/issues` },
-        { label: "Events and Workflow", icon: Calendar, href: `/dashboard/projects/${project.id}/events-workflow` },
         { label: "Board", icon: KanbanSquare, href: `/dashboard/projects/${project.id}/board` },
+        { label: "Events and Workflow", icon: Calendar, href: `/dashboard/projects/${project.id}/events-workflow` },
         { label: "Activity Overview", icon: Calendar, href: `/dashboard/projects/${project.id}/calendar` },
         { label: "Repository logs", icon: Logs, href: `/dashboard/projects/${project.id}/repository-logs` },
       ],
@@ -56,7 +56,7 @@ export default function Menu({ project, user }: MenuProps) {
       items: [
         { label: "AI Assistant", icon: Bot, href: `/dashboard/projects/${project.id}/ai/ai-assistant` },
         { label: "AI Code Review", icon: Code, href: `/dashboard/projects/${project.id}/code-review` },
-        { label: "AI SQL Helper", icon: Database, href: `/dashboard/projects/${project.id}/ai-schema` },
+        { label: "AI SQL Helper", icon: Database, href: `/dashboard/projects/${project.id}/ai/sql-helper` },
         { label: "AI Roadmap Visualizer", icon: Code, href: `/dashboard/projects/${project.id}/ai-schema` },
       ],
     },

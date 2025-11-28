@@ -3,7 +3,7 @@
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts';
 import { useEffect, useState } from 'react';
 import { createClient } from "@/utils/supabase/client";
-import { Loader2, TrendingUp, TrendingDown } from "lucide-react";
+import { Loader2, TrendingUp, TrendingDown, Minus } from "lucide-react";
 
 interface IssuesBarChartProps {
   projectId: string;
@@ -41,77 +41,87 @@ const IssuesBarChart = ({ projectId }: IssuesBarChartProps) => {
       if (!projectId) return;
 
       try {
-        // 1. Calculate Date Ranges
+        // 1. Setup Strict Midnight Boundaries
         const today = new Date();
+        today.setHours(23, 59, 59, 999); // End of today
+
         const sevenDaysAgo = new Date();
-        sevenDaysAgo.setDate(today.getDate() - 6);
-        sevenDaysAgo.setHours(0, 0, 0, 0);
+        sevenDaysAgo.setDate(today.getDate() - 7);
+        sevenDaysAgo.setHours(0, 0, 0, 0); // Start of 7 days ago
 
         const fourteenDaysAgo = new Date();
-        fourteenDaysAgo.setDate(today.getDate() - 13);
-        fourteenDaysAgo.setHours(0, 0, 0, 0);
+        fourteenDaysAgo.setDate(today.getDate() - 14);
+        fourteenDaysAgo.setHours(0, 0, 0, 0); // Start of 14 days ago
 
-        // 2. Fetch all issues from the last 14 days (to calculate trend vs previous week)
+        // 2. Fetch all issues from the last 14 days
         const { data: rawData, error } = await supabase
           .from('issues')
           .select('created_at')
           .eq('project_id', projectId)
-          .gte('created_at', fourteenDaysAgo.toISOString());
+          .gte('created_at', fourteenDaysAgo.toISOString())
+          .lte('created_at', today.toISOString());
 
         if (error) throw error;
 
         // 3. Process Data
         const last7DaysMap = new Map<string, number>();
-        const previous7DaysMap = new Map<string, number>();
         const chartData: ChartData[] = [];
         
-        // Initialize the last 7 days in the chart array (so days with 0 issues still show up)
-        for (let i = 0; i < 7; i++) {
+        // Initialize the last 7 days chart structure (Current Week)
+        for (let i = 6; i >= 0; i--) {
             const d = new Date();
-            d.setDate(today.getDate() - (6 - i)); // Order: -6, -5, ... Today
-            const dayKey = d.toISOString().split('T')[0]; // YYYY-MM-DD
+            d.setDate(d.getDate() - i);
+            // Use local date string to match user's timezone for grouping
+            const dateKey = d.toLocaleDateString('en-CA'); // YYYY-MM-DD format (local safe)
             const dayName = d.toLocaleDateString('en-US', { weekday: 'short' }); // "Mon"
             
-            last7DaysMap.set(dayKey, 0);
-            chartData.push({ day: dayName, date: dayKey, issues: 0 });
+            last7DaysMap.set(dateKey, 0);
+            chartData.push({ day: dayName, date: dateKey, issues: 0 });
         }
 
-        // Count issues
         let currentPeriodCount = 0;
         let previousPeriodCount = 0;
 
         rawData?.forEach((issue) => {
             const issueDate = new Date(issue.created_at);
-            const dateKey = issueDate.toISOString().split('T')[0];
+            // Get YYYY-MM-DD in local time to match the map keys
+            const localIssueDateKey = issueDate.toLocaleDateString('en-CA'); 
 
             if (issueDate >= sevenDaysAgo) {
-                // This week
-                const currentCount = last7DaysMap.get(dateKey) || 0;
-                last7DaysMap.set(dateKey, currentCount + 1);
+                // THIS WEEK (Last 7 days)
+                const currentCount = last7DaysMap.get(localIssueDateKey) || 0;
+                last7DaysMap.set(localIssueDateKey, currentCount + 1);
                 currentPeriodCount++;
-            } else {
-                // Previous week (for trend calc)
+            } else if (issueDate >= fourteenDaysAgo) {
+                // PREVIOUS WEEK (Days 8-14)
                 previousPeriodCount++;
             }
         });
 
-        // Update Chart Data Array with actual counts
+        // Map processed counts back to chart array
         const finalChartData = chartData.map(item => ({
             ...item,
             issues: last7DaysMap.get(item.date) || 0
         }));
 
-        // 4. Calculate Trend
+        // 4. Calculate Trend Logic
         let percentage = 0;
+
         if (previousPeriodCount === 0) {
-            percentage = currentPeriodCount > 0 ? 100 : 0;
+            // Logic: If we had 0 issues last week...
+            if (currentPeriodCount === 0) {
+                percentage = 0; // 0 to 0 = No change
+            } else {
+                percentage = 100; // 0 to X = 100% increase (technically infinite, but 100 is standard for UI)
+            }
         } else {
+            // Standard Formula: ((New - Old) / Old) * 100
             percentage = ((currentPeriodCount - previousPeriodCount) / previousPeriodCount) * 100;
         }
 
         setData(finalChartData);
         setTotalThisWeek(currentPeriodCount);
-        setTrendPercentage(Math.round(percentage * 10) / 10); // Round to 1 decimal
+        setTrendPercentage(Math.round(percentage * 10) / 10);
 
       } catch (err) {
         console.error("Error fetching chart data:", err);
@@ -122,6 +132,12 @@ const IssuesBarChart = ({ projectId }: IssuesBarChartProps) => {
 
     fetchChartData();
   }, [projectId]);
+
+  // Helper to determine trend color and icon
+  // For Issues: Increase (+) is BAD (Red), Decrease (-) is GOOD (Green)
+  const isIncrease = trendPercentage > 0;
+  const isDecrease = trendPercentage < 0;
+  const isNeutral = trendPercentage === 0;
 
   if (loading) {
     return (
@@ -140,17 +156,17 @@ const IssuesBarChart = ({ projectId }: IssuesBarChartProps) => {
          </div>
          
          <div className="text-right">
-             {/* Total Count */}
              <div className="text-2xl font-bold text-white mb-1">{totalThisWeek}</div>
              
-             {/* Dynamic Trend Badge */}
-             <div className={`text-xs px-2 py-1 rounded border font-medium flex items-center gap-1 w-fit ml-auto
-                ${trendPercentage >= 0 
-                    ? 'text-rose-400 bg-rose-400/10 border-rose-400/20' 
-                    : 'text-emerald-400 bg-emerald-400/10 border-emerald-400/20'
-                }`}
-             >
-                {trendPercentage >= 0 ? <TrendingUp size={10} /> : <TrendingDown size={10} />}
+             <div className={`text-xs px-2 py-1 rounded border font-medium flex items-center gap-1 w-fit ml-auto transition-colors
+                ${isIncrease ? 'text-rose-400 bg-rose-400/10 border-rose-400/20' : ''}
+                ${isDecrease ? 'text-emerald-400 bg-emerald-400/10 border-emerald-400/20' : ''}
+                ${isNeutral ? 'text-zinc-400 bg-zinc-400/10 border-zinc-400/20' : ''}
+             `}>
+                {isIncrease && <TrendingUp size={12} />}
+                {isDecrease && <TrendingDown size={12} />}
+                {isNeutral && <Minus size={12} />}
+                
                 {trendPercentage > 0 ? '+' : ''}{trendPercentage}%
              </div>
          </div>
