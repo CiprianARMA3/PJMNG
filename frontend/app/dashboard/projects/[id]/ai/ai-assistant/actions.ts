@@ -6,18 +6,22 @@ import { GoogleGenAI } from "@google/genai";
 
 const ai = new GoogleGenAI({ apiKey: process.env.GOOGLE_API_KEY });
 
-// --- GROUP ACTIONS ---
+// --- GROUP MANAGEMENT ---
 
 export async function createChatGroup(projectId: string, name: string) {
   const cookieStore = cookies();
   const supabase = createClient(cookieStore);
-  
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) throw new Error("Unauthorized");
 
   const { data, error } = await supabase
     .from("ai_chat_groups")
-    .insert({ project_id: projectId, user_id: user.id, name })
+    .insert({ 
+        project_id: projectId, 
+        user_id: user.id, 
+        name,
+        metadata: { tags: [] } 
+    })
     .select()
     .single();
 
@@ -33,21 +37,42 @@ export async function deleteChatGroup(groupId: string) {
   return { success: true };
 }
 
-// --- GENERATE RESPONSE ---
+export async function updateGroupTags(groupId: string, tags: any[]) {
+  const cookieStore = cookies();
+  const supabase = createClient(cookieStore);
+  const { error } = await supabase
+    .from("ai_chat_groups")
+    .update({ metadata: { tags: tags } })
+    .eq("id", groupId);
+
+  if (error) return { error: error.message };
+  return { success: true };
+}
+
+// --- CHAT MANAGEMENT ---
 
 export async function deleteChat(chatId: string) {
   const cookieStore = cookies();
   const supabase = createClient(cookieStore);
-  
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return { error: "Unauthorized" };
 
-  // Deletes the chat and cascades the deletion to all associated messages
+  const { error } = await supabase.from("ai_chats").delete().eq("id", chatId).eq("user_id", user.id);
+  if (error) return { error: error.message };
+  return { success: true };
+}
+
+export async function renameChat(chatId: string, newTitle: string) {
+  const cookieStore = cookies();
+  const supabase = createClient(cookieStore);
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { error: "Unauthorized" };
+
   const { error } = await supabase
     .from("ai_chats")
-    .delete()
+    .update({ title: newTitle, updated_at: new Date().toISOString() })
     .eq("id", chatId)
-    .eq("user_id", user.id); // Security check
+    .eq("user_id", user.id);
 
   if (error) return { error: error.message };
   return { success: true };
@@ -56,38 +81,33 @@ export async function deleteChat(chatId: string) {
 export async function updateChatGroup(chatId: string, groupId: string | null) {
   const cookieStore = cookies();
   const supabase = createClient(cookieStore);
-  
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return { error: "Unauthorized" };
 
-  // Note: groupId can be null to move the chat to "Uncategorized"
-  const { error } = await supabase
-    .from("ai_chats")
-    .update({ 
-        group_id: groupId, 
-        updated_at: new Date().toISOString() 
-    })
-    .eq("id", chatId)
-    .eq("user_id", user.id); // Security check
-
+  const { error } = await supabase.from("ai_chats").update({ group_id: groupId, updated_at: new Date().toISOString() }).eq("id", chatId).eq("user_id", user.id);
   if (error) return { error: error.message };
   return { success: true };
 }
+
+// --- GENERATION LOGIC ---
 
 export async function generateAiResponse(
   projectId: string, 
   prompt: string, 
   chatId?: string,
   groupId?: string,
-  modelKey: string = "gemini-3-pro-preview" // Default
+  modelKey: string = "gemini-3-pro-preview",
+  isRegeneration: boolean = false
 ) {
   const cookieStore = cookies(); 
   const supabase = createClient(cookieStore);
-  
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) throw new Error("Unauthorized");
 
-  // 1. Fetch Token Pack
+  const estimatedInputTokens = Math.ceil(prompt.length / 4);
+  const MINIMUM_OUTPUT_BUFFER = 50; 
+  const requiredTokens = estimatedInputTokens + MINIMUM_OUTPUT_BUFFER;
+
   const { data: tokenPack } = await supabase
     .from("token_packs")
     .select("*")
@@ -97,34 +117,33 @@ export async function generateAiResponse(
     .limit(1)
     .single();
 
-  const getBalance = (pack: any) => {
-    if (!pack?.remaining_tokens) return 0;
-    let rt = pack.remaining_tokens;
-    if (typeof rt === 'string') { try { rt = JSON.parse(rt); } catch(e) {} }
-    return (rt.gpt || 0) + (rt.claude || 0) + (rt.custom || 0);
+  const parseTokens = (rt: any) => {
+    if (!rt) return {};
+    if (typeof rt === 'string') { try { return JSON.parse(rt); } catch(e) { return {}; } }
+    return rt;
   };
 
-  const currentBalance = getBalance(tokenPack);
+  const remainingTokens = parseTokens(tokenPack?.remaining_tokens);
+  const currentModelBalance = remainingTokens[modelKey] || 0;
 
-  if (!tokenPack || currentBalance <= 0) {
-    return { error: "Insufficient tokens." };
+  if (!tokenPack || currentModelBalance < requiredTokens) {
+    return { error: `Insufficient tokens.` };
   }
 
   try {
-    // 2. USE EXACT MODEL REQUESTED
-    // We pass the modelKey directly (e.g., "gemini-3-pro-preview")
     const response = await ai.models.generateContent({
       model: modelKey,
       contents: prompt,
       config: {
-        systemInstruction: "You are a helpful AI assistant. You must ONLY generate text. Do not generate, create, or describe images. If asked to generate an image, politely decline.",
+        systemInstruction: "You are a helpful expert assistant. When writing code, use Markdown code blocks with the language specified. Be concise and professional.",
       }
     });
 
     const text = response.text || "No response generated";
-    const totalTokensUsed = Math.ceil(prompt.length / 4) + Math.ceil(text.length / 4);
+    const outputTokens = Math.ceil(text.length / 4);
+    // If regeneration, we pay for input again (API cost) but we don't store user msg
+    const totalTokensUsed = estimatedInputTokens + outputTokens;
 
-    // 3. Handle Database Updates
     let activeChatId = chatId;
 
     if (!activeChatId) {
@@ -141,28 +160,30 @@ export async function generateAiResponse(
             .select()
             .single();
             
-        if (chatError) throw new Error("Failed to create chat session: " + chatError.message);
+        if (chatError) throw new Error("Failed to create chat session");
         activeChatId = newChat.id;
     }
 
-    await supabase.from("ai_messages").insert([
-        { chat_id: activeChatId, role: 'user', content: prompt, tokens_used: Math.ceil(prompt.length / 4) },
-        { chat_id: activeChatId, role: 'ai', content: text, tokens_used: Math.ceil(text.length / 4) }
-    ]);
+    // Database Insertions
+    const messagesToInsert = [];
+    
+    // Only insert user message if it's NOT a regeneration
+    if (!isRegeneration) {
+        messagesToInsert.push({ chat_id: activeChatId, role: 'user', content: prompt, tokens_used: estimatedInputTokens });
+    }
+    
+    messagesToInsert.push({ chat_id: activeChatId, role: 'ai', content: text, tokens_used: outputTokens });
+
+    await supabase.from("ai_messages").insert(messagesToInsert);
 
     const { data: currentChat } = await supabase.from("ai_chats").select("total_tokens_used").eq("id", activeChatId).single();
     const newChatTotal = (currentChat?.total_tokens_used || 0) + totalTokensUsed;
 
-    await supabase.from("ai_chats")
-        .update({ total_tokens_used: newChatTotal, updated_at: new Date().toISOString() })
-        .eq("id", activeChatId);
-
-    let currentRT = tokenPack.remaining_tokens;
-    if (typeof currentRT === 'string') currentRT = JSON.parse(currentRT);
+    await supabase.from("ai_chats").update({ total_tokens_used: newChatTotal, updated_at: new Date().toISOString() }).eq("id", activeChatId);
 
     const newRemaining = {
-        ...currentRT,
-        custom: Math.max(0, (currentRT.custom || 0) - totalTokensUsed)
+        ...remainingTokens,
+        [modelKey]: Math.max(0, currentModelBalance - totalTokensUsed)
     };
 
     await supabase.from("token_packs").update({ remaining_tokens: newRemaining }).eq("id", tokenPack.id);
@@ -173,7 +194,7 @@ export async function generateAiResponse(
       token_pack_id: tokenPack.id,
       model: modelKey, 
       tokens_used: totalTokensUsed,
-      action: "chat_response",
+      action: isRegeneration ? "chat_regeneration" : "chat_response",
     });
 
     return { 
@@ -181,11 +202,11 @@ export async function generateAiResponse(
         chatId: activeChatId, 
         message: text, 
         tokensUsed: totalTokensUsed,
-        newBalance: (newRemaining.gpt + newRemaining.claude + newRemaining.custom)
+        newBalance: newRemaining
     };
 
   } catch (error: any) {
-    console.error("GenAI SDK Error:", JSON.stringify(error, null, 2));
-    return { error: `AI Error: ${error.message || "Model not available"}` };
+    console.error("AI Error:", error);
+    return { error: `AI Error: ${error.message}` };
   }
 }
