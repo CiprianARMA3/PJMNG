@@ -1,9 +1,19 @@
-"use client";
+'use client';
 
 import { useEffect, useState, useRef } from "react";
 import { createClient } from "@/utils/supabase/client";
 import Menu from "../../components/menu";
-import { generateAiResponse, createChatGroup, deleteChatGroup, updateChatGroup, deleteChat, renameChat, updateGroupTags } from "./actions.codereview";
+import { 
+  generateAiResponse, 
+  createChatGroup, 
+  deleteChatGroup, 
+  updateChatGroup, 
+  deleteChat, 
+  renameChat, 
+  updateGroupTags,
+  syncRepository,
+  getCacheStatus
+} from "./actions.codereview"; 
 import {
   Sparkles,
   Bot,
@@ -15,14 +25,14 @@ import {
   ChevronRight,
   CornerDownLeft,
   CreditCard,
-  Cpu,
   Lock,
   Tag,
   X,
   Copy,
   RefreshCw,
   Check,
-  Info
+  Info,
+  Cpu,
 } from "lucide-react";
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
@@ -38,13 +48,11 @@ type Profile = { id: string; full_name: string; avatar_url: string | null };
 type GroupTag = { id: string; label: string; color: string; };
 type ChatGroup = { id: string; name: string; user_id: string; metadata?: { tags: GroupTag[] } };
 type ChatSession = { id: string; title: string; group_id: string | null; total_tokens_used: number; updated_at: string; user_id: string; };
-// Updated Message Type to match DB column 'ai_model'
 type Message = { role: 'user' | 'ai'; content: string; cost?: number; ai_model?: string; };
+type Notification = { message: string; type: 'success' | 'error' | 'info' } | null;
 
 const MODELS = [
-  { id: "gemini-3-pro-preview", name: "Gemini 3 Pro", icon: Sparkles, description: "Reasoning & Coding" },
-  { id: "gemini-2.5-pro", name: "Gemini 2.5 Pro", icon: Cpu, description: "Complex Tasks" },
-  { id: "gemini-2.5-flash", name: "Gemini 2.5 Flash", icon: Zap, description: "Fast & Efficient" },
+  { id: "gemini-2.5-pro", name: "Gemini 2.5 Pro", icon: Cpu, description: "Reasoning & Coding (Cached)" },
 ];
 
 const TAG_COLORS = [
@@ -121,10 +129,17 @@ export default function AiAssistantPage({ params }: PageProps) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [isGenerating, setIsGenerating] = useState(false);
-  const [selectedModel, setSelectedModel] = useState(MODELS[0]);
-  const [showModelMenu, setShowModelMenu] = useState(false);
+  const selectedModel = MODELS[0]; // Always Pro
   const [copiedIndex, setCopiedIndex] = useState<number | null>(null);
   const [showTokenInfo, setShowTokenInfo] = useState(false);
+  // 🚨 MODIFIED: ADDED STATE FOR CONFIG ALERT
+  const [showConfigAlert, setShowConfigAlert] = useState(false); 
+  
+  // 🚨 SYNCING STATE & FALLBACK
+  const [isSyncing, setIsSyncing] = useState(false);
+  const [activeCacheKey, setActiveCacheKey] = useState<string | null>(null);
+  const [fallbackRepoContext, setFallbackRepoContext] = useState<string | null>(null);
+  const [notification, setNotification] = useState<Notification>(null); 
 
   // Groups UI & Tags
   const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>({});
@@ -140,8 +155,15 @@ export default function AiAssistantPage({ params }: PageProps) {
 
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const chatContainerRef = useRef<HTMLDivElement>(null);
-
+  
   // --- HELPER FUNCTIONS ---
+  
+  // 🚨 NEW NOTIFICATION HELPER
+  const showNotification = (message: string, type: 'success' | 'error' | 'info' = 'info') => {
+    setNotification({ message, type });
+    setTimeout(() => setNotification(null), 5000);
+  };
+
   async function fetchProfiles(userIds: string[]) {
       if (userIds.length === 0) return;
       const { data } = await supabase.from("profiles").select("id, full_name, avatar_url").in("id", userIds);
@@ -164,8 +186,7 @@ export default function AiAssistantPage({ params }: PageProps) {
       }
   }
 
-  // Find model based on DB ID (ai_model)
-  const getModelById = (id?: string) => MODELS.find(m => m.id === id) || MODELS[0];
+  const getModelById = (id?: string) => MODELS[0]; 
 
   // --- INITIAL LOAD ---
   useEffect(() => {
@@ -180,10 +201,22 @@ export default function AiAssistantPage({ params }: PageProps) {
       const { data: projectData } = await supabase.from("projects").select("*").eq("id", id).single();
       setProject(projectData);
 
+      // 🚨 MODIFICATION START: Check for missing GitHub configuration
+      const repoUrl = projectData?.github_repo_url;
+      const pat = projectData?.github_personalaccesstoken;
+
+      // Check if EITHER the URL or the PAT is missing
+      if (!repoUrl || !pat) {
+          setShowConfigAlert(true); 
+      } else {
+          setShowConfigAlert(false);
+      }
+      // 🚨 MODIFICATION END
+
       fetchBalance(id);
 
-      const { data: groupsData } = await supabase.from("ai_chat_groups").select("*").eq("project_id", id).order("created_at", { ascending: true });
-      const { data: chatsData } = await supabase.from("ai_chats").select("*, user_id").eq("project_id", id).order("updated_at", { ascending: false });
+      const { data: groupsData } = await supabase.from("ai_code_review_groups").select("*").eq("project_id", id).order("created_at", { ascending: true });
+      const { data: chatsData } = await supabase.from("ai_code_review_chats").select("*, user_id").eq("project_id", id).order("updated_at", { ascending: false });
 
       if (groupsData) {
           const parsedGroups = groupsData.map((g: any) => ({
@@ -204,41 +237,85 @@ export default function AiAssistantPage({ params }: PageProps) {
       const uniqueUserIds = [...new Set(userIdsToFetch)].filter(uid => uid !== currentUserId);
       await fetchProfiles(uniqueUserIds);
 
+      // Fetch initial cache status silently
+      const initialCacheKey = await getCacheStatus(id);
+      setActiveCacheKey(initialCacheKey);
+
       setLoading(false);
     }
     load();
   }, []);
 
-  // --- MESSAGES LOAD ---
+  // 🚨 MESSAGE FETCHING EFFECT 🚨
   useEffect(() => {
-    if (!activeChatId) { setMessages([]); return; }
-    async function loadMessages() {
-        const { data: msgs } = await supabase.from("ai_messages").select("*").eq("chat_id", activeChatId).order("created_at", { ascending: true });
-        if (msgs) {
-            setMessages(msgs.map(m => ({ 
-                role: m.role as 'user' | 'ai', 
-                content: m.content, 
+    async function fetchMessages() {
+        if (!activeChatId) return;
+        
+        const { data, error } = await supabase
+            .from("ai_code_review_messages")
+            .select("*")
+            .eq("chat_id", activeChatId)
+            .order("created_at", { ascending: true });
+
+        if (error) {
+            console.error("Error fetching messages:", error);
+            showNotification("Failed to load chat history.", 'error');
+            return;
+        }
+
+        if (data) {
+            const mappedMessages: Message[] = data.map((m: any) => ({
+                role: m.role,
+                content: m.content,
                 cost: m.tokens_used,
-                ai_model: m.ai_model // Now fetching the specific column 'ai_model'
-            })));
+                ai_model: m.ai_model
+            }));
+            setMessages(mappedMessages);
+            // Scroll to bottom after messages load
+            if (chatContainerRef.current) {
+                chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight;
+            }
         }
     }
-    loadMessages();
-  }, [activeChatId]);
 
-  // --- SCROLLING ---
+    fetchMessages();
+  }, [activeChatId]); // Runs whenever the chat ID changes
+  
+  // Auto-scroll on new message
   useEffect(() => {
-    if (chatContainerRef.current) chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight;
-  }, [messages, isGenerating]);
+      if (chatContainerRef.current) {
+          chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight;
+      }
+  }, [messages]);
 
-  useEffect(() => {
-    if (textareaRef.current) {
-        textareaRef.current.style.height = "auto";
-        textareaRef.current.style.height = Math.min(textareaRef.current.scrollHeight, 200) + "px";
+  // --- HANDLERS ---
+
+  const handleSyncRepo = async () => {
+    setIsSyncing(true);
+    try {
+        const res = await syncRepository(projectId); 
+        
+        if (res.error) {
+             // If strategy is INJECT, save the text to inject later
+             if (res.strategy === 'INJECT' && res.repoText) {
+                 setFallbackRepoContext(res.repoText);
+                 return { success: false, strategy: 'INJECT', error: res.error, repoText: res.repoText };
+             }
+             return { success: false, error: res.error };
+        } else if (res.success && res.cacheKey) {
+            setActiveCacheKey(res.cacheKey);
+            setFallbackRepoContext(null); // Clear fallback if real cache works
+            return { success: true, cacheKey: res.cacheKey };
+        }
+    } catch(e: any) {
+        console.error("Unexpected sync error:", e);
+        return { success: false, error: e.message || "Unexpected sync error" };
+    } finally {
+        setIsSyncing(false);
     }
-  }, [input]);
+    return { success: false };
+  };
 
-  // --- HANDLERS (Drag, Create, Delete, etc.) ---
   const handleDrop = (e: React.DragEvent, targetGroupId: string | null) => {
     e.preventDefault();
     setDraggingId(null);
@@ -262,6 +339,8 @@ export default function AiAssistantPage({ params }: PageProps) {
           setExpandedGroups({...expandedGroups, [res.group.id]: true});
           setNewGroupName("");
           setShowGroupInput(false);
+      } else {
+          showNotification(`Failed to create group: ${res.error}`, 'error');
       }
   };
 
@@ -279,7 +358,8 @@ export default function AiAssistantPage({ params }: PageProps) {
     
     setGroups(updatedGroups);
     setNewTagLabel(""); 
-    await updateGroupTags(groupId, updatedTags);
+    const res = await updateGroupTags(groupId, updatedTags);
+    if (res.error) showNotification(`Failed to add tag: ${res.error}`, 'error');
   };
 
   const handleRemoveTag = async (groupId: string, tagId: string) => {
@@ -292,7 +372,8 @@ export default function AiAssistantPage({ params }: PageProps) {
     
     updatedGroups[groupIndex] = { ...updatedGroups[groupIndex], metadata: { tags: updatedTags } };
     setGroups(updatedGroups);
-    await updateGroupTags(groupId, updatedTags);
+    const res = await updateGroupTags(groupId, updatedTags);
+    if (res.error) showNotification(`Failed to remove tag: ${res.error}`, 'error');
   };
 
   const handleRenameChat = async (chatId: string, newTitle: string) => {
@@ -302,7 +383,8 @@ export default function AiAssistantPage({ params }: PageProps) {
       }
       setChats(prev => prev.map(c => c.id === chatId ? { ...c, title: newTitle } : c));
       setEditingChatId(null);
-      await renameChat(chatId, newTitle);
+      const res = await renameChat(chatId, newTitle);
+      if (res.error) showNotification(`Failed to rename chat: ${res.error}`, 'error');
   };
 
   const handleDeleteChat = async (chatId: string, e: React.MouseEvent) => {
@@ -313,7 +395,8 @@ export default function AiAssistantPage({ params }: PageProps) {
         setActiveChatId(null);
         setMessages([]);
     }
-    await deleteChat(chatId);
+    const res = await deleteChat(chatId);
+    if (res.error) showNotification(`Failed to delete chat: ${res.error}`, 'error');
   };
 
   const handleDeleteGroup = async (groupId: string, e: React.MouseEvent) => {
@@ -323,6 +406,8 @@ export default function AiAssistantPage({ params }: PageProps) {
     if (res.success) {
         setGroups(groups.filter(g => g.id !== groupId));
         setChats(chats.map(c => c.group_id === groupId ? { ...c, group_id: null } : c));
+    } else {
+        showNotification(`Failed to delete group: ${res.error}`, 'error');
     }
   };
 
@@ -334,20 +419,24 @@ export default function AiAssistantPage({ params }: PageProps) {
     if (textareaRef.current) textareaRef.current.focus();
   };
 
-  // --- ACTIONS: COPY & REGENERATE ---
   const handleCopy = (content: string, idx: number) => {
       navigator.clipboard.writeText(content);
       setCopiedIndex(idx);
       setTimeout(() => setCopiedIndex(null), 2000);
   };
-
+  
+  // Regeneration logic remains robust
   const handleRegenerate = async () => {
       if (isGenerating || messages.length === 0) return;
       
       const lastUserMsgIndex = messages.findLastIndex(m => m.role === 'user');
-      if (lastUserMsgIndex === -1) return;
+      if (lastUserMsgIndex === -1) {
+          showNotification("Cannot regenerate. Last message was not a user prompt.", 'info');
+          return;
+      }
       const lastUserPrompt = messages[lastUserMsgIndex].content;
 
+      // Filter out AI messages that follow the last user prompt
       const newMessages = messages.slice(0, lastUserMsgIndex + 1);
       setMessages(newMessages);
 
@@ -359,11 +448,14 @@ export default function AiAssistantPage({ params }: PageProps) {
           activeChatId || undefined, 
           selectedGroupId || undefined, 
           selectedModel.id, 
-          true 
+          true, 
+          fallbackRepoContext // Pass existing fallback context
       );
 
       if (result.error) {
-          setMessages([...newMessages, { role: 'ai', content: `**Error:** ${result.error}` }]);
+          showNotification(result.error, 'error');
+          // If regeneration failed, ensure we revert to the state before the AI message
+          setMessages(newMessages); 
           setIsGenerating(false);
           return;
       }
@@ -375,7 +467,7 @@ export default function AiAssistantPage({ params }: PageProps) {
               cost: result.tokensUsed,
               ai_model: result.ai_model
           }]);
-          if (result.newBalance) setTokenBalances(result.newBalance);
+          if (result.newBalance) fetchBalance(projectId); // Re-fetch balance
       }
       setIsGenerating(false);
   };
@@ -383,82 +475,128 @@ export default function AiAssistantPage({ params }: PageProps) {
   const selectedModelBalance = tokenBalances[selectedModel.id] || 0;
   const estimatedInputTokens = Math.ceil(input.length / 4);
   const isInputTooExpensive = estimatedInputTokens > selectedModelBalance;
-  const isLocked = selectedModelBalance <= 0 || isInputTooExpensive;
+  
+  // Determine if the chat is locked due to tokens or missing config
+  const isTokenLocked = selectedModelBalance <= 0 || isInputTooExpensive;
+  const isLocked = isTokenLocked || showConfigAlert; // 🚨 MODIFIED: includes config lock
 
-  async function handleSend() {
-    if (!input.trim() || isGenerating || isLocked) return;
-    
-    const currentPrompt = input;
-    setInput("");
-    setIsGenerating(true);
+  // 🛠️ REVISED: Handle Send for Robust Async State Updates
+async function handleSend() {
+  if (!input.trim() || isGenerating || isLocked) return; // Check isLocked here
+  
+  let injectedContext = fallbackRepoContext; // Start with pre-loaded fallback context if available
+  const currentPrompt = input;
 
-    setMessages(prev => [...prev, { role: 'user', content: currentPrompt }]);
+  // 1. Reset input, start loading, and optimistically add user message 
+  setInput("");
+  setIsGenerating(true);
+  const userMessage: Message = { role: 'user', content: currentPrompt };
+  setMessages(prev => [...prev, userMessage]); 
 
-    const result = await generateAiResponse(projectId, currentPrompt, activeChatId || undefined, selectedGroupId || undefined, selectedModel.id, false);
+  // 2. AUTO-SYNC / CACHE CHECK LOGIC
+  if (!activeCacheKey && !isSyncing) {
+      showNotification("Checking repository context...", 'info');
+      
+      const syncResult = await handleSyncRepo();
+      
+      setNotification(null); // Clear temporary status
 
-    if (result.error) {
-        setMessages(prev => [...prev, { role: 'ai', content: `**Error:** ${result.error}` }]);
-        setIsGenerating(false);
-        return;
-    }
-
-    if (result.success) {
-        setMessages(prev => [...prev, { 
-            role: 'ai', 
-            content: result.message!, 
-            cost: result.tokensUsed,
-            ai_model: result.ai_model // Using updated key from backend
-        }]);
-        if (result.newBalance) setTokenBalances(result.newBalance);
-
-        if (!activeChatId && result.chatId) {
-            setActiveChatId(result.chatId);
-            const { data: newChat } = await supabase.from("ai_chats").select("*").eq("id", result.chatId).single();
-            if (newChat) setChats(prev => [newChat as ChatSession, ...prev]);
-        } else {
-            setChats(prev => prev.map(c =>
-                c.id === activeChatId
-                ? { ...c, total_tokens_used: (c.total_tokens_used || 0) + (result.tokensUsed || 0), updated_at: new Date().toISOString() }
-                : c
-            ).sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime()));
-        }
-    }
-    setIsGenerating(false);
+      if (!syncResult.success) {
+          if (syncResult.strategy === 'INJECT' && syncResult.repoText) {
+               injectedContext = syncResult.repoText;
+               showNotification("Repository is small. Context is injected directly into the prompt.", 'info');
+          } else {
+               // If the sync failed (and not due to small repo), the error is already handled by syncRepository
+               showNotification(`Repository Sync Failed: ${syncResult.error || "Unknown Error"}. Continuing without code context.`, 'error');
+               injectedContext = null; 
+          }
+      } else if (syncResult.success && syncResult.cacheKey) {
+           showNotification("Repository context is now cached.", 'success');
+           injectedContext = null; // Ensure no injection if caching worked
+      }
+  } else if (activeCacheKey) {
+      // Caching is active, ensure no injection
+      injectedContext = null;
   }
+
+  // 3. GENERATE RESPONSE
+  const result = await generateAiResponse(
+      projectId, 
+      currentPrompt, 
+      activeChatId || undefined, 
+      selectedGroupId || undefined, 
+      selectedModel.id, 
+      false, 
+      injectedContext 
+  );
+
+  // 4. ERROR HANDLING 🚨
+  if (result.error) {
+      // Show the failure message in the notification area
+      showNotification(`Failed to generate response: ${result.error}`, 'error');
+      
+      // CRITICAL FIX: Remove only the last (failed) user prompt from the state
+      setMessages(prev => prev.slice(0, -1)); 
+      
+      // Stop the loading spinner
+      setIsGenerating(false);
+      
+      // Prevent any further success processing
+      return;
+  }
+
+  // 5. SUCCESS HANDLING
+  if (result.success) {
+      // Append the AI response. The user message is already in the state.
+      const aiMessage: Message = { 
+          role: 'ai', 
+          content: result.message!, 
+          cost: result.tokensUsed,
+          ai_model: result.ai_model 
+      };
+      
+      setMessages(prev => [...prev, aiMessage]); 
+
+      if (result.newBalance) fetchBalance(projectId);
+
+      // Update chat list metadata (creation or update)
+      if (!activeChatId && result.chatId) {
+          setActiveChatId(result.chatId);
+          const { data: newChat } = await supabase.from("ai_code_review_chats").select("*").eq("id", result.chatId).single();
+          if (newChat) setChats(prev => [newChat as ChatSession, ...prev]);
+      } else {
+          setChats(prev => prev.map(c =>
+              c.id === activeChatId
+              ? { ...c, total_tokens_used: (c.total_tokens_used || 0) + (result.tokensUsed || 0), updated_at: new Date().toISOString() }
+              : c
+          ).sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime()));
+      }
+  }
+  
+  // Stop the loading spinner once processing is complete
+  setIsGenerating(false);
+}
+
+  // ... (CodeBlock, toggleGroup remain the same)
+  
   const CodeBlock = ({ language, children }: { language: string, children: React.ReactNode }) => {
     const [isCopied, setIsCopied] = useState(false);
-
     const handleCopy = () => {
         const text = String(children).replace(/\n$/, '');
         navigator.clipboard.writeText(text);
         setIsCopied(true);
         setTimeout(() => setIsCopied(false), 2000);
     };
-
     return (
         <div className="rounded-md overflow-hidden border border-[#27272A] my-4 shadow-xl group/code">
             <div className="flex items-center justify-between px-3 py-1.5 bg-[#18181B] border-b border-[#27272A]">
                 <span className="text-xs text-zinc-500 font-mono">{language}</span>
-                <button 
-                    onClick={handleCopy} 
-                    className="flex items-center gap-1.5 text-[10px] text-zinc-500 hover:text-zinc-300 transition-colors opacity-0 group-hover/code:opacity-100"
-                    title="Copy code"
-                >
-                    {isCopied ? <Check size={12} className="text-emerald-500" /> : <Copy size={12} />}
-                    {isCopied ? 'Copied!' : 'Copy'}
-                </button>
+                <button onClick={handleCopy} className="flex items-center gap-1.5 text-[10px] text-zinc-500 hover:text-zinc-300 transition-colors opacity-0 group-hover/code:opacity-100">{isCopied ? <Check size={12} className="text-emerald-500" /> : <Copy size={12} />}{isCopied ? 'Copied!' : 'Copy'}</button>
             </div>
-            <SyntaxHighlighter
-                style={vscDarkPlus}
-                language={language}
-                PreTag="div"
-                customStyle={{ margin: 0, padding: '1rem', background: '#0E0E10', fontSize: '0.875rem' }}
-            >
-                {String(children).replace(/\n$/, '')}
-            </SyntaxHighlighter>
+            <SyntaxHighlighter style={vscDarkPlus} language={language} PreTag="div" customStyle={{ margin: 0, padding: '1rem', background: '#0E0E10', fontSize: '0.875rem' }}>{String(children).replace(/\n$/, '')}</SyntaxHighlighter>
         </div>
     );
-};
+  };
   const toggleGroup = (gid: string) => setExpandedGroups(prev => ({...prev, [gid]: !prev[gid]}));
 
  if (loading) {
@@ -487,7 +625,7 @@ export default function AiAssistantPage({ params }: PageProps) {
   const currentUserId = user?.id || "";
   const currentUserPfp = user?.user_metadata?.avatar_url || "";
   const currentUserName = user?.user_metadata?.full_name || "You";
-
+  
   return (
     <div className="h-screen bg-[#0E0E10] text-[#E1E1E3] flex overflow-hidden font-sans selection:bg-zinc-700 selection:text-white">
       <style jsx global>{`
@@ -508,6 +646,15 @@ export default function AiAssistantPage({ params }: PageProps) {
       <Menu project={project} user={user} />
 
       <main className="flex-1 flex flex-col h-full ml-64 relative bg-[#0E0E10]">
+        
+        {/* 🚨 NOTIFICATION POPUP */}
+        {notification && (
+            <div className={`fixed top-4 right-4 z-[100] p-4 rounded-lg shadow-xl flex items-center gap-3 transition-opacity duration-300 ${notification.type === 'error' ? 'bg-red-900/90 text-white border border-red-700' : notification.type === 'success' ? 'bg-emerald-700/90 text-white border border-emerald-500' : 'bg-blue-900/90 text-white border border-blue-700'}`}>
+                {notification.type === 'error' ? <X size={18} className="flex-shrink-0" /> : notification.type === 'success' ? <Check size={18} className="flex-shrink-0" /> : <Info size={18} className="flex-shrink-0" />}
+                <span className="text-sm font-medium">{notification.message}</span>
+                <button onClick={() => setNotification(null)} className="ml-4 text-white/70 hover:text-white"><X size={16} /></button>
+            </div>
+        )}
 
         {/* HEADER */}
         <div className="flex-none h-14 px-6 border-b border-[#27272A] flex items-center justify-between bg-[#0E0E10] z-20">
@@ -518,9 +665,9 @@ export default function AiAssistantPage({ params }: PageProps) {
                     {chats.find(c => c.id === activeChatId)?.title || "New Session"}
                 </span>
             </div>
-             <div className="flex items-center gap-2">
+             <div className="flex items-center gap-4">
                 <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[#18181B] border border-[#27272A] ${isLocked ? 'border-red-900/50' : ''}`}>
-                    <selectedModel.icon size={12} className={selectedModel.id.includes('flash') ? 'text-amber-400' : 'text-indigo-400'} />
+                    <selectedModel.icon size={12} className='text-indigo-400' />
                     <span className="text-xs text-zinc-300 hidden sm:inline">{selectedModel.name}</span>
                     <div className="w-px h-3 bg-[#27272A] mx-1"></div>
                     <span className={`text-xs font-mono ${selectedModelBalance > 0 ? 'text-emerald-500' : 'text-red-500'}`}>
@@ -670,47 +817,108 @@ export default function AiAssistantPage({ params }: PageProps) {
             {/* CHAT AREA */}
             <div className="flex-1 flex flex-col relative min-w-0 bg-[#0E0E10]" onClick={() => setActiveTagMenuId(null)}>
                 <div ref={chatContainerRef} className="flex-1 overflow-y-auto px-4 md:px-12 lg:px-24 py-8 space-y-8 scroll-smooth pb-40">
-                    {messages.length === 0 && (
+                    
+                    {messages.length === 0 && !activeChatId && (
                         <div className="h-full flex flex-col items-center justify-center text-zinc-500 select-none pb-20">
-                   <div className="group relative w-16 h-16 bg-[#18181B] rounded-2xl flex items-center justify-center mb-6 border border-[#27272A] shadow-lg shadow-black/20 overflow-hidden transition-all duration-300 hover:scale-105 cursor-pointer">
-                            {/* Purple Shine Effect */}
-                            <div className="absolute inset-0 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-700 ease-in-out bg-gradient-to-r from-transparent via-purple-500/40 to-transparent z-10" />
+
+                        {/* Icon Container with Animation (Keeping Sparkles) */}
+                        <div className="group relative w-16 h-16 bg-[#18181B] rounded-2xl flex items-center justify-center mb-6 border border-[#27272A] shadow-lg shadow-black/20 overflow-hidden transition-all duration-300 hover:scale-105 cursor-pointer">
                             
-                            {/* Sparkles Icon: Starts Zinc-500, becomes White on hover */}
+                            {/* Blue/Aqua Shine Effect */}
+                            <div className="absolute inset-0 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-700 ease-in-out bg-gradient-to-r from-transparent via-purple-500/40 to-transparent z-10" />
+
+                            {/* Icon (Sparkles) */}
                             <Sparkles size={32} className="text-zinc-500 relative z-0 transition-colors duration-500 group-hover:text-white" />
                         </div>
-                            <h2 className="text-xl font-medium text-zinc-200 mb-2">How can I help you today?</h2>
-                            <p className="text-sm text-zinc-500 max-w-md text-center">Select a model below to start chatting.</p>
+
+                        {/* Main Title - Updated */}
+                        <h2 className="text-xl font-medium text-zinc-200 mb-2">
+                            How can I help with your GitHub Repo?
+                        </h2>
+
+                        {/* Subtitle */}
+                        <p className="text-sm text-zinc-500 max-w-md text-center mb-8 font-bold">
+                            Analyze code quality, suggest improvements, and check for best practices directly from your repository.
+                        </p>
+
+                        {/* Tips Card (Including the red alert text inside) */}
+                        <div className="w-full max-w-xs bg-[#18181B] border border-[#27272A] rounded-xl p-5 text-left shadow-lg shadow-black/10 backdrop-blur-sm">
+                            
+                            {/* 🚨 CONDITIONAL RED ALERT SECTION - Only show if config is missing */}
+                            {showConfigAlert && (
+                                <div className="mb-4 p-2 rounded bg-red-900/10 border border-red-700/50">
+                                    <p className="text-[10px] font-bold text-red-300 uppercase tracking-widest mb-1 flex items-center gap-2">
+                                        <span className="w-2 h-2 rounded-full bg-red-500"></span>
+                                        CONFIGURATION REQUIRED
+                                    </p>
+                                    <p className="text-xs text-red-300 leading-relaxed">
+                                        Please configure the <b>GitHub Personal Access Token</b> and <b>repository link</b> in project settings, or alert a manager to add them.
+                                    </p>
+                                </div>
+                            )}
+                            
+                            <p className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest mb-3 border-b border-[#27272A] pb-2 flex items-center gap-2">
+                            <span className="w-1 h-1 rounded-full bg-green-500 shadow-[0_0_5px_rgba(3,138,255,0.6)]"></span>
+                            For Best Results
+                            </p>
+
+                            <div className="space-y-4">
+
+                            {/* Tip 1: Target Scope */}
+                            <div>
+                                <p className="text-xs text-zinc-500 font-medium mb-1.5 flex items-center gap-1.5">
+                                1. Specify the scope
+                                </p>
+
+                                <div className="flex flex-wrap gap-1.5">
+                                {[
+                                    'Pull Request #123',
+                                    'Branch: feature/auth',
+                                    'Last 5 commits',
+                                    'File: src/main.py',
+                                    'Directory: /models',
+                                    'Full Repo'
+                                ].map(scope => (
+                                    <span 
+                                    key={scope}
+                                    className="px-1.5 py-0.5 rounded bg-[#27272A] border border-white/5 text-[10px] text-zinc-300 font-mono hover:bg-[#323238] transition-colors cursor-default">
+                                    {scope}
+                                    </span>
+                                ))}
+                                </div>
+                            </div>
+
+                            {/* Tip 2: Review Focus */}
+                            <div>
+                                <p className="text-xs text-zinc-500 font-medium mb-1">
+                                2. Define the review focus
+                                </p>
+                                <p className="text-xs text-zinc-400 leading-relaxed">
+                                Ask for a security audit, performance review, adherence to style guides, or a general assessment of design patterns.
+                                </p>
+                            </div>
+
+                            </div>
+                        </div>
                         </div>
                     )}
-
+                    
                     {messages.map((msg, idx) => {
-                        const modelInfo = getModelById(msg.ai_model); // Changed to use ai_model
+                        const modelInfo = getModelById(msg.ai_model); 
                         const ModelIcon = modelInfo.icon;
-
                         return (
                             <div key={idx} className={`group flex gap-5 ${msg.role === 'user' ? 'flex-row-reverse' : ''}`}>
                                 <div className="flex-shrink-0 mt-1 flex flex-col items-center gap-1">
                                     {msg.role === 'ai' ? (
                                         <div className="w-8 h-8 rounded-lg bg-[#18181B] border border-[#27272A] flex items-center justify-center">
-                                            <ModelIcon size={14} className={msg.ai_model?.includes('flash') ? 'text-amber-400' : 'text-indigo-400'} />
+                                            <ModelIcon size={14} className='text-indigo-400' />
                                         </div>
                                     ) : (
                                         <>
                                             <div className="w-8 h-8 rounded-full overflow-hidden ring-1 ring-[#27272A]">
-                                                <CreatorPfp
-                                                    userId={currentUserId}
-                                                    currentUserId={currentUserId}
-                                                    currentUserPfp={currentUserPfp}
-                                                    currentUserName={currentUserName}
-                                                    profiles={profiles}
-                                                    size="w-full h-full"
-                                                    showNameOnHover={true}
-                                                />
+                                                <CreatorPfp userId={currentUserId} currentUserId={currentUserId} currentUserPfp={currentUserPfp} currentUserName={currentUserName} profiles={profiles} size="w-full h-full" showNameOnHover={true} />
                                             </div>
-                                            <span className="text-[12px] text-zinc-500 font-medium leading-tight text-center whitespace-nowrap px-1">
-                                                {currentUserName}
-                                            </span>
+                                            <span className="text-[12px] text-zinc-500 font-medium leading-tight text-center whitespace-nowrap px-1">{currentUserName}</span>
                                         </>
                                     )}
                                 </div>
@@ -718,69 +926,25 @@ export default function AiAssistantPage({ params }: PageProps) {
                                     <div className={`relative px-5 py-3.5 rounded-2xl text-sm leading-relaxed shadow-sm ${msg.role === 'user' ? 'bg-[#27272A] text-zinc-100 rounded-tr-sm' : 'bg-transparent text-zinc-300 px-0 py-1'}`}>
                                         {msg.role === 'ai' ? (
                                             <div className="prose prose-invert max-w-none">
-<ReactMarkdown 
-    remarkPlugins={[remarkGfm]}
-    components={{
-        // --- Code Block Styling (Existing) ---
-        code({node, inline, className, children, ...props}: any) {
-            const match = /language-(\w+)/.exec(className || '')
-            return !inline && match ? (
-                <CodeBlock language={match[1]}>{children}</CodeBlock>
-            ) : (
-                <code className={`${className} bg-[#27272A] text-zinc-200 px-1 py-0.5 rounded text-[13px]`} {...props}>{children}</code>
-            )
-        },
-        // --- NEW: Table Styling ---
-        table({children}: any) {
-            return (
-                <div className="my-6 w-full overflow-hidden rounded-lg border border-[#27272A] shadow-sm">
-                    <div className="overflow-x-auto">
-                        <table className="w-full text-left text-sm text-zinc-300">
-                            {children}
-                        </table>
-                    </div>
-                </div>
-            );
-        },
-        thead({children}: any) {
-            return (
-                <thead className="bg-[#18181B] text-xs uppercase font-semibold text-zinc-500 border-b border-[#27272A]">
-                    {children}
-                </thead>
-            );
-        },
-        tbody({children}: any) {
-            return (
-                <tbody className="divide-y divide-[#27272A] bg-transparent">
-                    {children}
-                </tbody>
-            );
-        },
-        tr({children}: any) {
-            return (
-                <tr className="transition-colors hover:bg-white/5 group/row">
-                    {children}
-                </tr>
-            );
-        },
-        th({children}: any) {
-            return (
-                <th className="px-4 py-3 whitespace-nowrap tracking-wider">
-                    {children}
-                </th>
-            );
-        },
-        td({children}: any) {
-            return (
-                <td className="px-4 py-3 align-top leading-relaxed text-zinc-300">
-                    {children}
-                </td>
-            );
-        }
-    }}
->
-    {msg.content}
-</ReactMarkdown>
+                                                <ReactMarkdown remarkPlugins={[remarkGfm]} components={{
+                                                        code({node, inline, className, children, ...props}: any) {
+                                                            const match = /language-(\w+)/.exec(className || '')
+                                                            return !inline && match ? (
+                                                                <CodeBlock language={match[1]}>{children}</CodeBlock>
+                                                            ) : (
+                                                                <code className={`${className} bg-[#27272A] text-zinc-200 px-1 py-0.5 rounded text-[13px]`} {...props}>{children}</code>
+                                                            )
+                                                        },
+                                                        table({children}: any) { return <div className="my-6 w-full overflow-hidden rounded-lg border border-[#27272A] shadow-sm"><div className="overflow-x-auto"><table className="w-full text-left text-sm text-zinc-300">{children}</table></div></div>; },
+                                                        thead({children}: any) { return <thead className="bg-[#18181B] text-xs uppercase font-semibold text-zinc-500 border-b border-[#27272A]">{children}</thead>; },
+                                                        tbody({children}: any) { return <tbody className="divide-y divide-[#27272A] bg-transparent">{children}</tbody>; },
+                                                        tr({children}: any) { return <tr className="transition-colors hover:bg-white/5 group/row">{children}</tr>; },
+                                                        th({children}: any) { return <th className="px-4 py-3 whitespace-nowrap tracking-wider">{children}</th>; },
+                                                        td({children}: any) { return <td className="px-4 py-3 align-top leading-relaxed text-zinc-300">{children}</td>; }
+                                                    }}
+                                                >
+                                                    {msg.content}
+                                                </ReactMarkdown>
                                             </div>
                                         ) : (
                                             <div className="whitespace-pre-wrap">{msg.content}</div>
@@ -790,34 +954,13 @@ export default function AiAssistantPage({ params }: PageProps) {
                                     {msg.role === 'ai' && (
                                         <div className="mt-2 w-full flex items-center justify-between opacity-0 group-hover:opacity-100 transition-opacity duration-300 px-1">
                                             <div className="flex items-center gap-3">
-                                                {msg.cost && (
-                                                    <div className="text-[10px] font-mono text-zinc-600 flex items-center gap-1">
-                                                        <Zap size={10} /> {msg.cost} tokens
-                                                    </div>
-                                                )}
+                                                {msg.cost && (<div className="text-[10px] font-mono text-zinc-600 flex items-center gap-1"><Zap size={10} /> {msg.cost} tokens</div>)}
                                                 <div className="flex items-center gap-2">
-                                                    <button 
-                                                        onClick={() => handleCopy(msg.content, idx)}
-                                                        className="p-1 hover:bg-[#27272A] rounded text-zinc-500 hover:text-zinc-300 transition-colors"
-                                                        title="Copy"
-                                                    >
-                                                        {copiedIndex === idx ? <Check size={12} className="text-emerald-500"/> : <Copy size={12} />}
-                                                    </button>
-                                                    {idx === messages.length - 1 && !isGenerating && (
-                                                        <button 
-                                                            onClick={handleRegenerate}
-                                                            className="p-1 hover:bg-[#27272A] rounded text-zinc-500 hover:text-zinc-300 transition-colors"
-                                                            title="Regenerate"
-                                                        >
-                                                            <RefreshCw size={12} />
-                                                        </button>
-                                                    )}
+                                                    <button onClick={() => handleCopy(msg.content, idx)} className="p-1 hover:bg-[#27272A] rounded text-zinc-500 hover:text-zinc-300 transition-colors" title="Copy">{copiedIndex === idx ? <Check size={12} className="text-emerald-500"/> : <Copy size={12} />}</button>
+                                                    {idx === messages.length - 1 && !isGenerating && (<button onClick={handleRegenerate} className="p-1 hover:bg-[#27272A] rounded text-zinc-500 hover:text-zinc-300 transition-colors" title="Regenerate"><RefreshCw size={12} /></button>)}
                                                 </div>
                                             </div>
-                                            
-                                            <div className="text-[10px] text-zinc-600 font-medium tracking-wide">
-                                                {modelInfo.name}
-                                            </div>
+                                            <div className="text-[10px] text-zinc-600 font-medium tracking-wide">{modelInfo.name}</div>
                                         </div>
                                     )}
                                 </div>
@@ -841,42 +984,35 @@ export default function AiAssistantPage({ params }: PageProps) {
                                 value={input}
                                 onChange={(e) => setInput(e.target.value)}
                                 onKeyDown={(e) => { if(e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend(); }}}
-                                placeholder={isInputTooExpensive ? `Input exceeds balance` : isLocked ? `Insufficient ${selectedModel.name} tokens.` : "Ask anything..."}
+                                // 🚨 MODIFIED: Placeholder logic updated to include config alert
+                                placeholder={showConfigAlert ? "Configuration required in project settings to enable chat." : isInputTooExpensive ? `Input exceeds balance` : isTokenLocked ? `Insufficient ${selectedModel.name} tokens.` : "Ask anything..."}
                                 className={`w-full bg-transparent text-[#E4E4E7] placeholder-zinc-600 resize-none focus:outline-none text-[15px] px-4 py-4 pr-12 max-h-[200px] leading-relaxed rounded-xl ${isLocked ? 'cursor-not-allowed text-zinc-500' : ''}`}
                                 rows={1}
+                                disabled={isLocked} // 🚨 MODIFIED: disabled if locked by tokens OR config
                             />
                             
                             <div className="flex items-center justify-between px-3 pb-3 pt-1">
                                 <div className="flex items-center gap-2">
                                     <div className="relative">
-                                        <button onClick={() => setShowModelMenu(!showModelMenu)} className="flex items-center gap-1.5 px-2.5 py-1.5 bg-[#27272A]/50 hover:bg-[#27272A] rounded-md text-xs text-zinc-400 hover:text-zinc-200 transition-colors border border-transparent hover:border-zinc-700">
-                                            <selectedModel.icon size={12} className={selectedModel.id.includes('flash') ? 'text-amber-400' : 'text-indigo-400'} />
+                                        <div className="flex items-center gap-1.5 px-2.5 py-1.5 bg-[#27272A]/30 rounded-md text-xs text-zinc-500 cursor-default border border-transparent">
+                                            <selectedModel.icon size={12} className='text-indigo-400' />
                                             <span className="font-medium">{selectedModel.name}</span>
-                                            <ChevronDown size={10} className="opacity-50" />
-                                        </button>
-                                        {showModelMenu && (
-                                            <>
-                                                <div className="fixed inset-0 z-40" onClick={() => setShowModelMenu(false)} />
-                                                <div className="absolute bottom-full left-0 mb-2 w-64 bg-[#18181B] border border-[#27272A] rounded-lg shadow-2xl z-50 overflow-hidden py-1">
-                                                    <div className="px-3 py-2 text-[10px] font-bold text-zinc-600 uppercase tracking-wider">Select Model</div>
-                                                    {MODELS.map((model) => {
-                                                        const bal = tokenBalances[model.id] || 0;
-                                                        return (
-                                                            <button key={model.id} onClick={() => { setSelectedModel(model); setShowModelMenu(false); }} className="w-full flex items-center justify-between px-3 py-2 text-sm text-left text-zinc-400 hover:bg-[#27272A] hover:text-zinc-100 transition-colors">
-                                                                <span className="flex items-center gap-2"><model.icon size={14} className={model.id.includes('flash') ? 'text-amber-400' : 'text-indigo-400'} />{model.name}</span>
-                                                                <span className={`text-[10px] font-mono ${bal > 0 ? 'text-emerald-500' : 'text-zinc-600'}`}>{bal.toLocaleString()}</span>
-                                                            </button>
-                                                        )
-                                                    })}
-                                                </div>
-                                            </>
-                                        )}
+                                        </div>
                                     </div>
                                     {input.length > 0 && !isLocked && <span className={`text-[10px] font-mono ${isInputTooExpensive ? 'text-red-500' : 'text-zinc-500'}`}>~{estimatedInputTokens} tok</span>}
                                 </div>
                                 <div className="flex items-center gap-2">
-                                    {isLocked && <div className="flex items-center gap-1 text-[10px] text-red-500 bg-red-950/20 px-2 py-1 rounded"><Lock size={10} /><span>{isInputTooExpensive ? 'Prompt too long' : 'No tokens'}</span></div>}
-                                    <button onClick={handleSend} disabled={!input.trim() || isGenerating || isLocked} className={`p-2 rounded-lg transition-all duration-200 flex items-center justify-center ${input.trim() && !isGenerating && !isLocked ? 'bg-zinc-100 text-black hover:bg-white shadow-[0_0_10px_rgba(255,255,255,0.1)]' : 'bg-[#27272A] text-zinc-500 cursor-not-allowed'}`}>
+                                    {isLocked && (
+                                        <div className="flex items-center gap-1 text-[10px] text-red-500 bg-red-950/20 px-2 py-1 rounded">
+                                            <Lock size={10} />
+                                            {/* 🚨 MODIFIED: Lock message */}
+                                            <span>{showConfigAlert ? 'Config Missing' : isInputTooExpensive ? 'Prompt too long' : 'No tokens'}</span>
+                                        </div>
+                                    )}
+                                    <button 
+                                        onClick={handleSend} 
+                                        disabled={!input.trim() || isGenerating || isLocked} // 🚨 MODIFIED: disabled if locked by tokens OR config
+                                        className={`p-2 rounded-lg transition-all duration-200 flex items-center justify-center ${input.trim() && !isGenerating && !isLocked ? 'bg-zinc-100 text-black hover:bg-white shadow-[0_0_10px_rgba(255,255,255,0.1)]' : 'bg-[#27272A] text-zinc-500 cursor-not-allowed'}`}>
                                         {isGenerating ? <div className="w-4 h-4 border-2 border-zinc-500 border-t-transparent rounded-full animate-spin"/> : <CornerDownLeft size={16} strokeWidth={2.5} />}
                                     </button>
                                 </div>
@@ -896,80 +1032,30 @@ const SidebarItem = ({
     chat, isActive, isDragging, onClick, onDelete, onDragStart, onDragEnd, 
     profiles, currentUserId, currentUserPfp, currentUserName, isEditing, onEdit, onRename
 }: any) => {
-    
     const isCurrentUser = chat.user_id === currentUserId;
     const profile = isCurrentUser ? { full_name: currentUserName, avatar_url: currentUserPfp } : profiles[chat.user_id];
     const name = profile?.full_name || "Unknown";
     const firstName = name.split(' ')[0];
     const pfpUrl = profile?.avatar_url || "https://avatar.vercel.sh/" + chat.user_id;
-    
     const [editValue, setEditValue] = useState(chat.title);
-
     const handleBlur = () => onRename(editValue);
-    const handleKeyDown = (e: React.KeyboardEvent) => {
-        if (e.key === 'Enter') onRename(editValue);
-        if (e.key === 'Escape') {
-            setEditValue(chat.title);
-            onRename(chat.title); 
-        }
-    };
-
+    const handleKeyDown = (e: React.KeyboardEvent) => { if (e.key === 'Enter') onRename(editValue); if (e.key === 'Escape') { setEditValue(chat.title); onRename(chat.title); } };
     return (
-        <div
-            draggable
-            onDragStart={onDragStart}
-            onDragEnd={onDragEnd}
-            onClick={onClick}
-            className={`
-                group relative flex items-center justify-between w-full text-left py-2 px-2.5 rounded-md cursor-pointer transition-all duration-300 ease-in-out
-                ${isActive ? 'bg-[#18181B] shadow-sm border border-[#27272A]' : 'hover:bg-[#18181B] border border-transparent'}
-                ${isDragging ? 'opacity-40 dashed border-zinc-600' : ''}
-            `}
-        >
+        <div draggable onDragStart={onDragStart} onDragEnd={onDragEnd} onClick={onClick} className={`group relative flex items-center justify-between w-full text-left py-2 px-2.5 rounded-md cursor-pointer transition-all duration-300 ease-in-out ${isActive ? 'bg-[#18181B] shadow-sm border border-[#27272A]' : 'hover:bg-[#18181B] border border-transparent'} ${isDragging ? 'opacity-40 dashed border-zinc-600' : ''}`}>
             <div className="flex items-center gap-2.5 flex-1 min-w-0">
                 <div className={`w-1 h-1 rounded-full flex-shrink-0 transition-colors duration-300 ${isActive ? 'bg-indigo-500' : 'bg-transparent group-hover:bg-zinc-700'}`} />
                 {isEditing ? (
-                    <input 
-                        autoFocus
-                        value={editValue}
-                        onChange={(e) => setEditValue(e.target.value)}
-                        onBlur={handleBlur}
-                        onKeyDown={handleKeyDown}
-                        className="bg-transparent text-xs text-white border-none outline-none w-full"
-                    />
+                    <input autoFocus value={editValue} onChange={(e) => setEditValue(e.target.value)} onBlur={handleBlur} onKeyDown={handleKeyDown} className="bg-transparent text-xs text-white border-none outline-none w-full" />
                 ) : (
-                    <span 
-                        onDoubleClick={(e) => { e.stopPropagation(); onEdit(chat.id); setEditValue(chat.title); }}
-                        className={`truncate text-xs transition-colors duration-300 ${isActive ? 'text-zinc-200 font-medium' : 'text-zinc-500 group-hover:text-zinc-300'}`}
-                    >
-                        {chat.title || "Untitled Chat"}
-                    </span>
+                    <span onDoubleClick={(e) => { e.stopPropagation(); onEdit(chat.id); setEditValue(chat.title); }} className={`truncate text-xs transition-colors duration-300 ${isActive ? 'text-zinc-200 font-medium' : 'text-zinc-500 group-hover:text-zinc-300'}`}>{chat.title || "Untitled Chat"}</span>
                 )}
             </div>
-
             <div className="flex items-center gap-2 pl-2 ml-4 flex-shrink-0">
-                <div className={`
-                    flex items-center gap-1.5 transition-all duration-300 ease-out transform
-                    ${isActive ? 'opacity-100 translate-x-0' : 'opacity-0 translate-x-4 group-hover:opacity-100 group-hover:translate-x-0'}
-                `}>
+                <div className={`flex items-center gap-1.5 transition-all duration-300 ease-out transform ${isActive ? 'opacity-100 translate-x-0' : 'opacity-0 translate-x-4 group-hover:opacity-100 group-hover:translate-x-0'}`}>
                     <span className="text-[10px] text-zinc-600 hidden group-hover:block max-w-[50px] truncate">{firstName}</span>
-                    <img 
-                        src={pfpUrl} 
-                        alt={name} 
-                        className="w-4 h-4 rounded-full object-cover ring-1 ring-[#27272A]" 
-                        title={name} 
-                    />
+                    <img src={pfpUrl} alt={name} className="w-4 h-4 rounded-full object-cover ring-1 ring-[#27272A]" title={name} />
                 </div>
-                <button
-                    onClick={onDelete}
-                    className={`
-                        p-1 hover:bg-[#27272A] rounded text-zinc-500 hover:text-red-400 
-                        transition-all duration-300 ease-out transform scale-75 opacity-0
-                        group-hover:opacity-100 group-hover:scale-100
-                    `}
-                >
-                    <Trash2 size={11} />
-                </button>
+                <button onClick={onDelete} className={`p-1 hover:bg-[#27272A] rounded text-zinc-500 hover:text-red-400 transition-all duration-300 ease-out transform scale-75 opacity-0 group-hover:opacity-100 group-hover:scale-100`}><Trash2 size={11} /></button>
             </div>
         </div>
     )
