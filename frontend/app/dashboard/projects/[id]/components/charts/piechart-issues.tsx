@@ -158,7 +158,7 @@ const IssuesBarChart = ({ projectId }: IssuesBarChartProps) => {
          <div className="text-right">
              <div className="text-2xl font-bold text-white mb-1">{totalThisWeek}</div>
              
-             <div className={`text-xs px-2 py-1 rounded border font-medium flex items-center gap-1 w-fit ml-auto transition-colors
+             {/* <div className={`text-xs px-2 py-1 rounded border font-medium flex items-center gap-1 w-fit ml-auto transition-colors
                 ${isIncrease ? 'text-rose-400 bg-rose-400/10 border-rose-400/20' : ''}
                 ${isDecrease ? 'text-emerald-400 bg-emerald-400/10 border-emerald-400/20' : ''}
                 ${isNeutral ? 'text-zinc-400 bg-zinc-400/10 border-zinc-400/20' : ''}
@@ -168,7 +168,7 @@ const IssuesBarChart = ({ projectId }: IssuesBarChartProps) => {
                 {isNeutral && <Minus size={12} />}
                 
                 {trendPercentage > 0 ? '+' : ''}{trendPercentage}%
-             </div>
+             </div> */}
          </div>
       </div>
       
