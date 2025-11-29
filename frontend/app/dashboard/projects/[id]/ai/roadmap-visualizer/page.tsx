@@ -3,6 +3,7 @@
 import { useEffect, useState, useRef } from "react";
 import { createClient } from "@/utils/supabase/client";
 import Menu from "../../components/menu";
+import { createPortal } from "react-dom"; 
 import { generateAiResponse, createChatGroup, deleteChatGroup, updateChatGroup, deleteChat, renameChat, updateGroupTags } from "./actions-roadmapvisualizer";
 import {
     ReactFlow,
@@ -41,7 +42,9 @@ import {
   LayoutTemplate,
   PenTool,
   Server,
-  SignpostBig
+  SignpostBig,
+  Maximize2,
+  Minimize2
 } from "lucide-react";
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
@@ -121,23 +124,66 @@ const CreatorPfp: React.FC<CreatorPfpProps> = ({
 
 const CustomRoadmapNode = ({ data }: any) => {
     let Icon = SignpostBig;
-    // Default styling (Strategy/Generic)
     let colorClass = "text-zinc-400";
     let bgBorderClass = "border-zinc-700 bg-zinc-900";
 
     const type = (data.type || "").toLowerCase();
     
     // Color coding based on type
-    if (type.includes('front')) { Icon = LayoutTemplate; colorClass = "text-blue-400"; bgBorderClass = "border-blue-900/40 bg-blue-950/20"; }
-    else if (type.includes('back')) { Icon = Server; colorClass = "text-emerald-400"; bgBorderClass = "border-emerald-900/40 bg-emerald-950/20"; }
-    else if (type.includes('design')) { Icon = PenTool; colorClass = "text-pink-400"; bgBorderClass = "border-pink-900/40 bg-pink-950/20"; }
-    else if (type.includes('data')) { Icon = Database; colorClass = "text-amber-400"; bgBorderClass = "border-amber-900/40 bg-amber-950/20"; }
-    else if (type.includes('ops') || type.includes('cloud')) { Icon = Cloud; colorClass = "text-cyan-400"; bgBorderClass = "border-cyan-900/40 bg-cyan-950/20"; }
+    if (type.includes('front') || type.includes('mobile')) { 
+        // Frontend & Mobile -> Blue
+        Icon = LayoutTemplate; 
+        colorClass = "text-blue-400"; 
+        bgBorderClass = "border-blue-900/40 bg-blue-950/20"; 
+    }
+    else if (type.includes('back')) { 
+        // Backend -> Emerald
+        Icon = Server; 
+        colorClass = "text-emerald-400"; 
+        bgBorderClass = "border-emerald-900/40 bg-emerald-950/20"; 
+    }
+    else if (type.includes('design')) { 
+        // Design -> Pink
+        Icon = PenTool; 
+        colorClass = "text-pink-400"; 
+        bgBorderClass = "border-pink-900/40 bg-pink-950/20"; 
+    }
+    else if (type.includes('data')) { 
+        // Database -> Amber
+        Icon = Database; 
+        colorClass = "text-amber-400"; 
+        bgBorderClass = "border-amber-900/40 bg-amber-950/20"; 
+    }
+    else if (type.includes('ops') || type.includes('cloud')) { 
+        // DevOps -> Cyan
+        Icon = Cloud; 
+        colorClass = "text-cyan-400"; 
+        bgBorderClass = "border-cyan-900/40 bg-cyan-950/20"; 
+    }
+    else if (type.includes('ai') || type.includes('ml')) { 
+        // AI/ML -> Purple (New!)
+        Icon = Sparkles; 
+        colorClass = "text-purple-400"; 
+        bgBorderClass = "border-purple-900/40 bg-purple-950/20"; 
+    }
+    else if (type.includes('sec')) { 
+        // Security -> Red (New!)
+        Icon = Lock; 
+        colorClass = "text-red-400"; 
+        bgBorderClass = "border-red-900/40 bg-red-950/20"; 
+    }
+    else if (type.includes('qa') || type.includes('test')) { 
+        // QA -> Orange (New!)
+        Icon = Check; 
+        colorClass = "text-orange-400"; 
+        bgBorderClass = "border-orange-900/40 bg-orange-950/20"; 
+    }
 
     return (
+        // ... (Keep the return JSX exactly the same as before)
         <div className={`px-4 py-3 rounded-md border shadow-2xl min-w-[200px] backdrop-blur-md ${bgBorderClass} transition-all duration-300 hover:border-zinc-500 hover:shadow-zinc-500/10 hover:-translate-y-1`}>
-            {/* Connection Handle Top */}
-            <Handle type="target" position={Position.Top} className="!bg-zinc-500 !w-2 !h-1 !rounded-none !-top-[5px]" />
+             {/* ... rest of your node code ... */}
+             <Handle type="target" position={Position.Top} className="!bg-zinc-500 !w-2 !h-1 !rounded-none !-top-[5px]" />
             
             <div className="flex items-start gap-3">
                 <div className={`mt-0.5 p-1.5 rounded-md bg-black/40 border border-white/5 ${colorClass}`}>
@@ -151,7 +197,6 @@ const CustomRoadmapNode = ({ data }: any) => {
                 </div>
             </div>
 
-            {/* Connection Handle Bottom */}
             <Handle type="source" position={Position.Bottom} className="!bg-zinc-500 !w-2 !h-1 !rounded-none !-bottom-[5px]" />
         </div>
     );
@@ -198,7 +243,20 @@ const getLayoutedElements = (nodes: any[], edges: any[], direction = 'TB') => {
 // 3. Main Graph Component
 const RoadmapGraph = ({ rawData }: { rawData: any[] }) => {
     
-    // 1. Sanitize Data (Trim whitespace from IDs is critical)
+    const [isFullscreen, setIsFullscreen] = useState(false);
+    const [mounted, setMounted] = useState(false);
+
+    // Handle "Escape" key to close fullscreen
+    useEffect(() => {
+        setMounted(true);
+        const handleEsc = (e: KeyboardEvent) => {
+            if (e.key === 'Escape') setIsFullscreen(false);
+        };
+        window.addEventListener('keydown', handleEsc);
+        return () => window.removeEventListener('keydown', handleEsc);
+    }, []);
+
+    // 1. Sanitize Data
     const cleanData = rawData.map(item => ({
         ...item,
         id: item.id.trim(),
@@ -210,7 +268,7 @@ const RoadmapGraph = ({ rawData }: { rawData: any[] }) => {
         id: item.id,
         type: 'roadmapNode',
         data: { label: item.feature, type: item.type, timeline: item.timeline },
-        position: { x: 0, y: 0 } // Layout engine will fix this
+        position: { x: 0, y: 0 } 
     }));
 
     // 3. Prepare Edges
@@ -220,7 +278,6 @@ const RoadmapGraph = ({ rawData }: { rawData: any[] }) => {
             return d && d !== 'none' && d !== '-' && d !== '';
         })
         .flatMap(item => {
-             // Split "1, 2" -> ["1", "2"]
              return item.dependency.split(',').map((depId: string) => ({
                 id: `e${depId.trim()}-${item.id}`,
                 source: depId.trim(),
@@ -237,11 +294,31 @@ const RoadmapGraph = ({ rawData }: { rawData: any[] }) => {
     const [nodes, setNodes, onNodesChange] = useNodesState(layoutedNodes);
     const [edges, setEdges, onEdgesChange] = useEdgesState(layoutedEdges);
 
-    return (
-        <div className="h-[500px] w-full border border-[#27272A] rounded-xl bg-[#0e0e10] overflow-hidden my-6 shadow-2xl shadow-black/40 relative group/graph">
-            <div className="absolute top-4 left-4 z-10 px-3 py-1 bg-[#18181B] border border-[#27272A] rounded-full text-[10px] font-bold text-zinc-500 uppercase tracking-widest pointer-events-none">
+    // Actual Graph Content
+    const GraphContent = (
+        <div 
+            className={`
+                bg-[#0e0e10] overflow-hidden group/graph
+                ${isFullscreen 
+                    ? "fixed inset-0 z-[99999] w-screen h-screen" 
+                    : "relative h-[500px] w-full rounded-xl border border-[#27272A] shadow-2xl shadow-black/40"
+                }
+            `}
+        >
+            {/* Badge */}
+            <div className="absolute top-4 left-4 z-10 px-3 py-1 bg-[#18181B] border border-[#27272A] rounded-full text-[10px] font-bold text-zinc-500 uppercase tracking-widest pointer-events-none shadow-lg backdrop-blur-md">
                 Interactive Roadmap
             </div>
+
+            {/* Fullscreen Toggle Button */}
+            <button 
+                onClick={() => setIsFullscreen(!isFullscreen)}
+                className="absolute top-4 right-4 z-10 p-2 bg-[#18181B] border border-[#27272A] rounded-lg text-zinc-400 hover:text-white hover:bg-[#27272A] transition-colors shadow-lg backdrop-blur-md"
+                title={isFullscreen ? "Exit Fullscreen (Esc)" : "Enter Fullscreen"}
+            >
+                {isFullscreen ? <Minimize2 size={16} /> : <Maximize2 size={16} />}
+            </button>
+
             <ReactFlow
                 nodes={nodes}
                 edges={edges}
@@ -254,10 +331,62 @@ const RoadmapGraph = ({ rawData }: { rawData: any[] }) => {
                 minZoom={0.1}
             >
                 <Background color="#27272A" gap={25} size={1} />
-                <Controls className="!bg-[#18181B] !border-[#27272A] [&>button]:!fill-zinc-400 [&>button:hover]:!bg-[#27272A]" />
+                
+                {/* 
+                   UPDATED CONTROLS STYLING
+                   We strictly target [&_button] and [&_svg] to override browser/library defaults.
+                */}
+                <Controls 
+                    position="bottom-left"
+                    className="
+                        !bg-[#18181B] 
+                        !border
+                        !border-[#27272A] 
+                        !rounded-lg 
+                        !shadow-xl 
+                        !m-4
+                        
+                        /* Force Button Backgrounds to Dark */
+                        [&_button]:!bg-[#18181B]
+                        [&_button]:!border-b-[#27272A]
+                        [&_button]:!transition-colors
+                        
+                        /* Force Icon Colors (Fixes the black icon issue) */
+                        [&_button_svg]:!fill-zinc-400
+                        [&_button_path]:!fill-zinc-400
+                        
+                        /* Hover States */
+                        [&_button:hover]:!bg-[#27272A]
+                        [&_button:hover_svg]:!fill-white
+                        [&_button:hover_path]:!fill-white
+                        
+                        /* Remove bottom border from last item */
+                        [&_button:last-child]:!border-b-0
+                    " 
+                />
             </ReactFlow>
         </div>
     );
+
+    // Fullscreen via Portal
+    if (isFullscreen && mounted) {
+        return (
+            <>
+                {/* Placeholder to prevent layout jump */}
+                <div className="h-[500px] w-full border border-[#27272A]/30 rounded-xl bg-[#0e0e10]/30 my-6 flex items-center justify-center dashed border-zinc-800">
+                    <div className="flex flex-col items-center gap-2 text-zinc-600 animate-pulse">
+                        <Maximize2 size={24} />
+                        <span className="text-xs font-medium uppercase tracking-wider">Viewing in Fullscreen</span>
+                    </div>
+                </div>
+
+                {createPortal(GraphContent, document.body)}
+            </>
+        );
+    }
+
+    // Normal Inline
+    return <div className="my-6">{GraphContent}</div>;
 };
 
 export default function AiAssistantPage({ params }: PageProps) {
