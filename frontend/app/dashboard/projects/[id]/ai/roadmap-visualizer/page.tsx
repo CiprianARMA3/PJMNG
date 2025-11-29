@@ -964,8 +964,19 @@ if (!activeChatId && result.chatId) {
                         </span>
                     </div>
                     <div className="h-1.5 w-full bg-[#18181B] rounded-full overflow-hidden border border-[#27272A]">
-                        <div className={`h-full rounded-full transition-all duration-500 ${selectedModelBalance > 100000 ? 'bg-indigo-500' : selectedModelBalance > 50000 ? 'bg-amber-500' : 'bg-red-500'}`} style={{ width: `${Math.min((selectedModelBalance / 100000) * 100, 100)}%` }} />
-                    </div>
+                    <div 
+                    className={`h-full rounded-full transition-all duration-500 ${
+                        selectedModelBalance > 250000 
+                        ? 'bg-indigo-500' // Healthy
+                        : selectedModelBalance < 25000 
+                            ? 'bg-red-500'  // Critical
+                            : 'bg-amber-500' // Warning (Between 25k and 250k)
+                    }`} 
+                    style={{ 
+                        // I also updated the denominator to 250000 so the bar isn't always 100% full
+                        width: `${Math.min((selectedModelBalance / 250000) * 100, 100)}%` 
+                    }} 
+                    />                    </div>
                     
                     <div className={`transition-all duration-300 ease-in-out overflow-hidden ${showTokenInfo ? 'max-h-20 opacity-100 mt-2' : 'max-h-0 opacity-0 mt-0'}`}>
                         <p className="text-[12px] text-zinc-400 leading-tight">
