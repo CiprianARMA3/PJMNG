@@ -5,6 +5,7 @@ import { createClient } from "@/utils/supabase/client";
 import { useParams, useRouter } from "next/navigation";
 import Menu from "../../components/menu";
 import React from "react"; 
+import { PhoneNumberDisplay } from "./components/identifyPhoneNumberProvenience";
 
 import { 
   Search, 
@@ -75,12 +76,14 @@ const CreatorPfp: React.FC<CreatorPfpProps> = ({
     );
 };
 
+
 // --- MAIN COMPONENT: ProjectMembersPage ---
 export default function ProjectMembersPage() {
   const supabase = createClient();
   const params = useParams();
   const router = useRouter();
   const projectId = params.id as string;
+  const [copyStatus, setCopyStatus] = useState<string | null>(null);
   
   // --- MEMBER SPECIFIC STATE ---
   const [user, setUser] = useState<any>(null);
@@ -269,6 +272,23 @@ export default function ProjectMembersPage() {
     const members = await fetchAllMemberData(projectId);
     setAllMembers(members);
   }
+
+  const handleCopyId = async (id: string) => {
+    try {
+        await navigator.clipboard.writeText(id);
+        setCopyStatus(id); // Set status to the ID that was copied
+        
+        // Clear status after a short delay (e.g., 2 seconds)
+        setTimeout(() => {
+            setCopyStatus(null);
+        }, 2000);
+
+    } catch (err) {
+        console.error('Failed to copy ID: ', err);
+        // Optional: Show an error message to the user
+    }
+};
+
 
   // --- UI CONSTANTS ---
   const currentUserId = user?.id || "";
@@ -476,19 +496,34 @@ export default function ProjectMembersPage() {
                                         />
                                         <div className="space-y-1">
                                             <div className="font-medium text-zinc-200">{member.full_name}</div>
-                                            <div className="text-xs text-zinc-500 flex items-center gap-2 font-mono">
+                                            <div className="text-sm text-zinc-500 flex items-center gap-2 font-mono">
                                                 <Mail size={10} /> {member.email}
                                             </div>
                                             
                                             {/* PHONE NUMBER SECTION */}
-                                            <div className="text-xs text-zinc-500 flex items-center gap-2 font-mono" title="Phone Number">
-                                                <Phone size={10} /> {member.phone_number || <span className="text-zinc-600 italic">Not provided</span>}
+                                            <div className="text-sm text-zinc-500 flex items-center gap-2 font-mono" title="Phone Number">
+                                                <Phone size={10} /> <PhoneNumberDisplay phoneNumber={member.phone_number} />
                                             </div>
 
-                                            <div className="text-xs text-zinc-500 flex items-center gap-2 font-mono cursor-pointer hover:text-zinc-300" title="Copy ID">
-                                                <UserIcon size={10} /> 
-                                                <span className="truncate max-w-[120px]">{member.user_id}</span>
-                                                <Copy size={10} />
+                                            <div
+                                                className="text-xs flex items-center gap-2 font-mono cursor-pointer transition-colors"
+                                                title="Click to copy User ID"
+                                                onClick={() => handleCopyId(member.user_id)} // 👈 Attach the handler
+                                            >
+                                                {/* Icon changes based on copy status */}
+                                                {copyStatus === member.user_id ? (
+                                                    <Check size={10} className="text-emerald-400" /> // Show checkmark on success
+                                                ) : (
+                                                    <UserIcon size={10} className="text-zinc-500" /> // Default icon
+                                                )}
+
+                                                {/* Text changes based on copy status */}
+                                                <span className={`truncate max-w-[120px] ${copyStatus === member.user_id ? 'text-emerald-400' : 'text-zinc-500 group-hover:text-zinc-300'}`}>
+                                                    {copyStatus === member.user_id ? 'Copied!' : member.user_id}
+                                                </span>
+
+                                                {/* Copy Icon changes based on status */}
+                                                <Copy size={10} className={copyStatus === member.user_id ? 'text-emerald-400' : 'text-zinc-600 group-hover:text-zinc-400'} />
                                             </div>
                                         </div>
                                     </div>

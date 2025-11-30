@@ -4,8 +4,9 @@ import { useEffect, useState } from "react";
 import { createClient } from "@/utils/supabase/client";
 import { useParams, useRouter } from "next/navigation";
 import Menu from "../../components/menu";
-import ProjectCodeGeneration from "./components/projectCodeGeneration"; // <--- 1. IMPORT ADDED
+import ProjectCodeGeneration from "./components/projectCodeGeneration"; 
 import React from "react"; 
+import { PhoneNumberDisplay } from "../../settings/collaborators/components/identifyPhoneNumberProvenience";
 
 import { 
   Search, 
@@ -600,17 +601,14 @@ export default function ProjectManagementPage() {
                                     <div className="p-4 rounded-xl border border-zinc-800/60 bg-zinc-900/20 space-y-3">
                                         <div className="flex items-center gap-3">
                                             <Mail size={14} className="text-zinc-500" />
-                                            <span className="text-xs text-zinc-300 font-mono">{member.email}</span>
+                                            <span className="text-xs text-zinc-400 font-mono">{member.email}</span>
                                         </div>
+                                        <div className="text-sm text-zinc-400 flex items-center gap-2 font-mono" title="Phone Number">
+                                                    <Phone size={10} /> <PhoneNumberDisplay phoneNumber={member.phone_number}/>
+                                                </div>
                                         <div className="flex items-center gap-3">
-                                            <Phone size={14} className="text-zinc-500" />
-                                            <span className="text-xs text-zinc-300 font-mono">
-                                                {member.phone_number || "Not provided"}
-                                            </span>
-                                        </div>
-                                        <div className="flex items-center gap-3">
-                                            <UserIcon size={14} className="text-zinc-500" />
-                                            <span className="text-xs text-zinc-500 font-mono truncate w-full" title={member.user_id}>
+                                            <UserIcon size={14} className="text-zinc-400" />
+                                            <span className="text-xs text-zinc-400 font-mono truncate w-full" title={member.user_id}>
                                                 ID: {member.user_id}
                                             </span>
                                         </div>
