@@ -98,19 +98,40 @@ export default function ProjectPage() {
   const [user, setUser] = useState<any>(null);
 
   // 3. Fetch Data
-  useEffect(() => {
+useEffect(() => {
     const fetchData = async () => {
       if (!projectId) return;
 
       try {
         setLoading(true);
 
+        // 1. Get Auth User
         const { data: { user: authUser }, error: authError } = await supabase.auth.getUser();
         if (authError || !authUser) {
           router.push("/auth/login");
           return;
         }
 
+        // 2. Fetch User Profile Data (Fix for Name/Avatar)
+        const { data: userProfile } = await supabase
+          .from("users")
+          .select("name, surname, metadata")
+          .eq("id", authUser.id)
+          .single();
+
+        // 3. Create a merged user object for the Menu
+        const finalUser = {
+          ...authUser,
+          user_metadata: {
+            ...authUser.user_metadata,
+            full_name: userProfile?.name 
+              ? `${userProfile.name} ${userProfile.surname || ""}`.trim() 
+              : authUser.user_metadata?.full_name || "User",
+            avatar_url: userProfile?.metadata?.avatar_url || authUser.user_metadata?.avatar_url
+          }
+        };
+
+        // 4. Fetch Project Data
         const { data: projectData, error: projectError } = await supabase
           .from("projects")
           .select("*")
@@ -122,12 +143,13 @@ export default function ProjectPage() {
           return;
         }
 
+        // 5. Check Permissions (Creator or Member)
         const { data: projectUser } = await supabase
           .from("project_users")
           .select("user_id")
           .eq("project_id", projectId)
           .eq("user_id", authUser.id)
-          .single();
+          .maybeSingle();
 
         const isCreator = projectData.created_by === authUser.id;
         const isCollaborator = !!projectUser;
@@ -137,7 +159,8 @@ export default function ProjectPage() {
           return;
         }
 
-        setUser(authUser);
+        // 6. Set State
+        setUser(finalUser);
         setProject(projectData);
 
       } catch (error) {

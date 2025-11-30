@@ -91,63 +91,99 @@ export default function Board({ params }: PageProps) {
   const [draggingId, setDraggingId] = useState<string | null>(null);
 
   // INITIAL LOAD
-  useEffect(() => {
+useEffect(() => {
     async function load() {
+      // 1. Get ID
       const { id } = await params;
       setProjectId(id);
 
-      const { data: { user }, error: authError } = await supabase.auth.getUser();
-      if (authError || !user) { window.location.href = "/auth/login"; return; }
-      setUser(user);
+      // 2. Get Auth User
+      const { data: { user: authUser }, error: authError } = await supabase.auth.getUser();
+      if (authError || !authUser) { 
+        window.location.href = "/auth/login"; 
+        return; 
+      }
 
-      const { data: projectData } = await supabase.from("projects").select("*").eq("id", id).single();
+      // 3. Fetch User Profile (Fix for Menu Name/Avatar)
+      const { data: userProfile } = await supabase
+        .from("users")
+        .select("name, surname, metadata")
+        .eq("id", authUser.id)
+        .single();
+
+      // 4. Create merged user object
+      const finalUser = {
+        ...authUser,
+        user_metadata: {
+          ...authUser.user_metadata,
+          full_name: userProfile?.name 
+            ? `${userProfile.name} ${userProfile.surname || ""}`.trim() 
+            : authUser.user_metadata?.full_name || "User",
+          avatar_url: userProfile?.metadata?.avatar_url || authUser.user_metadata?.avatar_url
+        }
+      };
+      
+      setUser(finalUser);
+
+      // 5. Fetch Project Data
+      const { data: projectData } = await supabase
+        .from("projects")
+        .select("*")
+        .eq("id", id)
+        .single();
+        
       if (projectData) setProject(projectData);
 
-      const { data: groupsData } = await supabase.from("groups").select("*").eq("project_id", id).order("created_at", { ascending: true });
+      // 6. Fetch Groups
+      const { data: groupsData } = await supabase
+        .from("groups")
+        .select("*")
+        .eq("project_id", id)
+        .order("created_at", { ascending: true });
+        
       setGroups(groupsData ?? []);
 
-const { data: conceptsRaw, error: conceptsError } = await supabase
-  .from("concepts")
-  .select(`
-    *,
-    creator:users (
-      id,
-      name,
-      surname,
-      metadata
-    )
-  `)
-  .eq("project_id", id)
-  .order("created_at", { ascending: true });
+      // 7. Fetch Concepts (Your existing logic)
+      const { data: conceptsRaw, error: conceptsError } = await supabase
+        .from("concepts")
+        .select(`
+          *,
+          creator:users (
+            id,
+            name,
+            surname,
+            metadata
+          )
+        `)
+        .eq("project_id", id)
+        .order("created_at", { ascending: true });
 
-// Safe fallback if Supabase returns null
-const safeData = Array.isArray(conceptsRaw) ? conceptsRaw : [];
+      // Safe fallback if Supabase returns null
+      const safeData = Array.isArray(conceptsRaw) ? conceptsRaw : [];
 
-// Normalize creator structure safely
-const normalized = safeData.map((c: any) => ({
-  ...c,
-  creator: c?.creator ? {
-    id: c.creator.id,
-    name: c.creator.name,
-    surname: c.creator.surname,
-    metadata: c.creator.metadata || {}
-  } : null
-}));
+      // Normalize creator structure safely
+      const normalized = safeData.map((c: any) => ({
+        ...c,
+        creator: c?.creator ? {
+          id: c.creator.id,
+          name: c.creator.name,
+          surname: c.creator.surname,
+          metadata: c.creator.metadata || {}
+        } : null
+      }));
 
-// Fallback to original query ONLY IF supabase errored
-if (conceptsError) {
-  const { data: fallbackData } = await supabase
-    .from("concepts")
-    .select("*")
-    .eq("project_id", id)
-    .order("created_at", { ascending: true });
+      // Fallback to original query ONLY IF supabase errored
+      if (conceptsError) {
+        const { data: fallbackData } = await supabase
+          .from("concepts")
+          .select("*")
+          .eq("project_id", id)
+          .order("created_at", { ascending: true });
 
-  setConcepts(fallbackData ?? []);
-} else {
-  setConcepts(normalized);
-}
-
-
+        setConcepts(fallbackData ?? []);
+      } else {
+        setConcepts(normalized);
+      }
 
       setLoading(false);
     }

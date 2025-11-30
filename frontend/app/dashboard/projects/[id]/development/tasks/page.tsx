@@ -235,15 +235,49 @@ export default function IssuesPage() {
   const [userMap, setUserMap] = useState<Record<string, UserProfile>>({});
 
   // --- INITIAL FETCH ---
-  useEffect(() => {
+useEffect(() => {
     const init = async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) { router.push("/auth/login"); return; }
-      setUser(user);
-      const { data: proj } = await supabase.from("projects").select("*").eq("id", projectId).single();
+      // 1. Get Auth User
+      const { data: { user: authUser } } = await supabase.auth.getUser();
+      if (!authUser) { 
+        router.push("/auth/login"); 
+        return; 
+      }
+
+      // 2. Fetch User Profile (To get correct Name/Avatar)
+      const { data: userProfile } = await supabase
+        .from("users")
+        .select("name, surname, metadata")
+        .eq("id", authUser.id)
+        .single();
+
+      // 3. Create merged user object
+      const finalUser = {
+        ...authUser,
+        user_metadata: {
+          ...authUser.user_metadata,
+          full_name: userProfile?.name 
+            ? `${userProfile.name} ${userProfile.surname || ""}`.trim() 
+            : authUser.user_metadata?.full_name || "User",
+          avatar_url: userProfile?.metadata?.avatar_url || authUser.user_metadata?.avatar_url
+        }
+      };
+      
+      setUser(finalUser);
+
+      // 4. Fetch Project Data
+      const { data: proj } = await supabase
+        .from("projects")
+        .select("*")
+        .eq("id", projectId)
+        .single();
+        
       setProject(proj);
+      
+      // 5. Fetch Tasks/Issues (Keep your existing function)
       fetchIssues();
     };
+
     init();
   }, [projectId]);
 

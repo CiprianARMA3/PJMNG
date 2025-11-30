@@ -3,7 +3,7 @@
 import { useEffect, useState, useRef } from "react";
 import { createClient } from "@/utils/supabase/client";
 import Menu from "../../components/menu";
-import { ChatInput } from "./ChatInput"; // Ensure this matches your file path
+import { ChatInput } from "./ChatInput"; 
 import { generateAiResponse, createChatGroup, deleteChatGroup, updateChatGroup, deleteChat, renameChat, updateGroupTags } from "./actions";
 import {
   Sparkles,
@@ -14,10 +14,8 @@ import {
   Folder,
   ChevronDown,
   ChevronRight,
-  CornerDownLeft,
   CreditCard,
   Cpu,
-  Lock,
   Tag,
   X,
   Copy,
@@ -58,7 +56,7 @@ const TAG_COLORS = [
     { name: "Gray", hex: "#71717A" },
 ];
 
-// --- REUSABLE CREATOR PFP COMPONENT (UNMODIFIED) ---
+// --- REUSABLE CREATOR PFP COMPONENT ---
 interface CreatorPfpProps {
     userId: string;
     currentUserId: string;
@@ -79,6 +77,7 @@ const CreatorPfp: React.FC<CreatorPfpProps> = ({
     showNameOnHover = true
 }) => {
     const isCurrentUser = userId === currentUserId;
+    // Fallback logic: If we have profile data, use it. If not, fallback to vercel avatar.
     const profile = isCurrentUser ? { full_name: currentUserName, avatar_url: currentUserPfp } : profiles[userId];
     const defaultPfp = "https://avatar.vercel.sh/" + userId;
     const pfpUrl = profile?.avatar_url || defaultPfp;
@@ -119,7 +118,7 @@ export default function AiAssistantPage({ params }: PageProps) {
   const [activeChatId, setActiveChatId] = useState<string | null>(null);
   const [selectedGroupId, setSelectedGroupId] = useState<string | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
-  // REMOVED: input, showModelMenu
+  
   const [isGenerating, setIsGenerating] = useState(false);
   const [selectedModel, setSelectedModel] = useState(MODELS[0]);
   const [copiedIndex, setCopiedIndex] = useState<number | null>(null);
@@ -137,16 +136,26 @@ export default function AiAssistantPage({ params }: PageProps) {
   // Chat Renaming
   const [editingChatId, setEditingChatId] = useState<string | null>(null);
 
-  // REMOVED: textareaRef
   const chatContainerRef = useRef<HTMLDivElement>(null);
 
   // --- HELPER FUNCTIONS ---
   async function fetchProfiles(userIds: string[]) {
       if (userIds.length === 0) return;
-      const { data } = await supabase.from("profiles").select("id, full_name, avatar_url").in("id", userIds);
+      
+      const { data } = await supabase
+        .from("users")
+        .select("id, name, surname, metadata")
+        .in("id", userIds);
+
       if (data) {
           const profileMap: Record<string, Profile> = {};
-          data.forEach(p => { profileMap[p.id] = p as Profile; });
+          data.forEach(u => { 
+              profileMap[u.id] = {
+                  id: u.id,
+                  full_name: u.name ? `${u.name} ${u.surname || ''}`.trim() : "Unknown User",
+                  avatar_url: u.metadata?.avatar_url || null
+              };
+          });
           setProfiles(prev => ({...prev, ...profileMap}));
       }
   }
@@ -163,7 +172,6 @@ export default function AiAssistantPage({ params }: PageProps) {
       }
   }
 
-  // Find model based on DB ID (ai_model)
   const getModelById = (id?: string) => MODELS.find(m => m.id === id) || MODELS[0];
 
   // --- INITIAL LOAD ---
@@ -171,16 +179,43 @@ export default function AiAssistantPage({ params }: PageProps) {
     async function load() {
       const { id } = await params;
       setProjectId(id);
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) { window.location.href = "/auth/login"; return; }
-      setUser(user);
-      const currentUserId = user.id;
 
+      // 1. Get Auth User
+      const { data: { user: authUser }, error: authError } = await supabase.auth.getUser();
+      if (authError || !authUser) { 
+        window.location.href = "/auth/login"; 
+        return; 
+      }
+      
+      // 2. Get User Profile (For Sidebar/Menu)
+      const { data: userProfile } = await supabase
+        .from("users")
+        .select("name, surname, metadata")
+        .eq("id", authUser.id)
+        .single();
+
+      // 3. Create Merged User Object
+      const finalUser = {
+        ...authUser,
+        user_metadata: {
+          ...authUser.user_metadata,
+          full_name: userProfile?.name 
+            ? `${userProfile.name} ${userProfile.surname || ""}`.trim() 
+            : authUser.user_metadata?.full_name || "User",
+          avatar_url: userProfile?.metadata?.avatar_url || authUser.user_metadata?.avatar_url
+        }
+      };
+      
+      setUser(finalUser);
+      const currentUserId = authUser.id;
+
+      // 4. Get Project
       const { data: projectData } = await supabase.from("projects").select("*").eq("id", id).single();
       setProject(projectData);
 
       fetchBalance(id);
 
+      // 5. Get Groups & Chats
       const { data: groupsData } = await supabase.from("ai_chat_groups").select("*").eq("project_id", id).order("created_at", { ascending: true });
       const { data: chatsData } = await supabase.from("ai_chats").select("*, user_id").eq("project_id", id).order("updated_at", { ascending: false });
 
@@ -196,6 +231,7 @@ export default function AiAssistantPage({ params }: PageProps) {
       }
       if (chatsData) setChats(chatsData as ChatSession[]);
 
+      // 6. Fetch Profiles for Collaborators
       const userIdsToFetch = [
           ...(groupsData || []).map((g: any) => g.user_id),
           ...(chatsData || []).map((c: any) => c.user_id)
@@ -230,9 +266,7 @@ export default function AiAssistantPage({ params }: PageProps) {
     if (chatContainerRef.current) chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight;
   }, [messages, isGenerating]);
 
-  // REMOVED: Textarea auto-resize effect
-
-  // --- HANDLERS (Drag, Create, Delete, etc.) ---
+  // --- HANDLERS ---
   const handleDrop = (e: React.DragEvent, targetGroupId: string | null) => {
     e.preventDefault();
     setDraggingId(null);
@@ -324,10 +358,8 @@ export default function AiAssistantPage({ params }: PageProps) {
     setActiveChatId(null);
     setSelectedGroupId(groupId);
     setMessages([]);
-    // Removed setInput(""); and textareaRef.current.focus();
   };
 
-  // --- ACTIONS: COPY & REGENERATE ---
   const handleCopy = (content: string, idx: number) => {
       navigator.clipboard.writeText(content);
       setCopiedIndex(idx);
@@ -374,26 +406,20 @@ export default function AiAssistantPage({ params }: PageProps) {
   };
 
   const selectedModelBalance = tokenBalances[selectedModel.id] || 0;
-  // NOTE: isInputTooExpensive and isLocked will be calculated inside ChatInput for input validation/UI
   const isTokenLocked = selectedModelBalance <= 0;
 
-  // UPDATED handleSend to receive text from ChatInput
   async function handleSend(text: string) {
     if (!text.trim() || isGenerating) return;
-    
-    // Perform necessary pre-checks outside of ChatInput's immediate UI logic
     if (isTokenLocked) return; 
 
     const currentPrompt = text;
     setIsGenerating(true);
 
-    // Optimistic update
     setMessages(prev => [...prev, { role: 'user', content: currentPrompt }]);
 
     const result = await generateAiResponse(projectId, currentPrompt, activeChatId || undefined, selectedGroupId || undefined, selectedModel.id, false);
 
     if (result.error) {
-        // Revert optimistic update (or replace it with error)
         setMessages(prev => {
             const newMsgs = prev.slice(0, -1);
             return [...newMsgs, { role: 'ai', content: `**Error:** ${result.error}` }];
@@ -426,7 +452,6 @@ export default function AiAssistantPage({ params }: PageProps) {
     setIsGenerating(false);
   }
 
-  // CodeBlock component (unmodified)
   const CodeBlock = ({ language, children }: { language: string, children: React.ReactNode }) => {
     const [isCopied, setIsCopied] = useState(false);
 
@@ -466,29 +491,23 @@ export default function AiAssistantPage({ params }: PageProps) {
  if (loading) {
     return (
       <div role="status" className="flex justify-center items-center h-screen bg-[#0a0a0a]">
-        <svg
-          aria-hidden="true"
-          className="inline w-8 h-8 text-neutral-400 animate-spin fill-white"
-          viewBox="0 0 100 101"
-          fill="none"
-          xmlns="http://www.w3.org/2000/svg"
-        >
-          <path
-            d="M100 50.5908C100 78.2051 77.6142 100.591 50 100.591C22.3858 100.591 0 78.2051 0 50.5908C0 22.9766 22.3858 0.59082 50 0.59082C77.6142 0.59082 100 22.9766 100 50.5908ZM9.08144 50.5908C9.08144 73.1895 27.4013 91.5094 50 91.5094C72.5987 91.5094 90.9186 73.1895 90.9186 50.5908C90.9186 27.9921 72.5987 9.67226 50 9.67226C27.4013 9.67226 9.08144 27.9921 9.08144 50.5908Z"
-            fill="currentColor"
-          />
-          <path
-            d="M93.9676 39.0409C96.393 38.4038 97.8624 35.9116 97.0079 33.5539C95.2932 28.8227 92.871 24.3692 89.8167 20.348C85.8452 15.1192 80.8826 10.7238 75.2124 7.41289C69.5422 4.10194 63.2754 1.94025 56.7698 1.05124C51.7666 0.367541 46.6976 0.446843 41.7345 1.27873C39.2613 1.69328 37.813 4.19778 38.4501 6.62326C39.0873 9.04874 41.5694 10.4717 44.0505 10.1071C47.8511 9.54855 51.7191 9.52689 55.5402 10.0491C60.8642 10.7766 65.9928 12.5457 70.6331 15.2552C75.2735 17.9648 79.3347 21.5619 82.5849 25.841C84.9175 28.9121 86.7997 32.2913 88.1811 35.8758C89.083 38.2158 91.5421 39.6781 93.9676 39.0409Z"
-            fill="currentFill"
-          />
-        </svg>
-        <span className="sr-only">Loading...</span>
+        <div className="w-8 h-8 border-4 border-white/20 border-t-white rounded-full animate-spin"></div>
       </div>
     );
   }
   const currentUserId = user?.id || "";
   const currentUserPfp = user?.user_metadata?.avatar_url || "";
   const currentUserName = user?.user_metadata?.full_name || "You";
+
+  // --- 1. DETERMINE CHAT OWNER ---
+  const activeChat = chats.find(c => c.id === activeChatId);
+  // Default to current user if it's a new unsaved chat (activeChat is undefined)
+  const chatOwnerId = activeChat ? activeChat.user_id : currentUserId;
+  
+  // --- 2. GET OWNER NAME FOR UI ---
+  const isOwnerCurrentUser = chatOwnerId === currentUserId;
+  const chatOwnerProfile = isOwnerCurrentUser ? { full_name: currentUserName } : profiles[chatOwnerId];
+  const chatOwnerName = chatOwnerProfile?.full_name || "Unknown";
 
   return (
     <div className="h-screen bg-[#0E0E10] text-[#E1E1E3] flex overflow-hidden font-sans selection:bg-zinc-700 selection:text-white">
@@ -554,7 +573,6 @@ export default function AiAssistantPage({ params }: PageProps) {
 
                     {groups.map(group => (
                         <div key={group.id} className="mb-1 relative">
-                            {/* Group Header */}
                             <div className={`group/header flex items-center justify-between px-2 py-1.5 rounded-md cursor-pointer select-none transition-colors ${draggingId ? 'border border-dashed border-zinc-700 bg-[#18181B]' : 'hover:bg-[#18181B]'}`} onClick={() => toggleGroup(group.id)} onDragOver={(e) => e.preventDefault()} onDrop={(e) => handleDrop(e, group.id)}>
                                 <div className="flex items-center gap-2 overflow-hidden text-zinc-400 group-hover/header:text-zinc-200 min-w-0 flex-1">
                                     <div className="transition-transform duration-200">{expandedGroups[group.id] ? <ChevronDown size={12} /> : <ChevronRight size={12} />}</div>
@@ -574,7 +592,6 @@ export default function AiAssistantPage({ params }: PageProps) {
                                 </div>
                             </div>
 
-                            {/* Tag Menu */}
                             {activeTagMenuId === group.id && (
                                 <div className="absolute left-4 top-8 z-50 bg-[#18181B] border border-[#27272A] rounded-lg shadow-2xl p-3 w-48">
                                     <div className="flex items-center justify-between mb-2">
@@ -605,7 +622,6 @@ export default function AiAssistantPage({ params }: PageProps) {
                                 </div>
                             )}
 
-                            {/* Group Content */}
                             {expandedGroups[group.id] && (
                                 <div className="mt-0.5 space-y-0.5 relative z-0">
                                     {chats.filter(c => c.group_id === group.id).map(chat => (
@@ -675,10 +691,7 @@ export default function AiAssistantPage({ params }: PageProps) {
                     {messages.length === 0 && (
                         <div className="h-full flex flex-col items-center justify-center text-zinc-500 select-none pb-20">
                    <div className="group relative w-16 h-16 bg-[#18181B] rounded-2xl flex items-center justify-center mb-6 border border-[#27272A] shadow-lg shadow-black/20 overflow-hidden transition-all duration-300 hover:scale-105 cursor-pointer">
-                            {/* Purple Shine Effect */}
                             <div className="absolute inset-0 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-700 ease-in-out bg-gradient-to-r from-transparent via-purple-500/40 to-transparent z-10" />
-                            
-                            {/* Sparkles Icon: Starts Zinc-500, becomes White on hover */}
                             <Sparkles size={32} className="text-zinc-500 relative z-0 transition-colors duration-500 group-hover:text-white" />
                         </div>
                             <h2 className="text-xl font-medium text-zinc-200 mb-2">How can I help you today?</h2>
@@ -687,7 +700,7 @@ export default function AiAssistantPage({ params }: PageProps) {
                     )}
 
                     {messages.map((msg, idx) => {
-                        const modelInfo = getModelById(msg.ai_model); // Changed to use ai_model
+                        const modelInfo = getModelById(msg.ai_model); 
                         const ModelIcon = modelInfo.icon;
 
                         return (
@@ -700,8 +713,9 @@ export default function AiAssistantPage({ params }: PageProps) {
                                     ) : (
                                         <>
                                             <div className="w-8 h-8 rounded-full overflow-hidden ring-1 ring-[#27272A]">
+                                                {/* FIXED: USE CHAT OWNER ID FOR AVATAR, NOT CURRENT USER */}
                                                 <CreatorPfp
-                                                    userId={currentUserId}
+                                                    userId={chatOwnerId} 
                                                     currentUserId={currentUserId}
                                                     currentUserPfp={currentUserPfp}
                                                     currentUserName={currentUserName}
@@ -711,7 +725,8 @@ export default function AiAssistantPage({ params }: PageProps) {
                                                 />
                                             </div>
                                             <span className="text-[12px] text-zinc-500 font-medium leading-tight text-center whitespace-nowrap px-1">
-                                                {currentUserName}
+                                                {/* FIXED: USE CHAT OWNER NAME */}
+                                                {chatOwnerName}
                                             </span>
                                         </>
                                     )}
@@ -720,69 +735,67 @@ export default function AiAssistantPage({ params }: PageProps) {
                                     <div className={`relative px-5 py-3.5 rounded-2xl text-sm leading-relaxed shadow-sm ${msg.role === 'user' ? 'bg-[#27272A] text-zinc-100 rounded-tr-sm' : 'bg-transparent text-zinc-300 px-0 py-1'}`}>
                                         {msg.role === 'ai' ? (
                                             <div className="prose prose-invert max-w-none">
-<ReactMarkdown 
-    remarkPlugins={[remarkGfm]}
-    components={{
-        // --- Code Block Styling (Existing) ---
-        code({node, inline, className, children, ...props}: any) {
-            const match = /language-(\w+)/.exec(className || '')
-            return !inline && match ? (
-                <CodeBlock language={match[1]}>{children}</CodeBlock>
-            ) : (
-                <code className={`${className} bg-[#27272A] text-zinc-200 px-1 py-0.5 rounded text-[13px]`} {...props}>{children}</code>
-            )
-        },
-        // --- NEW: Table Styling ---
-        table({children}: any) {
-            return (
-                <div className="my-6 w-full overflow-hidden rounded-lg border border-[#27272A] shadow-sm">
-                    <div className="overflow-x-auto">
-                        <table className="w-full text-left text-sm text-zinc-300">
-                            {children}
-                        </table>
-                    </div>
-                </div>
-            );
-        },
-        thead({children}: any) {
-            return (
-                <thead className="bg-[#18181B] text-xs uppercase font-semibold text-zinc-500 border-b border-[#27272A]">
-                    {children}
-                </thead>
-            );
-        },
-        tbody({children}: any) {
-            return (
-                <tbody className="divide-y divide-[#27272A] bg-transparent">
-                    {children}
-                </tbody>
-            );
-        },
-        tr({children}: any) {
-            return (
-                <tr className="transition-colors hover:bg-white/5 group/row">
-                    {children}
-                </tr>
-            );
-        },
-        th({children}: any) {
-            return (
-                <th className="px-4 py-3 whitespace-nowrap tracking-wider">
-                    {children}
-                </th>
-            );
-        },
-        td({children}: any) {
-            return (
-                <td className="px-4 py-3 align-top leading-relaxed text-zinc-300">
-                    {children}
-                </td>
-            );
-        }
-    }}
->
-    {msg.content}
-</ReactMarkdown>
+                                                <ReactMarkdown 
+                                                    remarkPlugins={[remarkGfm]}
+                                                    components={{
+                                                        code({node, inline, className, children, ...props}: any) {
+                                                            const match = /language-(\w+)/.exec(className || '')
+                                                            return !inline && match ? (
+                                                                <CodeBlock language={match[1]}>{children}</CodeBlock>
+                                                            ) : (
+                                                                <code className={`${className} bg-[#27272A] text-zinc-200 px-1 py-0.5 rounded text-[13px]`} {...props}>{children}</code>
+                                                            )
+                                                        },
+                                                        table({children}: any) {
+                                                            return (
+                                                                <div className="my-6 w-full overflow-hidden rounded-lg border border-[#27272A] shadow-sm">
+                                                                    <div className="overflow-x-auto">
+                                                                        <table className="w-full text-left text-sm text-zinc-300">
+                                                                            {children}
+                                                                        </table>
+                                                                    </div>
+                                                                </div>
+                                                            );
+                                                        },
+                                                        thead({children}: any) {
+                                                            return (
+                                                                <thead className="bg-[#18181B] text-xs uppercase font-semibold text-zinc-500 border-b border-[#27272A]">
+                                                                    {children}
+                                                                </thead>
+                                                            );
+                                                        },
+                                                        tbody({children}: any) {
+                                                            return (
+                                                                <tbody className="divide-y divide-[#27272A] bg-transparent">
+                                                                    {children}
+                                                                </tbody>
+                                                            );
+                                                        },
+                                                        tr({children}: any) {
+                                                            return (
+                                                                <tr className="transition-colors hover:bg-white/5 group/row">
+                                                                    {children}
+                                                                </tr>
+                                                            );
+                                                        },
+                                                        th({children}: any) {
+                                                            return (
+                                                                <th className="px-4 py-3 whitespace-nowrap tracking-wider">
+                                                                    {children}
+                                                                </th>
+                                                            );
+                                                        },
+                                                        td({children}: any) {
+                                                            return (
+                                                                <td className="px-4 py-3 align-top leading-relaxed text-zinc-300">
+                                                                    {children}
+                                                                </td>
+                                                            );
+                                                        }
+                                                    }}
+                                                >
+                                                    {msg.content}
+                                                </ReactMarkdown>
                                             </div>
                                         ) : (
                                             <div className="whitespace-pre-wrap">{msg.content}</div>
@@ -835,7 +848,6 @@ export default function AiAssistantPage({ params }: PageProps) {
                     )}
                 </div>
 
-                {/* INTEGRATED CHAT INPUT COMPONENT */}
                 <ChatInput 
                     onSend={handleSend}
                     isGenerating={isGenerating}
@@ -852,7 +864,6 @@ export default function AiAssistantPage({ params }: PageProps) {
   );
 }
 
-// --- SUB-COMPONENT: SIDEBAR ITEM (UNMODIFIED) ---
 const SidebarItem = ({ 
     chat, isActive, isDragging, onClick, onDelete, onDragStart, onDragEnd, 
     profiles, currentUserId, currentUserPfp, currentUserName, isEditing, onEdit, onRename

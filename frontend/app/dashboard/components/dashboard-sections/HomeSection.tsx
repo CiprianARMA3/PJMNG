@@ -24,7 +24,7 @@ export default function HomeSection({ user, userName }: HomeSectionProps) {
         const { data, error } = await supabase
           .from("projects")
           .select("*")
-          .eq("created_by", user.id)
+          // .eq("created_by", user.id)
           .order("created_at", { ascending: false });
 
         if (error) throw error;

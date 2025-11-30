@@ -63,18 +63,46 @@ export default function ConceptCalendarPage() {
   const [zoomedDay, setZoomedDay] = useState<Date | null>(null);
 
   // --- DATA FETCHING ---
-  useEffect(() => {
+useEffect(() => {
     const init = async () => {
         // 1. Auth Check
-        const { data: { user } } = await supabase.auth.getUser();
-        if (!user) { router.push("/auth/login"); return; }
-        setUser(user);
+        const { data: { user: authUser } } = await supabase.auth.getUser();
+        if (!authUser) { 
+          router.push("/auth/login"); 
+          return; 
+        }
 
-        // 2. Fetch Project Info (For Menu)
-        const { data: proj } = await supabase.from("projects").select("*").eq("id", projectId).single();
+        // 2. Fetch User Profile (To fix Menu Name/Avatar)
+        const { data: userProfile } = await supabase
+          .from("users")
+          .select("name, surname, metadata")
+          .eq("id", authUser.id)
+          .single();
+
+        // 3. Create merged user object
+        const finalUser = {
+          ...authUser,
+          user_metadata: {
+            ...authUser.user_metadata,
+            full_name: userProfile?.name 
+              ? `${userProfile.name} ${userProfile.surname || ""}`.trim() 
+              : authUser.user_metadata?.full_name || "User",
+            avatar_url: userProfile?.metadata?.avatar_url || authUser.user_metadata?.avatar_url
+          }
+        };
+
+        setUser(finalUser);
+
+        // 4. Fetch Project Info (For Menu)
+        const { data: proj } = await supabase
+          .from("projects")
+          .select("*")
+          .eq("id", projectId)
+          .single();
+          
         setProject(proj);
 
-        // 3. Fetch Calendar Data
+        // 5. Fetch Calendar Data
         await fetchData();
     };
     init();

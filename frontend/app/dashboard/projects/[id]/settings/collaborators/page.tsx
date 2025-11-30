@@ -1,24 +1,22 @@
 "use client";
 
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState } from "react";
 import { createClient } from "@/utils/supabase/client";
 import { useParams, useRouter } from "next/navigation";
 import Menu from "../../components/menu";
-import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
-import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism';
 import React from "react"; 
 
 import { 
-  Search, Plus, X, 
-  CheckCircle2, Clock, AlertTriangle, 
-  FileCode, Terminal, 
-  Save, Trash2, Edit, Bug, Zap, Hammer, Github, 
-  ExternalLink,
+  Search, 
   RefreshCw, Filter, ChevronDown, 
-  ChevronUp, Minus,
-  Disc, XCircle, Users as UsersIcon,
+  ChevronUp, 
+  Users as UsersIcon,
   Mail, GitBranch, User as UserIcon, Calendar,
-  Check
+  Check,
+  ShieldAlert,
+  MoreHorizontal,
+  Copy,
+  Phone // Added Phone icon
 } from "lucide-react";
 
 // --- TYPES (Member Specific) ---
@@ -26,10 +24,11 @@ type MemberData = {
     user_id: string;
     email: string;
     full_name: string;
+    phone_number: string | null; // Added phone_number
     avatar_url: string | null; 
     role: string;
     permissions: string[];
-    joined_at: string; // This will now represent user's created_at for display
+    joined_at: string;
 };
 type RoleFilter = { name: string; isSelected: boolean };
 
@@ -52,7 +51,7 @@ const CreatorPfp: React.FC<CreatorPfpProps> = ({
     currentUserName,
     pfpUrl: externalPfpUrl,
     name,
-    size = 'w-5 h-5',
+    size = 'w-9 h-9',
     showNameOnHover = true
 }) => {
     const isCurrentUser = userId === currentUserId;
@@ -65,51 +64,16 @@ const CreatorPfp: React.FC<CreatorPfpProps> = ({
             <img
                 src={finalPfpUrl}
                 alt={finalName}
-                className={`${size} rounded-full object-cover ring-1 ring-[#27272A] bg-[#18181B]`}
+                className={`${size} rounded-full object-cover border border-white/10 shadow-sm bg-zinc-900`}
             />
             {showNameOnHover && (
-                <div className="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 px-3 py-1.5 bg-[#09090B] border border-[#27272A] text-[11px] font-medium text-white rounded-md shadow-2xl opacity-0 translate-y-2 group-hover/pfp:translate-y-0 group-hover/pfp:opacity-100 transition-all duration-200 pointer-events-none whitespace-nowrap z-50">
+                <div className="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 px-2.5 py-1.5 bg-zinc-950 border border-zinc-800 text-[10px] font-medium text-zinc-200 rounded shadow-xl opacity-0 translate-y-2 group-hover/pfp:translate-y-0 group-hover/pfp:opacity-100 transition-all duration-200 pointer-events-none whitespace-nowrap z-50">
                     {finalName}
                 </div>
             )}
         </div>
     );
 };
-// --- END PFP COMPONENT ---
-
-
-// --- DUMMY COMPONENTS (Required by the IssuesPage template structure) ---
-const VSCodeHeader = ({ title }: { title: string }) => (
-  <div className="bg-[#252526] px-4 py-2 border-b border-[#1e1e1e] flex justify-between items-center rounded-t-lg select-none">
-    <span className="text-[10px] font-bold text-[#969696] uppercase tracking-wider font-mono flex items-center gap-2">
-      <FileCode size={10} className="text-[#9200cc]"/> {title}
-    </span>
-  </div>
-);
-
-const CodeBlock = ({ language, code }: { language: string, code: string }) => {
-  return (
-    <div className="my-4 rounded-lg bg-[#1e1e1e] border border-[#333] overflow-hidden shadow-xl">
-      <VSCodeHeader title={language.toUpperCase() || 'TEXT'} />
-      <SyntaxHighlighter
-        language={language || 'text'}
-        style={vscDarkPlus}
-        customStyle={{
-          margin: 0,
-          padding: '1.5rem',
-          background: '#1e1e1e', 
-          fontSize: '0.875rem',
-          lineHeight: '1.5',
-        }}
-        showLineNumbers={true}
-        lineNumberStyle={{ minWidth: "2.5em", paddingRight: "1em", color: "#6e7681", textAlign: "right" }}
-      >
-        {code}
-      </SyntaxHighlighter>
-    </div>
-  );
-};
-
 
 // --- MAIN COMPONENT: ProjectMembersPage ---
 export default function ProjectMembersPage() {
@@ -132,25 +96,11 @@ export default function ProjectMembersPage() {
   const [roleFilters, setRoleFilters] = useState<RoleFilter[]>([]);
   const [showRoleMenu, setShowRoleMenu] = useState(false);
 
-  // --- DUMMY STATE/HANDLERS REQUIRED BY ISSUESPAGE SHELL ---
-  const selectedIssue: any = null; 
-  const openModal = () => {};
-  const closeModal = () => {};
-
-
-  // --- DATA FETCHING AND PROCESSING ---
-
-  /**
-   * Safely parses the role_info JSONB column.
-   */
+  // --- DATA FETCHING ---
   const parseRoleInfo = (rawRole: any): { role: string; permissions: string[] } => {
     let info = rawRole;
     if (typeof info === 'string') {
-        try {
-            info = JSON.parse(info);
-        } catch (e) {
-            info = null;
-        }
+        try { info = JSON.parse(info); } catch (e) { info = null; }
     }
     return {
         role: info?.role || 'No Role Assigned',
@@ -158,19 +108,14 @@ export default function ProjectMembersPage() {
     };
   };
 
-  /**
-   * Main function to fetch all required member data.
-   */
   async function fetchAllMemberData(id: string): Promise<MemberData[]> {
     setRefreshing(true);
-    // 1. Fetch project_users to get IDs, roles, and joined date
     const { data: projectUsersData, error: puError } = await supabase
         .from("project_users")
         .select(`user_id, role_info, joined_at`)
         .eq("project_id", id);
 
     if (puError || !projectUsersData) {
-        console.error("Error fetching project users:", puError?.message);
         setRefreshing(false);
         return [];
     }
@@ -181,15 +126,12 @@ export default function ProjectMembersPage() {
         return [];
     }
 
-    // 2. Fetch public user details (email, name, surname, metadata, and user's global created_at) from 'users' table
-    const { data: usersData, error: uError } = await supabase
+    // Updated select to include phone_number
+    const { data: usersData } = await supabase
         .from("users")
-        .select(`id, email, name, surname, metadata, created_at`) // Added created_at
+        .select(`id, email, name, surname, metadata, created_at, phone_number`) 
         .in("id", userIds);
-
-    if (uError) console.error("Error fetching user details:", uError.message);
     
-    // Map user data for easy lookup
     const userMap = (usersData || []).reduce((acc, u) => {
         const full_name = (u.name || '') + (u.surname ? ` ${u.surname}` : '');
         const avatar_url = (u.metadata as any)?.avatar_url || null;
@@ -198,20 +140,21 @@ export default function ProjectMembersPage() {
             id: u.id,
             email: u.email || 'N/A',
             full_name: full_name || 'Name Unavailable',
+            phone_number: u.phone_number || null, // Capture phone number
             avatar_url: avatar_url,
-            user_created_at: u.created_at, // Store user's registration date
+            user_created_at: u.created_at,
         };
         return acc;
-    }, {} as Record<string, { id: string, email: string, full_name: string, avatar_url: string | null, user_created_at: string }>);
+    }, {} as Record<string, { id: string, email: string, full_name: string, phone_number: string | null, avatar_url: string | null, user_created_at: string }>);
 
-    // 3. Combine data
     const combinedMembers: MemberData[] = projectUsersData.map(pu => {
         const userData = userMap[pu.user_id] || { 
             id: pu.user_id, 
             email: 'Unavailable', 
             full_name: 'User Deleted', 
+            phone_number: null,
             avatar_url: null,
-            user_created_at: pu.joined_at // Fallback to project join date
+            user_created_at: pu.joined_at
         };
         const roleInfo = parseRoleInfo(pu.role_info);
 
@@ -219,10 +162,10 @@ export default function ProjectMembersPage() {
             user_id: pu.user_id,
             email: userData.email,
             full_name: userData.full_name,
+            phone_number: userData.phone_number,
             avatar_url: userData.avatar_url,
             role: roleInfo.role,
             permissions: roleInfo.permissions,
-            // FIX: Use user's global registration date (created_at)
             joined_at: userData.user_created_at, 
         };
     });
@@ -230,37 +173,59 @@ export default function ProjectMembersPage() {
     return combinedMembers;
   }
 
-  // --- INITIAL LOAD ---
+// --- INITIAL LOAD ---
   useEffect(() => {
     const init = async () => {
         const id = projectId;
         if (!id) return;
 
-        const { data: { user } } = await supabase.auth.getUser();
-        if (!user) { router.push("/auth/login"); return; }
-        setUser(user);
-    
-        // FIX: Ensure project metadata is fetched to get the project icon/logo
-        const { data: projectData } = await supabase.from("projects").select("id, name, metadata").eq("id", id).single();
+        // 1. Auth Check
+        const { data: { user: authUser }, error: authError } = await supabase.auth.getUser();
+        if (authError || !authUser) { 
+            router.push("/auth/login"); 
+            return; 
+        }
+
+        // 2. Fetch User Profile (To fix Menu Name/Avatar)
+        const { data: userProfile } = await supabase
+            .from("users")
+            .select("name, surname, metadata")
+            .eq("id", authUser.id)
+            .single();
+
+        // 3. Create merged user object
+        const finalUser = {
+            ...authUser,
+            user_metadata: {
+                ...authUser.user_metadata,
+                full_name: userProfile?.name 
+                    ? `${userProfile.name} ${userProfile.surname || ""}`.trim() 
+                    : authUser.user_metadata?.full_name || "User",
+                avatar_url: userProfile?.metadata?.avatar_url || authUser.user_metadata?.avatar_url
+            }
+        };
         
+        setUser(finalUser);
+    
+        // 4. Fetch Project Data
+        const { data: projectData } = await supabase
+            .from("projects")
+            .select("id, name, metadata")
+            .eq("id", id)
+            .single();
+
         if (projectData) {
-             // Extract logo URL from metadata and attach it directly to the project object
-             // Assume the logo URL is under metadata.logo_url or metadata.icon_url
              const iconUrl = projectData.metadata?.project_icon_url || projectData.metadata?.logo_url || null; 
-             
-             // Create a new project object that includes the icon URL for the Menu component
-             const projectWithIcon = {
-                 ...projectData,
-                 icon_url: iconUrl // This field is now definitely set if it exists in metadata
-             };
-             setProject(projectWithIcon);
+             setProject({ ...projectData, icon_url: iconUrl });
         } else {
              setProject(null);
         }
 
+        // 5. Fetch Members
         const members = await fetchAllMemberData(id);
         setAllMembers(members);
 
+        // 6. Setup Filters
         const uniqueRoles = [...new Set(members
             .filter(m => m.role && m.role !== 'No Role Assigned')
             .map(m => m.role)
@@ -268,21 +233,16 @@ export default function ProjectMembersPage() {
 
         const initialFilters: RoleFilter[] = uniqueRoles.map(role => ({ name: role, isSelected: true }));
         setRoleFilters(initialFilters);
-
         setLoading(false);
     };
     init();
   }, [projectId]);
 
-  // --- FILTERING LOGIC ---
+  // --- FILTERING ---
   useEffect(() => {
     if (loading) return;
-
     const isSearchEmpty = !searchQuery.trim();
-    const activeRoles = roleFilters
-        .filter(f => f.isSelected)
-        .map(f => (f.name || "").toLowerCase());
-
+    const activeRoles = roleFilters.filter(f => f.isSelected).map(f => (f.name || "").toLowerCase());
     const searchLower = searchQuery.toLowerCase();
 
     const filtered = allMembers.filter(member => {
@@ -290,18 +250,12 @@ export default function ProjectMembersPage() {
                             member.full_name.toLowerCase().includes(searchLower) ||
                             member.email.toLowerCase().includes(searchLower) ||
                             member.user_id.includes(searchLower);
-
-      const memberRoleLower = member.role.toLowerCase();
-      const matchesRole = activeRoles.includes(memberRoleLower);
-
+      const matchesRole = activeRoles.includes(member.role.toLowerCase());
       return matchesSearch && matchesRole;
     });
 
-    setFilteredMembers(filtered.sort((a, b) =>
-        a.full_name.localeCompare(b.full_name)
-    ));
+    setFilteredMembers(filtered.sort((a, b) => a.full_name.localeCompare(b.full_name)));
   }, [allMembers, searchQuery, roleFilters, loading]);
-
 
   // --- HANDLERS ---
   const toggleRoleFilter = (roleName: string) => {
@@ -309,31 +263,19 @@ export default function ProjectMembersPage() {
       filter.name === roleName ? { ...filter, isSelected: !filter.isSelected } : filter
     ));
   };
-
-  const clearSearch = () => setSearchQuery("");
-  const closeRoleMenu = () => setShowRoleMenu(false);
-
-  const handleMemberClick = (userId: string) => {
-    setExpandedUserId(userId === expandedUserId ? null : userId);
-  };
-  
+  const handleMemberClick = (userId: string) => setExpandedUserId(userId === expandedUserId ? null : userId);
   const handleRefresh = async () => {
     if (!projectId) return;
     const members = await fetchAllMemberData(projectId);
     setAllMembers(members);
   }
 
-  // --- UI Variables ---
+  // --- UI CONSTANTS ---
   const currentUserId = user?.id || "";
   const currentUserPfp = user?.user_metadata?.avatar_url || "";
   const currentUserName = user?.user_metadata?.full_name || "You";
-  const selectedRolesCount = roleFilters.filter(f => f.isSelected).length;
-  const allRolesCount = roleFilters.length;
-  const isAllRolesSelected = selectedRolesCount === allRolesCount;
-  
-  // --- Render ---
 
-if (loading) {
+ if (loading) {
     return (
       <div role="status" className="flex justify-center items-center h-screen bg-[#0a0a0a]">
         <svg
@@ -349,7 +291,7 @@ if (loading) {
           />
           <path
             d="M93.9676 39.0409C96.393 38.4038 97.8624 35.9116 97.0079 33.5539C95.2932 28.8227 92.871 24.3692 89.8167 20.348C85.8452 15.1192 80.8826 10.7238 75.2124 7.41289C69.5422 4.10194 63.2754 1.94025 56.7698 1.05124C51.7666 0.367541 46.6976 0.446843 41.7345 1.27873C39.2613 1.69328 37.813 4.19778 38.4501 6.62326C39.0873 9.04874 41.5694 10.4717 44.0505 10.1071C47.8511 9.54855 51.7191 9.52689 55.5402 10.0491C60.8642 10.7766 65.9928 12.5457 70.6331 15.2552C75.2735 17.9648 79.3347 21.5619 82.5849 25.841C84.9175 28.9121 86.7997 32.2913 88.1811 35.8758C89.083 38.2158 91.5421 39.6781 93.9676 39.0409Z"
-            fill="currentColor"
+            fill="currentFill"
           />
         </svg>
         <span className="sr-only">Loading...</span>
@@ -358,115 +300,107 @@ if (loading) {
   }
   
   return (
-    <div className="h-screen bg-[#0a0a0a] text-white flex overflow-hidden">
-      <style jsx global>{`
-        ::-webkit-scrollbar { width: 10px; height: 10px; }
-        ::-webkit-scrollbar-track { background: #0a0a0a; border-left: 1px solid #222; }
-        ::-webkit-scrollbar-thumb { background: #333; border: 2px solid #0a0a0a; border-radius: 5px; }
-        ::-webkit-scrollbar-thumb:hover { background: #444; }
-      `}</style>
-
-      {/* Pass the project object (now containing icon_url) to Menu */}
+    <div className="h-screen bg-[#0a0a0a] text-zinc-100 flex overflow-hidden selection:bg-indigo-500/30">
+      
+      {/* SIDEBAR */}
       <Menu project={project} user={user} />
       
-      <main className="flex-1 ml-64 flex flex-col h-full bg-[#0a0a0a]">
+      <main className="flex-1 ml-64 flex flex-col h-full bg-[#09090b] relative"> 
+        {/* #262626  #09090b] */}
         
         {/* HEADER */}
         <div className="flex-none h-14 mt-[55px] px-6 border-b border-white/5 flex items-center justify-between bg-[#0a0a0a]/50 backdrop-blur-sm z-10">
           <div className="flex items-center gap-4">
-            <h1 className="text-xl font-bold tracking-tight">Collaborators <span className="text-white/30 text-lg font-light">Interface</span></h1>
+            <h1 className="text-xl font-bold tracking-tight">Collaborators <span className="text-white/30 text-lg font-light">Panel</span></h1>
           </div>
-          {/* Empty div to balance space if needed */}
-          <div></div> 
+          <div className="flex items-center gap-3">
+             <div className="h-6 px-2 bg-zinc-900 border border-zinc-800 rounded text-[10px] font-mono text-zinc-500 flex items-center">
+                MEMBERS: {filteredMembers.length}
+             </div>
+          </div>
         </div>
 
-        {/* TOOLBAR & FILTERS */}
-        <div className="flex-none px-6 py-4 flex items-center justify-between border-b border-white/5">
-            {/* Title Column */}
-            <h2 className="text-lg font-medium text-white/80">
-                 All Members ({allMembers.length})
-            </h2>
-
-            {/* Filter/Search Column (Right side) */}
-            <div className="flex items-center gap-3">
-                <div className="relative flex-1 max-w-md">
-                   <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-white/20" />
+        {/* TOOLBAR */}
+        <div className="flex-none px-6 py-5 flex items-center justify-between">
+            <div className="flex items-center gap-3 w-full max-w-3xl">
+                {/* Search Bar */}
+                <div className="relative flex-1 group">
+                   <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500 group-focus-within:text-zinc-300 transition-colors" />
                    <input 
                       type="text" 
-                      placeholder="Search members by name, email, or ID..." 
-                      className="w-[400px] bg-[#161616] border border-white/10 rounded-lg pl-10 pr-4 py-2 text-sm text-white outline-none focus:border-white/20 transition-all" 
+                      placeholder="Search by name, email, or user ID..." 
+                      className="w-full bg-zinc-900/50 border border-zinc-800/80 rounded-lg pl-9 pr-4 py-2 text-sm text-zinc-200 placeholder:text-zinc-600 focus:outline-none focus:ring-1 focus:ring-zinc-700 focus:border-zinc-700 transition-all shadow-sm" 
                       value={searchQuery}
                       onChange={e => setSearchQuery(e.target.value)}
                    />
                 </div>
                 
-                <button 
-                    onClick={handleRefresh} 
-                    className="p-2 bg-[#161616] border border-white/10 rounded-lg text-white/60 hover:text-white hover:bg-white/5 transition-all active:scale-95" 
-                    title="Refresh Members"
-                >
-                    <RefreshCw size={16} className={refreshing ? "animate-spin" : ""} />
-                </button>
-
+                {/* Role Filter */}
                 <div className="relative">
                     <button 
                         onClick={() => setShowRoleMenu(!showRoleMenu)} 
-                        className={`flex items-center gap-2 px-3 py-2 border rounded-lg text-sm font-medium transition-all ${showRoleMenu ? 'bg-white/10 border-white/20 text-white' : 'bg-[#161616] border-white/10 text-white/60 hover:text-white'}`}
+                        className={`flex items-center gap-2 px-3 py-2 border rounded-lg text-xs font-medium transition-all shadow-sm
+                            ${showRoleMenu 
+                                ? 'bg-zinc-800 border-zinc-700 text-white' 
+                                : 'bg-zinc-900/50 border-zinc-800 text-zinc-400 hover:text-zinc-200 hover:bg-zinc-900'}`}
                     >
-                        <Filter size={16} /> Roles <ChevronDown size={14} className={`transition-transform ${showRoleMenu ? 'rotate-180' : ''}`} />
+                        <Filter size={14} /> 
+                        <span>Filter Roles</span>
+                        <ChevronDown size={12} className={`transition-transform duration-200 ${showRoleMenu ? 'rotate-180' : ''}`} />
                     </button>
                     
                     {showRoleMenu && (
-                        <div className="absolute top-full right-0 mt-2 w-56 bg-[#1e1e1e] border border-[#333] rounded-lg shadow-2xl z-20 p-4 space-y-4 animate-in fade-in slide-in-from-top-2">
-                            {/* Role Filter */}
-                            <div>
-                                <label className="text-[10px] font-bold text-white/40 uppercase block mb-1.5">Role</label>
-                                 <div className="space-y-1">
-                                    {roleFilters.map(filter => (
-                                        <button
-                                            key={filter.name}
-                                            onClick={() => toggleRoleFilter(filter.name)}
-                                            className="w-full text-left flex items-center justify-between px-3 py-2 text-sm text-zinc-300 hover:bg-[#252526] rounded-md transition-colors"
-                                        >
-                                            <span className="capitalize">{filter.name}</span>
-                                            {filter.isSelected && <Check size={16} className="text-indigo-500" />}
-                                        </button>
-                                    ))}
-                                </div>
-                            </div>
-                            <div className="pt-2 mt-2 border-t border-[#27272A]">
-                                 <button
-                                        onClick={closeRoleMenu}
-                                        className="w-full text-center px-3 py-1.5 text-xs font-medium text-zinc-500 hover:text-white transition-colors rounded-md"
+                        <div className="absolute top-full right-0 mt-2 w-48 bg-[#0C0C0E] border border-zinc-800 rounded-lg shadow-2xl z-30 p-1.5 animate-in fade-in zoom-in-95 duration-100">
+                             <div className="space-y-0.5">
+                                <div className="px-2 py-1.5 text-[10px] font-bold text-zinc-500 uppercase tracking-wider">Select Roles</div>
+                                {roleFilters.map(filter => (
+                                    <button
+                                        key={filter.name}
+                                        onClick={() => toggleRoleFilter(filter.name)}
+                                        className="w-full text-left flex items-center justify-between px-2 py-1.5 text-xs text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800/50 rounded-md transition-colors"
                                     >
-                                        Close
+                                        <span className="capitalize">{filter.name}</span>
+                                        {filter.isSelected && <Check size={12} className="text-indigo-500" />}
                                     </button>
+                                ))}
                             </div>
                         </div>
                     )}
                 </div>
+
+                {/* Refresh Button */}
+                <button 
+                    onClick={handleRefresh} 
+                    className="p-2 bg-zinc-900/50 border border-zinc-800 rounded-lg text-zinc-500 hover:text-zinc-200 hover:bg-zinc-900 hover:border-zinc-700 transition-all active:scale-95"
+                    title="Refresh Data"
+                >
+                    <RefreshCw size={14} className={refreshing ? "animate-spin" : ""} />
+                </button>
             </div>
         </div>
 
-        {/* --- MEMBER TABLE HEADER --- */}
-        <div className="flex-none grid grid-cols-12 gap-4 px-6 py-3 border-b border-white/5 text-[10px] font-bold uppercase tracking-wider text-white/30 bg-[#0a0a0a]">
-            <div className="col-span-4">Member Details</div>
-            <div className="col-span-3">Role</div>
-            <div className="col-span-3 hidden sm:block">Permissions Preview</div>
-            <div className="col-span-2 text-right">Joined / Toggle Details</div>
+        {/* TABLE HEADER */}
+        <div className="flex-none grid grid-cols-12 gap-4 px-6 py-2 border-b border-zinc-800/50 text-[10px] font-semibold uppercase tracking-wider text-zinc-500 select-none bg-zinc-900/20">
+            <div className="col-span-4 pl-2">Member</div>
+            <div className="col-span-2">Role</div>
+            <div className="col-span-4">Access Level</div>
+            <div className="col-span-2 text-right pr-2">Actions</div>
         </div>
 
-        {/* MEMBER LIST TABLE */}
-        <div className="flex-1 overflow-y-auto">
-            {filteredMembers.map(member => (
+        {/* LIST */}
+        <div className="flex-1 overflow-y-auto custom-scrollbar">
+            {filteredMembers.map(member => {
+                const isExpanded = expandedUserId === member.user_id;
+                
+                return (
                 <React.Fragment key={member.user_id}>
-                    <tr
+                    <div 
                         onClick={() => handleMemberClick(member.user_id)}
-                        className={`grid grid-cols-12 gap-4 px-6 py-4 border-b border-white/5 items-center transition-all cursor-pointer hover:bg-[#111] 
-                            ${expandedUserId === member.user_id ? 'bg-[#161616]' : ''}`}
+                        className={`grid grid-cols-12 gap-4 px-6 py-3.5 border-b border-zinc-800/30 items-center transition-all cursor-pointer group
+                            ${isExpanded ? 'bg-zinc-900/30 border-zinc-800' : 'hover:bg-zinc-900/20'}`}
                     >
-                        {/* 1. Member Details */}
-                        <div className="col-span-4 flex items-center">
+                        {/* 1. Member Identity */}
+                        <div className="col-span-4 flex items-center gap-3">
                             <CreatorPfp
                                 userId={member.user_id}
                                 currentUserId={currentUserId}
@@ -477,92 +411,159 @@ if (loading) {
                                 size="w-8 h-8"
                                 showNameOnHover={false}
                             />
-                            <div className="ml-4">
-                                <div className="text-sm font-medium text-zinc-200">{member.full_name}</div>
-                                <div className="text-xs text-zinc-500 truncate max-w-[150px]" title={member.email}>{member.email}</div>
+                            <div className="flex flex-col">
+                                <span className={`text-sm font-medium transition-colors ${isExpanded ? 'text-indigo-400' : 'text-zinc-200 group-hover:text-white'}`}>
+                                    {member.full_name}
+                                </span>
+                                <span className="text-xs text-zinc-500 font-mono tracking-tight truncate max-w-[180px]">
+                                    {member.email}
+                                </span>
                             </div>
                         </div>
 
-                        {/* 2. Role */}
-                        <div className="col-span-3">
-                            <span className="px-3 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-indigo-900/40 text-indigo-400 capitalize">
-                                {member.role}
-                            </span>
+                        {/* 2. Role Badge */}
+                        <div className="col-span-2">
+                            <div className="inline-flex items-center px-2 py-0.5 rounded border border-zinc-800 bg-zinc-900/50">
+                                <div className={`w-1.5 h-1.5 rounded-full mr-2 ${
+                                    member.role.toLowerCase().includes('admin') ? 'bg-rose-500' : 
+                                    member.role.toLowerCase().includes('editor') ? 'bg-indigo-500' : 'bg-emerald-500'
+                                }`}></div>
+                                <span className="text-[11px] font-medium text-zinc-300 capitalize">{member.role}</span>
+                            </div>
                         </div>
 
                         {/* 3. Permissions Preview */}
-                        <div className="col-span-3 text-xs text-white/60 truncate hidden sm:block" title={member.permissions.join(', ')}>
-                            {member.permissions.slice(0, 3).join(', ')}
-                            {member.permissions.length > 3 && `... (+${member.permissions.length - 3})`}
+                        <div className="col-span-4 flex items-center gap-1.5 overflow-hidden">
+                           {member.permissions.slice(0, 2).map((perm, i) => (
+                               <span key={i} className="px-1.5 py-0.5 rounded bg-zinc-800/40 text-[10px] text-zinc-400 font-mono border border-zinc-800/50">
+                                   {perm}
+                               </span>
+                           ))}
+                           {member.permissions.length > 2 && (
+                               <span className="text-[10px] text-zinc-600 font-medium">+{member.permissions.length - 2}</span>
+                           )}
                         </div>
 
-                        {/* 4. Joined / Toggle Details */}
-                        <div className="col-span-2 text-xs text-white/40 text-right flex items-center justify-end">
-                            {/* FIX: Display correct date label */}
-                            <span className="text-white/60 hidden sm:inline" title="User Registration Date">{new Date(member.joined_at).toLocaleDateString()}</span>
-                            {expandedUserId === member.user_id ? <ChevronUp size={16} className="text-zinc-400 inline ml-2" /> : <ChevronDown size={16} className="text-zinc-400 inline ml-2" />}
+                        {/* 4. Actions / Date */}
+                        <div className="col-span-2 flex items-center justify-end gap-3 text-right">
+                             <span className="text-xs text-zinc-600 font-mono hidden sm:inline-block">
+                                {new Date(member.joined_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
+                             </span>
+                             <button className={`p-1.5 rounded-md transition-colors ${isExpanded ? 'bg-zinc-800 text-zinc-100' : 'text-zinc-600 hover:text-zinc-300 hover:bg-zinc-800/50'}`}>
+                                {isExpanded ? <ChevronUp size={14} /> : <MoreHorizontal size={14} />}
+                             </button>
                         </div>
-                    </tr>
+                    </div>
 
-                    {/* Expanded Row for ALL INFO */}
-                    {expandedUserId === member.user_id && (
-                        // Darker background for the expanded details container itself
-                        <div className="grid grid-cols-12 bg-[#111] border-t border-[#333]/50">
-                            <div className="col-span-12 py-3 px-6 text-sm">
-                                {/* Darker background for the inner content box */}
-                                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 bg-[#0a0a0a] p-4 rounded-lg border border-[#333]"> 
-                                    
-                                    {/* Full Name */}
-                                    <div className="flex items-center gap-2">
-                                        <UserIcon size={16} className="text-white/60 flex-shrink-0" />
-                                        <span className="font-medium text-zinc-400 w-20">Name:</span>
-                                        <span className="text-zinc-200 font-medium flex-1 truncate">{member.full_name}</span>
-                                    </div>
+                    {/* EXPANDED DETAILS PANEL */}
+                    {isExpanded && (
+                        <div className="border-b border-zinc-800 bg-[#0C0C0E] px-6 py-6 animate-in slide-in-from-top-2 duration-200">
+                             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                                
+                                {/* Col 1: Identity Card */}
+                                <div className="space-y-4">
+                                    <h3 className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest">User Profile</h3>
+                                    <div className="flex items-start gap-4 p-4 rounded-xl border border-zinc-800/60 bg-zinc-900/20">
+                                         <CreatorPfp
+                                            userId={member.user_id}
+                                            currentUserId={currentUserId}
+                                            currentUserPfp={currentUserPfp}
+                                            currentUserName={currentUserName}
+                                            pfpUrl={member.avatar_url} 
+                                            name={member.full_name}
+                                            size="w-12 h-12"
+                                            showNameOnHover={false}
+                                        />
+                                        <div className="space-y-1">
+                                            <div className="font-medium text-zinc-200">{member.full_name}</div>
+                                            <div className="text-xs text-zinc-500 flex items-center gap-2 font-mono">
+                                                <Mail size={10} /> {member.email}
+                                            </div>
+                                            
+                                            {/* PHONE NUMBER SECTION */}
+                                            <div className="text-xs text-zinc-500 flex items-center gap-2 font-mono" title="Phone Number">
+                                                <Phone size={10} /> {member.phone_number || <span className="text-zinc-600 italic">Not provided</span>}
+                                            </div>
 
-                                    {/* Role */}
-                                    <div className="flex items-center gap-2">
-                                        <GitBranch size={16} className="text-indigo-400 flex-shrink-0" />
-                                        <span className="font-medium text-zinc-400 w-20">Role:</span>
-                                        <span className="text-zinc-200 flex-1 truncate capitalize">{member.role}</span>
+                                            <div className="text-xs text-zinc-500 flex items-center gap-2 font-mono cursor-pointer hover:text-zinc-300" title="Copy ID">
+                                                <UserIcon size={10} /> 
+                                                <span className="truncate max-w-[120px]">{member.user_id}</span>
+                                                <Copy size={10} />
+                                            </div>
+                                        </div>
                                     </div>
-
-                                    {/* Email */}
-                                    <div className="flex items-center gap-2">
-                                        <Mail size={16} className="text-indigo-400 flex-shrink-0" />
-                                        <span className="font-medium text-zinc-400 w-20">Email:</span>
-                                        <span className="text-zinc-200 font-mono flex-1 truncate">{member.email}</span>
-                                    </div>
-                                    
-                                    {/* Joined Date */}
-                                    <div className="flex items-center gap-2">
-                                        <Calendar size={16} className="text-green-500 flex-shrink-0" />
-                                        <span className="font-medium text-zinc-400 w-20">Joined:</span>
-                                        <span className="text-zinc-200 text-sm flex-1 truncate" title="User Registration Date">
-                                            {new Date(member.joined_at).toLocaleDateString()}
-                                        </span>
-                                    </div>
-
-                                    {/* User ID (moved below for less prominence) */}
-                                    <div className="flex items-center gap-2 lg:col-span-4 border-t border-[#333] pt-2">
-                                        <UserIcon size={14} className="text-amber-400 flex-shrink-0" />
-                                        <span className="font-medium text-zinc-400 w-20">User ID:</span>
-                                        <span className="text-zinc-200 font-mono flex-1 truncate text-xs">{member.user_id}</span>
-                                    </div>
-
                                 </div>
-                            </div>
+
+                                {/* Col 2: Role Configuration */}
+                                <div className="space-y-4">
+                                    <h3 className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest">Role & Permissions</h3>
+                                    <div className="p-4 rounded-xl border border-zinc-800/60 bg-zinc-900/20 space-y-3">
+                                        <div className="flex items-center justify-between">
+                                            <div className="flex items-center gap-2">
+                                                <GitBranch size={14} className="text-indigo-400"/>
+                                                <span className="text-sm font-medium text-zinc-300 capitalize">{member.role}</span>
+                                            </div>
+                                            <span className="text-[10px] px-1.5 py-0.5 bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 rounded">
+                                                Active
+                                            </span>
+                                        </div>
+                                        <div className="border-t border-zinc-800/50 pt-3">
+                                            <div className="text-[10px] text-zinc-500 mb-2">Effective Permissions</div>
+                                            <div className="flex flex-wrap gap-1.5">
+                                                {member.permissions.map((perm, i) => (
+                                                    <span key={i} className="px-2 py-1 rounded bg-zinc-950 border border-zinc-800 text-[10px] text-zinc-400 font-mono">
+                                                        {perm}
+                                                    </span>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* Col 3: Metadata / Danger Zone */}
+                                <div className="space-y-4">
+                                     <h3 className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest">Metadata</h3>
+                                     <div className="p-4 rounded-xl border border-zinc-800/60 bg-zinc-900/20 flex flex-col justify-between h-auto gap-3">
+                                         <div>
+                                            <div className="flex items-center gap-2 text-xs text-zinc-400 mb-2">
+                                                <Calendar size={12} className="text-zinc-600" />
+                                                <span>Member since <span className="text-zinc-200">{new Date(member.joined_at).toLocaleDateString()}</span></span>
+                                            </div>
+                                            <div className="flex items-center gap-2 text-xs text-zinc-400">
+                                                <ShieldAlert size={12} className="text-zinc-600" />
+                                                <span>Last active: <span className="text-zinc-200">Recently</span></span>
+                                            </div>
+                                         </div>
+                                     </div>
+                                </div>
+                             </div>
                         </div>
                     )}
                 </React.Fragment>
-            ))}
+            )})}
+            
             {filteredMembers.length === 0 && (
-                <div className="flex flex-col items-center justify-center h-64 text-white/20">
-                    <UsersIcon size={32} className="mb-2 opacity-50"/>
-                    <p>No members found matching your criteria.</p>
+                <div className="flex flex-col items-center justify-center h-96 text-zinc-600">
+                    <div className="w-16 h-16 bg-zinc-900 rounded-full flex items-center justify-center mb-4 ring-1 ring-zinc-800">
+                        <UsersIcon size={24} className="opacity-50"/>
+                    </div>
+                    <p className="text-sm font-medium text-zinc-400">No members found</p>
+                    <p className="text-xs mt-1">Try adjusting your filters or search query.</p>
+                    <button onClick={() => {setSearchQuery(""); setRoleFilters(roleFilters.map(r => ({...r, isSelected: true})))}} className="mt-4 text-xs text-indigo-400 hover:text-indigo-300 hover:underline">
+                        Clear all filters
+                    </button>
                 </div>
             )}
         </div>
       </main>
+      
+      {/* Global Styles for Scrollbar */}
+      <style jsx global>{`
+        .custom-scrollbar::-webkit-scrollbar { width: 6px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #27272a; border-radius: 4px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #3f3f46; }
+      `}</style>
     </div>
   );
 }

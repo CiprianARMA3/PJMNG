@@ -163,12 +163,23 @@ export default function AiAssistantPage({ params }: PageProps) {
     setTimeout(() => setNotification(null), 5000);
   };
 
-  async function fetchProfiles(userIds: string[]) {
+async function fetchProfiles(userIds: string[]) {
       if (userIds.length === 0) return;
-      const { data } = await supabase.from("profiles").select("id, full_name, avatar_url").in("id", userIds);
+      
+      const { data } = await supabase
+        .from("users")
+        .select("id, name, surname, metadata")
+        .in("id", userIds);
+
       if (data) {
           const profileMap: Record<string, Profile> = {};
-          data.forEach(p => { profileMap[p.id] = p as Profile; });
+          data.forEach(u => { 
+              profileMap[u.id] = {
+                  id: u.id,
+                  full_name: u.name ? `${u.name} ${u.surname || ''}`.trim() : "Unknown User",
+                  avatar_url: u.metadata?.avatar_url || null
+              };
+          });
           setProfiles(prev => ({...prev, ...profileMap}));
       }
   }
@@ -188,15 +199,42 @@ export default function AiAssistantPage({ params }: PageProps) {
   const getModelById = (id?: string) => MODELS[0]; 
 
   // --- INITIAL LOAD ---
+// --- INITIAL LOAD ---
   useEffect(() => {
     async function load() {
       const { id } = await params;
       setProjectId(id);
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) { window.location.href = "/auth/login"; return; }
-      setUser(user);
-      const currentUserId = user.id;
 
+      // 1. Get Auth User
+      const { data: { user: authUser }, error: authError } = await supabase.auth.getUser();
+      if (authError || !authUser) { 
+        window.location.href = "/auth/login"; 
+        return; 
+      }
+
+      // 2. Get User Profile (For Sidebar/Menu)
+      const { data: userProfile } = await supabase
+        .from("users")
+        .select("name, surname, metadata")
+        .eq("id", authUser.id)
+        .single();
+
+      // 3. Create Merged User Object
+      const finalUser = {
+        ...authUser,
+        user_metadata: {
+          ...authUser.user_metadata,
+          full_name: userProfile?.name 
+            ? `${userProfile.name} ${userProfile.surname || ""}`.trim() 
+            : authUser.user_metadata?.full_name || "User",
+          avatar_url: userProfile?.metadata?.avatar_url || authUser.user_metadata?.avatar_url
+        }
+      };
+      
+      setUser(finalUser);
+      const currentUserId = authUser.id;
+
+      // 4. Get Project
       const { data: projectData } = await supabase.from("projects").select("*").eq("id", id).single();
       setProject(projectData);
 
@@ -211,6 +249,7 @@ export default function AiAssistantPage({ params }: PageProps) {
 
       fetchBalance(id);
 
+      // 5. Get Groups & Chats
       const { data: groupsData } = await supabase.from("ai_code_review_groups").select("*").eq("project_id", id).order("created_at", { ascending: true });
       const { data: chatsData } = await supabase.from("ai_code_review_chats").select("*, user_id").eq("project_id", id).order("updated_at", { ascending: false });
 
@@ -226,6 +265,7 @@ export default function AiAssistantPage({ params }: PageProps) {
       }
       if (chatsData) setChats(chatsData as ChatSession[]);
 
+      // 6. Fetch Profiles for Collaborators
       const userIdsToFetch = [
           ...(groupsData || []).map((g: any) => g.user_id),
           ...(chatsData || []).map((c: any) => c.user_id)
@@ -591,9 +631,17 @@ export default function AiAssistantPage({ params }: PageProps) {
       </div>
     );
   }
-  const currentUserId = user?.id || "";
+const currentUserId = user?.id || "";
   const currentUserPfp = user?.user_metadata?.avatar_url || "";
   const currentUserName = user?.user_metadata?.full_name || "You";
+
+  // --- DETERMINE CHAT OWNER ---
+  const activeChat = chats.find(c => c.id === activeChatId);
+  const chatOwnerId = activeChat ? activeChat.user_id : currentUserId;
+  
+  const isOwnerCurrentUser = chatOwnerId === currentUserId;
+  const chatOwnerProfile = isOwnerCurrentUser ? { full_name: currentUserName } : profiles[chatOwnerId];
+  const chatOwnerName = chatOwnerProfile?.full_name || "Unknown";
   
   return (
     <div className="h-screen bg-[#0E0E10] text-[#E1E1E3] flex overflow-hidden font-sans selection:bg-zinc-700 selection:text-white">
@@ -883,10 +931,23 @@ export default function AiAssistantPage({ params }: PageProps) {
                                         </div>
                                     ) : (
                                         <>
+                                            <>
                                             <div className="w-8 h-8 rounded-full overflow-hidden ring-1 ring-[#27272A]">
-                                                <CreatorPfp userId={currentUserId} currentUserId={currentUserId} currentUserPfp={currentUserPfp} currentUserName={currentUserName} profiles={profiles} size="w-full h-full" showNameOnHover={true} />
+                                                {/* FIXED: Chat Owner Avatar */}
+                                                <CreatorPfp 
+                                                    userId={chatOwnerId} 
+                                                    currentUserId={currentUserId} 
+                                                    currentUserPfp={currentUserPfp} 
+                                                    currentUserName={currentUserName} 
+                                                    profiles={profiles} 
+                                                    size="w-full h-full" 
+                                                    showNameOnHover={true} 
+                                                />
                                             </div>
-                                            <span className="text-[12px] text-zinc-500 font-medium leading-tight text-center whitespace-nowrap px-1">{currentUserName}</span>
+                                            <span className="text-[12px] text-zinc-500 font-medium leading-tight text-center whitespace-nowrap px-1">
+                                                {chatOwnerName}
+                                            </span>
+                                        </>
                                         </>
                                     )}
                                 </div>

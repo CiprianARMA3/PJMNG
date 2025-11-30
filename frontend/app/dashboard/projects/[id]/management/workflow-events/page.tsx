@@ -88,14 +88,39 @@ export default function CalendarPage() {
   // --- INITIAL DATA FETCH ---
   useEffect(() => {
     const init = async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) { router.push("/auth/login"); return; }
-      setUser(user);
+      // 1. Get Auth User
+      const { data: { user: authUser }, error: authError } = await supabase.auth.getUser();
+      if (authError || !authUser) { 
+        router.push("/auth/login"); 
+        return; 
+      }
 
+      // 2. Fetch User Profile (To fix Menu Name/Avatar)
+      const { data: userProfile } = await supabase
+        .from("users")
+        .select("name, surname, metadata")
+        .eq("id", authUser.id)
+        .single();
+
+      // 3. Create merged user object
+      const finalUser = {
+        ...authUser,
+        user_metadata: {
+          ...authUser.user_metadata,
+          full_name: userProfile?.name 
+            ? `${userProfile.name} ${userProfile.surname || ""}`.trim() 
+            : authUser.user_metadata?.full_name || "User",
+          avatar_url: userProfile?.metadata?.avatar_url || authUser.user_metadata?.avatar_url
+        }
+      };
+      
+      setUser(finalUser);
+
+      // 4. Fetch Project Data
       const { data: proj } = await supabase.from("projects").select("*").eq("id", projectId).single();
       setProject(proj);
 
-      await fetchData();
+      await fetchData(authUser.id);
     };
     init();
   }, [projectId]);
@@ -110,8 +135,9 @@ export default function CalendarPage() {
     return () => { document.body.style.overflow = 'unset'; }
   }, [showModal]);
 
-  const fetchData = async () => {
+  const fetchData = async (currentUserId?: string) => {
     setLoading(true);
+    
     // Fetch Tasks
     const { data: tasksData } = await supabase
         .from("tasks")
@@ -120,20 +146,43 @@ export default function CalendarPage() {
     if (tasksData) setTasks(tasksData as any);
 
     // Fetch Issues for Dropdown
-    const { data: issuesData } = await supabase.from("issues").select("id, title, type").eq("project_id", projectId).neq("status", "Closed");
+    const { data: issuesData } = await supabase
+        .from("issues")
+        .select("id, title, type")
+        .eq("project_id", projectId)
+        .neq("status", "Closed");
     if (issuesData) setAvailableIssues(issuesData as any);
 
-    // Fetch Users
+    // Fetch Users (Collaborators)
     const { data: usersData } = await supabase
         .from("project_users")
-        .select("user:users(id, name, metadata)")
+        .select("user:users(id, name, surname, metadata)")
         .eq("project_id", projectId);
     
     if (usersData) {
         const map: Record<string, UserProfile> = {};
-        usersData.forEach((u: any) => { if(u.user) map[u.user.id] = u.user; });
-        const { data: currentUser } = await supabase.from("users").select("*").eq("id", (await supabase.auth.getUser()).data.user?.id).single();
-        if(currentUser) map[currentUser.id] = currentUser as any;
+        usersData.forEach((u: any) => { 
+            if(u.user) {
+                map[u.user.id] = {
+                    id: u.user.id,
+                    name: u.user.name ? `${u.user.name} ${u.user.surname || ''}`.trim() : "Unknown",
+                    metadata: u.user.metadata || {}
+                };
+            } 
+        });
+        
+        // Ensure current user is in map
+        const uid = currentUserId || user?.id;
+        if(uid && !map[uid]) {
+             const { data: currentUser } = await supabase.from("users").select("id, name, surname, metadata").eq("id", uid).single();
+             if(currentUser) {
+                 map[currentUser.id] = {
+                    id: currentUser.id,
+                    name: currentUser.name ? `${currentUser.name} ${currentUser.surname || ''}`.trim() : "Me",
+                    metadata: currentUser.metadata || {}
+                 };
+             }
+        }
         setUserMap(map);
     }
     setLoading(false);

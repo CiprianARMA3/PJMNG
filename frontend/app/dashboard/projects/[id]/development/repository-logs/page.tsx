@@ -117,28 +117,63 @@ export default function RepositoryPage() {
   // --- EFFECTS ---
 
   // 1. Initial Fetch
-  useEffect(() => {
+useEffect(() => {
     const init = async () => {
+      if (!projectId) return;
       setLoading(true);
-      
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) { router.push("/auth/login"); return; }
-      setUser(user);
 
-      const { data: proj } = await supabase
-        .from("projects")
-        .select("*")
-        .eq("id", projectId)
-        .single();
+      try {
+        // 1. Get Auth User
+        const { data: { user: authUser }, error: authError } = await supabase.auth.getUser();
+        if (authError || !authUser) { 
+          router.push("/auth/login"); 
+          return; 
+        }
 
-      if (proj) {
+        // 2. Fetch User Profile (To fix Menu Name/Avatar)
+        const { data: userProfile } = await supabase
+          .from("users")
+          .select("name, surname, metadata")
+          .eq("id", authUser.id)
+          .single();
+
+        // 3. Create merged user object
+        const finalUser = {
+          ...authUser,
+          user_metadata: {
+            ...authUser.user_metadata,
+            full_name: userProfile?.name 
+              ? `${userProfile.name} ${userProfile.surname || ""}`.trim() 
+              : authUser.user_metadata?.full_name || "User",
+            avatar_url: userProfile?.metadata?.avatar_url || authUser.user_metadata?.avatar_url
+          }
+        };
+
+        setUser(finalUser);
+
+        // 4. Fetch Project Data
+        const { data: proj, error: projectError } = await supabase
+          .from("projects")
+          .select("*")
+          .eq("id", projectId)
+          .single();
+
+        if (projectError || !proj) {
+          router.push("/dashboard");
+          return;
+        }
+
         setProject(proj);
-      } else {
-        router.push("/dashboard");
+        
+      } catch (err) {
+        console.error("Error initializing:", err);
+      } finally {
+        setLoading(false);
       }
     };
+
     init();
-  }, [projectId]);
+  }, [projectId, router, supabase]);
 
   // 2. Fetch Branches
   useEffect(() => {

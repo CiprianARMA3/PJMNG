@@ -1,149 +1,140 @@
 "use client";
 
-import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts';
 import { useEffect, useState } from 'react';
 import { createClient } from "@/utils/supabase/client";
-import { Loader2, TrendingUp, TrendingDown, Minus } from "lucide-react";
+import { 
+  BarChart, Bar, XAxis, YAxis, Tooltip, 
+  ResponsiveContainer, CartesianGrid, ReferenceLine 
+} from 'recharts';
+import { Info, TrendingUp, TrendingDown, Minus } from 'lucide-react';
 
 interface IssuesBarChartProps {
   projectId: string;
 }
 
-interface ChartData {
-  day: string; 
-  date: string; 
+type ChartDataPoint = {
+  day: string;
   issues: number;
-}
-
-const CustomTooltip = ({ active, payload, label }: any) => {
-  if (active && payload && payload.length) {
-    return (
-      <div className="bg-[#0a0a0a]/90 backdrop-blur border border-white/10 p-2 rounded-md shadow-lg z-50">
-        <p className="text-white/60 text-[10px] mb-1">{label}</p>
-        <p className="text-rose-400 font-bold text-sm">
-          {payload[0].value} <span className="text-white font-normal">Issues</span>
-        </p>
-      </div>
-    );
-  }
-  return null;
+  fullDate: string;
 };
 
 const IssuesBarChart = ({ projectId }: IssuesBarChartProps) => {
-  const supabase = createClient();
-  const [data, setData] = useState<ChartData[]>([]);
+  const [data, setData] = useState<ChartDataPoint[]>([]);
+  const [totalThisWeek, setTotalThisWeek] = useState<number>(0);
+  const [trendPercentage, setTrendPercentage] = useState<number>(0);
   const [loading, setLoading] = useState(true);
-  const [totalThisWeek, setTotalThisWeek] = useState(0);
-  const [trendPercentage, setTrendPercentage] = useState(0);
+  const supabase = createClient();
 
   useEffect(() => {
-    const fetchChartData = async () => {
-      if (!projectId) return;
+    if (!projectId) return;
 
+    const fetchData = async () => {
+      setLoading(true);
       try {
-        // 1. Get Today at Midnight (Start of day)
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);
+        // 1. Calculate Date Range (Current Week: Mon -> Sun)
+        const now = new Date();
+        const dayOfWeek = now.getDay(); // 0 (Sun) - 6 (Sat)
+        const diffToMonday = (dayOfWeek + 6) % 7; // Adjust so Monday is 0
+        
+        const startOfWeek = new Date(now);
+        startOfWeek.setDate(now.getDate() - diffToMonday);
+        startOfWeek.setHours(0, 0, 0, 0);
 
-        // 2. Calculate boundaries
-        // Current Week: [Today-6] to [Today] (7 days inclusive)
-        const startOfCurrentWeek = new Date(today);
-        startOfCurrentWeek.setDate(today.getDate() - 6);
+        const endOfWeek = new Date(startOfWeek);
+        endOfWeek.setDate(startOfWeek.getDate() + 6);
+        endOfWeek.setHours(23, 59, 59, 999);
 
-        // Previous Week: [Today-13] to [Today-7] (7 days inclusive)
-        const startOfPreviousWeek = new Date(today);
-        startOfPreviousWeek.setDate(today.getDate() - 13);
+        // 2. Calculate previous week for trend comparison
+        const startOfPreviousWeek = new Date(startOfWeek);
+        startOfPreviousWeek.setDate(startOfWeek.getDate() - 7);
+        const endOfPreviousWeek = new Date(startOfPreviousWeek);
+        endOfPreviousWeek.setDate(startOfPreviousWeek.getDate() + 6);
+        endOfPreviousWeek.setHours(23, 59, 59, 999);
 
-        // End of today (for DB Query upper limit)
-        const endOfToday = new Date();
-        endOfToday.setHours(23, 59, 59, 999);
+        // 3. Parallel Fetching for current and previous week
+        const [currentWeekResponse, previousWeekResponse] = await Promise.all([
+          supabase
+            .from('issues')
+            .select('created_at')
+            .eq('project_id', projectId)
+            .gte('created_at', startOfWeek.toISOString())
+            .lte('created_at', endOfWeek.toISOString()),
 
-        // 3. Fetch all issues from the last 14 days
-        const { data: rawData, error } = await supabase
-          .from('issues')
-          .select('created_at')
-          .eq('project_id', projectId)
-          .gte('created_at', startOfPreviousWeek.toISOString())
-          .lte('created_at', endOfToday.toISOString());
+          supabase
+            .from('issues')
+            .select('created_at')
+            .eq('project_id', projectId)
+            .gte('created_at', startOfPreviousWeek.toISOString())
+            .lte('created_at', endOfPreviousWeek.toISOString())
+        ]);
 
-        if (error) throw error;
+        if (currentWeekResponse.error) throw currentWeekResponse.error;
+        if (previousWeekResponse.error) throw previousWeekResponse.error;
 
-        // 4. Initialize Chart Data Structure (Last 7 days)
-        const chartDataMap = new Map<string, number>();
-        const chartTemplate: ChartData[] = [];
-
-        // Loop 0 to 6 to build the last 7 days (including today)
-        for (let i = 6; i >= 0; i--) {
-            const d = new Date();
-            d.setDate(d.getDate() - i);
-            const dateKey = d.toLocaleDateString('en-CA'); // YYYY-MM-DD
-            const dayName = d.toLocaleDateString('en-US', { weekday: 'short' }); 
-            
-            chartDataMap.set(dateKey, 0); // Initialize with 0
-            chartTemplate.push({ day: dayName, date: dateKey, issues: 0 });
-        }
-
-        let currentPeriodCount = 0;
-        let previousPeriodCount = 0;
-
-        // 5. Bucket the data
-        rawData?.forEach((issue) => {
-            const issueDate = new Date(issue.created_at);
-            // Normalize issue date to Midnight for comparison
-            const normalizedIssueDate = new Date(issueDate);
-            normalizedIssueDate.setHours(0, 0, 0, 0);
-            
-            // Generate Key for Map lookup
-            const issueDateKey = issueDate.toLocaleDateString('en-CA');
-
-            // Logic: Compare Time Values (ms) to be precise
-            if (normalizedIssueDate.getTime() >= startOfCurrentWeek.getTime()) {
-                // THIS WEEK
-                currentPeriodCount++;
-                const existingCount = chartDataMap.get(issueDateKey) || 0;
-                chartDataMap.set(issueDateKey, existingCount + 1);
-            } else if (normalizedIssueDate.getTime() >= startOfPreviousWeek.getTime()) {
-                // PREVIOUS WEEK
-                previousPeriodCount++;
-            }
-        });
-
-        // 6. Merge counts into chart template
-        const finalChartData = chartTemplate.map(item => ({
-            ...item,
-            issues: chartDataMap.get(item.date) || 0
+        // 4. Process Chart Data
+        const currentWeekIssues = currentWeekResponse.data || [];
+        const previousWeekIssues = previousWeekResponse.data || [];
+        
+        const weekDays = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+        
+        // Initialize empty week
+        const groupedData = weekDays.map(day => ({ 
+            day, 
+            issues: 0, 
+            fullDate: '' 
         }));
 
-        // 7. Calculate Trend
+        currentWeekIssues.forEach((issue) => {
+          const issueDate = new Date(issue.created_at);
+          const dayIndex = (issueDate.getDay() + 6) % 7; // Convert Sun(0) to 6, Mon(1) to 0
+          if (groupedData[dayIndex]) {
+            groupedData[dayIndex].issues += 1;
+            groupedData[dayIndex].fullDate = issue.created_at;
+          }
+        });
+        
+        setData(groupedData);
+
+        // 5. Calculate Trend
+        const currentWeekCount = currentWeekIssues.length;
+        const previousWeekCount = previousWeekIssues.length;
+        
+        setTotalThisWeek(currentWeekCount);
+
         let percentage = 0;
-        if (previousPeriodCount === 0) {
-            percentage = currentPeriodCount > 0 ? 100 : 0;
+        if (previousWeekCount === 0) {
+            percentage = currentWeekCount > 0 ? 100 : 0;
         } else {
-            percentage = ((currentPeriodCount - previousPeriodCount) / previousPeriodCount) * 100;
+            percentage = ((currentWeekCount - previousWeekCount) / previousWeekCount) * 100;
         }
 
-        setData(finalChartData);
-        setTotalThisWeek(currentPeriodCount);
         setTrendPercentage(Math.round(percentage * 10) / 10);
 
-      } catch (err) {
-        console.error("Error fetching chart data:", err);
+      } catch (error) {
+        console.error('Error fetching issues data:', error);
       } finally {
         setLoading(false);
       }
     };
 
-    fetchChartData();
+    fetchData();
   }, [projectId]);
+
+  // --- STATS ---
+  const dailyAverage = data.length > 0 
+    ? data.reduce((sum, day) => sum + day.issues, 0) / 7
+    : 0;
+  const weeklyTotal = data.reduce((sum, day) => sum + day.issues, 0);
 
   // Determine colors
   const isIncrease = trendPercentage > 0;
   const isDecrease = trendPercentage < 0;
   const isNeutral = trendPercentage === 0;
 
- if (loading) {
+  // --- LOADING STATE ---
+  if (loading) {
     return (
-      <div role="status" className="flex justify-center items-center h-screen bg-[#0a0a0a]">
+      <div role="status" className="flex justify-center items-center h-full min-h-[400px] bg-[#0a0a0a] rounded-xl border border-white/5">
         <svg
           aria-hidden="true"
           className="inline w-8 h-8 text-neutral-400 animate-spin fill-white"
@@ -166,65 +157,137 @@ const IssuesBarChart = ({ projectId }: IssuesBarChartProps) => {
   }
 
   return (
-    <div className="bg-[#0a0a0a]  rounded-xl p-6 h-full min-h-[300px] flex flex-col">
-      <div className="flex items-center justify-between mb-6">
-         <div>
-            <h3 className="text-white font-semibold text-lg">Reported Issues</h3>
-            <p className="text-white/40 text-xs mt-1">Last 7 Days</p>
-         </div>
-         
-         <div className="text-right">
-             <div className="text-2xl font-bold text-white mb-1">{totalThisWeek}</div>
-             
-             <div className={`text-xs px-2 py-1 rounded border font-medium flex items-center gap-1 w-fit ml-auto transition-colors
-                ${isIncrease ? 'text-rose-400 bg-rose-400/10 border-rose-400/20' : ''}
-                ${isDecrease ? 'text-emerald-400 bg-emerald-400/10 border-emerald-400/20' : ''}
-                ${isNeutral ? 'text-zinc-400 bg-zinc-400/10 border-zinc-400/20' : ''}
-             `}>
-                {isIncrease && <TrendingUp size={12} />}
-                {isDecrease && <TrendingDown size={12} />}
-                {isNeutral && <Minus size={12} />}
-                
-                {trendPercentage > 0 ? '+' : ''}{trendPercentage}%
-             </div>
-         </div>
-      </div>
+    <div className="bg-[#0a0a0a] rounded-xl p-6 h-full min-h-[400px] flex flex-col relative overflow-hidden group/container">
       
-      <div className="flex-1 flex items-end w-full min-h-[150px]">
+      {/* --- HEADER --- */}
+      <div className="flex items-start justify-between mb-8 z-10">
+        <div>
+          <h3 className="text-white font-bold text-lg tracking-tight">Reported Issues</h3>
+          <p className="text-white/40 text-xs font-medium uppercase tracking-wider mt-1">Project issues (Weekly)</p>
+        </div>
+
+        {/* --- ISSUES COUNT DISPLAY --- */}
+        <div className="text-right relative group cursor-help z-20">
+          <div className="text-2xl font-bold text-white">
+            {totalThisWeek.toLocaleString()}
+          </div>
+          
+          <div className="flex items-center justify-end gap-1.5 mt-0.5">
+            <div className={`w-1.5 h-1.5 rounded-full ${
+              isIncrease ? 'bg-rose-500 animate-pulse' : 
+              isDecrease ? 'bg-emerald-500' : 'bg-zinc-500'
+            }`} />
+            <span className={`text-[10px] font-bold uppercase tracking-wide flex items-center gap-1 ${
+              isIncrease ? 'text-rose-400' : 
+              isDecrease ? 'text-emerald-400' : 'text-zinc-400'
+            }`}>
+              Weekly Trend <Info size={10} className="text-white/40" />
+            </span>
+          </div>
+
+          {/* HOVER TOOLTIP (Trend Breakdown) */}
+          <div className="absolute right-0 top-full mt-2 w-64 bg-[#161616] border border-white/10 shadow-2xl rounded-lg p-3 opacity-0 translate-y-2 group-hover:opacity-100 group-hover:translate-y-0 transition-all duration-200 pointer-events-none group-hover:pointer-events-auto z-50">
+            <p className="text-[10px] font-bold text-white/40 uppercase mb-2 border-b border-white/5 pb-2">Trend Analysis</p>
+            <div className="space-y-2">
+              <div className="flex items-center justify-between text-xs">
+                <span className="text-white/70">This Week</span>
+                <span className="text-white font-mono bg-white/5 px-1.5 py-0.5 rounded border border-white/5">
+                  {totalThisWeek.toLocaleString()}
+                </span>
+              </div>
+              <div className="flex items-center justify-between text-xs">
+                <span className="text-white/70">Weekly Change</span>
+                <span className={`font-mono px-1.5 py-0.5 rounded border ${
+                  isIncrease ? 'text-rose-400 bg-rose-400/10 border-rose-400/20' :
+                  isDecrease ? 'text-emerald-400 bg-emerald-400/10 border-emerald-400/20' :
+                  'text-zinc-400 bg-zinc-400/10 border-zinc-400/20'
+                }`}>
+                  {trendPercentage > 0 ? '+' : ''}{trendPercentage}%
+                </span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* --- CHART --- */}
+      <div className="flex-1 w-full min-h-[200px]">
         <ResponsiveContainer width="100%" height="100%">
-          <BarChart data={data} margin={{ top: 0, right: 0, left: -25, bottom: 0 }} barSize={32}>
+          <BarChart data={data} margin={{ top: 10, right: 0, left: -20, bottom: 0 }} barSize={32}>
             <defs>
-              <linearGradient id="roseGradient" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor="#f43f5e" stopOpacity={0.9}/>
-                <stop offset="100%" stopColor="#be123c" stopOpacity={0.6}/>
+              <linearGradient id="issuesGradient" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stopColor="#f43f5e" stopOpacity={1} /> {/* Rose-500 */}
+                <stop offset="100%" stopColor="#be123c" stopOpacity={0.6} /> {/* Rose-700 */}
               </linearGradient>
             </defs>
-            <CartesianGrid strokeDasharray="3 3" stroke="#ffffff05" vertical={false} />
+            <CartesianGrid strokeDasharray="3 3" stroke="#ffffff08" vertical={false} />
             <XAxis 
-                dataKey="day" 
-                axisLine={false} 
-                tickLine={false} 
-                tick={{ fill: '#525252', fontSize: 11 }} 
-                dy={10} 
+              dataKey="day" 
+              axisLine={false} 
+              tickLine={false} 
+              tick={{ fill: '#525252', fontSize: 10, fontWeight: 700 }}
+              dy={10}
             />
             <YAxis 
-                axisLine={false} 
-                tickLine={false} 
-                tick={{ fill: '#525252', fontSize: 11 }} 
-                allowDecimals={false}
+              axisLine={false} 
+              tickLine={false} 
+              tick={{ fill: '#525252', fontSize: 10, fontFamily: 'monospace' }} 
+              allowDecimals={false}
             />
             <Tooltip content={<CustomTooltip />} cursor={{ fill: '#ffffff05' }} />
+            
+            {data.length > 0 && weeklyTotal > 0 && (
+                <ReferenceLine y={dailyAverage} stroke="#10b981" strokeDasharray="3 3" strokeOpacity={0.4} />
+            )}
+            
             <Bar 
-              dataKey="issues" 
-              fill="url(#roseGradient)" 
-              radius={[4, 4, 0, 0]}
-              animationDuration={1500}
+                dataKey="issues" 
+                fill="url(#issuesGradient)" 
+                radius={[4, 4, 0, 0]} 
+                className="hover:brightness-110 transition-all duration-300"
             />
           </BarChart>
         </ResponsiveContainer>
       </div>
+
+      {/* --- FOOTER STATS --- */}
+      <div className="grid grid-cols-2 gap-4 mt-6 pt-4 border-t border-white/5">
+        <div>
+          <p className="text-white/30 text-[10px] uppercase tracking-wider font-bold mb-1">Daily Avg</p>
+          <p className="text-white font-mono text-sm">{dailyAverage.toFixed(1)} <span className="text-white/40 text-xs">issues</span></p>
+        </div>
+        <div className="text-right">
+          <div className="flex items-center justify-end gap-2 mb-1">
+            {isIncrease && <TrendingUp size={12} className="text-rose-400" />}
+            {isDecrease && <TrendingDown size={12} className="text-emerald-400" />}
+            {isNeutral && <Minus size={12} className="text-zinc-400" />}
+            <p className="text-white/30 text-[10px] uppercase tracking-wider font-bold">Week Trend</p>
+          </div>
+          <p className={`font-mono text-sm ${
+            isIncrease ? 'text-rose-400' : 
+            isDecrease ? 'text-emerald-400' : 'text-zinc-400'
+          }`}>
+            {trendPercentage > 0 ? '+' : ''}{trendPercentage}%
+          </p>
+        </div>
+      </div>
     </div>
   );
+};
+
+// --- CUSTOM TOOLTIP ---
+const CustomTooltip = ({ active, payload, label }: any) => {
+  if (active && payload && payload.length) {
+    return (
+      <div className="bg-[#161616] border border-white/10 p-3 rounded-lg shadow-xl backdrop-blur-sm">
+        <p className="text-white/40 text-[10px] uppercase font-bold mb-1">{label}</p>
+        <p className="text-white font-bold text-sm">
+          {payload[0].value.toLocaleString()} <span className="text-rose-400 font-normal text-xs">issues</span>
+        </p>
+      </div>
+    );
+  }
+  return null;
 };
 
 export default IssuesBarChart;
