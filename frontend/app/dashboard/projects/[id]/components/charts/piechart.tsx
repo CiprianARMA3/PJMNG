@@ -26,7 +26,7 @@ export default function TeamCompositionChart() {
   const total = data.reduce((sum, item) => sum + item.value, 0);
 
   return (
-    <div className="bg-[#0a0a0a] border border-white/10 rounded-xl p-6 h-full flex flex-col">
+    <div className="bg-[#0a0a0a]  rounded-xl p-6 h-full flex flex-col">
       <div className="flex items-center justify-between mb-4">
         <h3 className="text-white font-semibold text-lg">Team</h3>
         <button className="text-xs text-white/40 hover:text-white transition-colors">View All</button>

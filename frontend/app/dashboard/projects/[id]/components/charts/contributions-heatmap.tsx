@@ -33,7 +33,7 @@ const CustomTooltip = ({ active, payload, label }: any) => {
 
 export function AreaChartComponent() {
   return (
-    <div className="bg-[#0a0a0a] border border-white/10 rounded-xl p-6 h-full min-h-[400px] flex flex-col">
+    <div className="bg-[#0a0a0a] rounded-xl p-6 h-full min-h-[400px] flex flex-col">
       <div className="flex items-center justify-between mb-6">
         <h3 className="text-white font-semibold text-lg">Workflow Activity</h3>
         <div className="flex gap-2">

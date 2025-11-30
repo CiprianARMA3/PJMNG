@@ -9,7 +9,7 @@ import Link from "next/link";
 import Menu from "./components/menu";
 import HEATMAP from "./components/charts/contributions-heatmap";
 import PIECHART from "./components/charts/piechart";
-import PIECHARTSISSUES from "./components/charts/piechart-issues"; // Ensure this filename matches your component
+import PIECHARTSISSUES from "./components/charts/piechart-issues"; 
 import CALENDAR from "./components/charts/calendar";
 import AIUSAGE from "./components/charts/ai-usage";
 
@@ -30,7 +30,7 @@ import {
   Facebook,
   Linkedin,
   Instagram,
-  Loader2,
+  MoreHorizontal, // Added for the menu look
 } from "lucide-react";
 
 interface Project {
@@ -46,7 +46,7 @@ interface Project {
   created_at: string;
 }
 
-// Function to get platform icon
+// Helper: Platform Icons
 const getPlatformIcon = (platform: string) => {
   const platformIcons: { [key: string]: any } = {
     github: Github,
@@ -64,14 +64,32 @@ const getPlatformIcon = (platform: string) => {
   return platformIcons[key] || platformIcons.default;
 };
 
+// Helper: Internal Card Component to create the "Menu on top" look
+const ChartWidget = ({ title, icon: Icon, iconColor, children }: any) => (
+  <div className="bg-[#0a0a0a] border border-white/10 rounded-xl flex flex-col h-full overflow-hidden shadow-sm hover:border-white/20 transition-colors">
+    {/* The Menu / Header Bar */}
+    <div className="px-4 py-3 border-b border-white/5 flex items-center justify-between bg-white/[0.02]">
+      <div className="flex items-center gap-2.5">
+        <Icon size={16} className={iconColor} />
+        <h3 className="text-sm font-semibold text-white/90 tracking-tight">{title}</h3>
+      </div>
+      {/* Optional: Menu dots to make it look like a real window/widget */}
+      <MoreHorizontal size={16} className="text-white/20" />
+    </div>
+    
+    {/* Chart Content */}
+    <div className="flex-1 p-1 bg-[#0a0a0a] min-h-0 relative flex flex-col">
+      {children}
+    </div>
+  </div>
+);
+
 export default function ProjectPage() {
   // 1. Hooks
   const supabase = createClient();
   const router = useRouter();
   const params = useParams();
   
-  // --- FIX IS HERE ---
-  // We add '|| ""' to ensure projectId is always a string and never undefined
   const projectId = (Array.isArray(params.id) ? params.id[0] : params.id) || "";
 
   // 2. State
@@ -79,23 +97,20 @@ export default function ProjectPage() {
   const [project, setProject] = useState<Project | null>(null);
   const [user, setUser] = useState<any>(null);
 
-  // 3. Fetch Data Effect
+  // 3. Fetch Data
   useEffect(() => {
     const fetchData = async () => {
-      // Prevent running if ID is missing
       if (!projectId) return;
 
       try {
         setLoading(true);
 
-        // Get User
         const { data: { user: authUser }, error: authError } = await supabase.auth.getUser();
         if (authError || !authUser) {
           router.push("/auth/login");
           return;
         }
 
-        // Get Project
         const { data: projectData, error: projectError } = await supabase
           .from("projects")
           .select("*")
@@ -103,12 +118,10 @@ export default function ProjectPage() {
           .single();
 
         if (projectError || !projectData) {
-          console.error("Project not found");
           router.push("/dashboard");
           return;
         }
 
-        // Get Collaborator Status (Security Check)
         const { data: projectUser } = await supabase
           .from("project_users")
           .select("user_id")
@@ -120,11 +133,10 @@ export default function ProjectPage() {
         const isCollaborator = !!projectUser;
 
         if (!isCreator && !isCollaborator) {
-          router.push("/dashboard"); // Unauthorized access
+          router.push("/dashboard"); 
           return;
         }
 
-        // Set State
         setUser(authUser);
         setProject(projectData);
 
@@ -138,8 +150,7 @@ export default function ProjectPage() {
     fetchData();
   }, [projectId, router, supabase]);
 
-  // 4. Loading State
-
+  // 4. Loading
  if (loading || !project) {
     return (
       <div role="status" className="flex justify-center items-center h-screen bg-[#0a0a0a]">
@@ -164,76 +175,52 @@ export default function ProjectPage() {
     );
   }
 
-  // 5. Metadata Logic
+  // 5. Links
   const metadataLinks = Object.entries(project.metadata || {})
-    .filter(([key, value]) => {
-      return key.endsWith('-link') && 
-             value && 
-             value !== '' && 
-             !key.includes('project-icon') && 
-             !key.includes('project-banner');
-    })
-    .map(([key, value]) => {
-      const platform = key.replace('-link', '');
-      return {
-        key,
-        url: value as string,
-        platform
-      };
-    });
+    .filter(([key, value]) => key.endsWith('-link') && value)
+    .map(([key, value]) => ({
+      key,
+      url: value as string,
+      platform: key.replace('-link', '')
+    }));
 
   return (
     <div className="min-h-screen bg-[#0a0a0a] text-white flex relative">
 
-      {/* Left Sidebar Menu */}
       <Menu project={project} user={user} />
       
-      {/* Main Content */}
       <main className="flex-1 ml-64 min-h-screen overflow-y-auto bg-[#0a0a0a]">
         <div className="mx-auto pt-16">
 
-          {/* Project Header & Banner */}
+          {/* Banner */}
           <div className="relative mt-[-10px]">
             {project.metadata?.["project-banner"] ? (
-              <img
-                src={project.metadata["project-banner"]}
-                alt="Project banner"
-                className="w-full h-64 object-cover"
-              />
+              <img src={project.metadata["project-banner"]} alt="Banner" className="w-full h-64 object-cover" />
             ) : (
               <div className="w-full h-64 bg-gradient-to-r from-purple-900/40 to-blue-900/40 border-b border-white/5"></div>
             )}
 
             <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-[#0a0a0a] via-[#0a0a0a]/80 to-transparent p-8">
-              <div className="flex items-end justify-between">
-                <div className="flex items-end gap-6">
-                  {project.metadata?.["project-icon"] ? (
-                    <img
-                      src={project.metadata["project-icon"]}
-                      alt="Project logo"
-                      className="w-24 h-24 rounded-3xl border-4 border-[#0a0a0a] object-cover shadow-2xl bg-[#161616] -mb-4"
-                    />
-                  ) : (
-                    <div className="w-24 h-24 rounded-3xl border-4 border-[#0a0a0a] bg-[#161616] -mb-4 flex items-center justify-center">
-                        <Code className="text-white/20 w-10 h-10"/>
-                    </div>
-                  )}
-                  <div className="-mb-2">
-                    <h1 className="text-4xl font-extrabold text-white tracking-tight mb-1">{project.name}</h1>
-                    <p className="text-white/70 text-base max-w-2xl line-clamp-2">{project.description || "No description has been provided."}</p>
+              <div className="flex items-end gap-6">
+                {project.metadata?.["project-icon"] ? (
+                  <img src={project.metadata["project-icon"]} alt="Logo" className="w-24 h-24 rounded-3xl border-4 border-[#0a0a0a] object-cover shadow-2xl bg-[#161616] -mb-4" />
+                ) : (
+                  <div className="w-24 h-24 rounded-3xl border-4 border-[#0a0a0a] bg-[#161616] -mb-4 flex items-center justify-center">
+                      <Code className="text-white/20 w-10 h-10"/>
                   </div>
+                )}
+                <div className="-mb-2">
+                  <h1 className="text-4xl font-extrabold text-white tracking-tight mb-1">{project.name}</h1>
+                  <p className="text-white/70 text-base max-w-2xl line-clamp-2">{project.description || "No description provided."}</p>
                 </div>
               </div>
             </div>
           </div>
 
-          {/* Dashboard Content */}
           <div className="p-8">
             
-            {/* Unified Header */}
+            {/* Header / Nav */}
             <div className="flex items-center justify-between mb-8">
-              
-              {/* Left Side: Navigation Trail */}
               <div className="flex items-center gap-4">
                 <Link href="/dashboard" className="flex items-center gap-2 text-white/50 hover:text-white transition-colors text-sm font-medium">
                   <ArrowLeft size={16} /> Back to All Projects
@@ -242,25 +229,12 @@ export default function ProjectPage() {
                 <span className="text-sm font-medium text-white/80">Dashboard Overview</span>
               </div>
               
-              {/* Right Side: Project Links */}
               {metadataLinks.length > 0 && (
                 <div className="flex items-center gap-3">
-                  <h3 className="text-sm font-semibold text-white/60 mr-1 flex items-center gap-2">
-                    <ExternalLink size={16} className="text-cyan-400" />
-                  </h3>
-                  
                   {metadataLinks.map((link) => {
                       const IconComponent = getPlatformIcon(link.key);
-                      const platformName = link.platform.charAt(0).toUpperCase() + link.platform.slice(1);
                       return (
-                        <Link 
-                          key={link.key}
-                          href={link.url}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="p-2 bg-white/10 hover:bg-white/20 rounded-full text-white/80 transition-colors flex items-center justify-center"
-                          title={`Go to ${platformName}`}
-                        >
+                        <Link key={link.key} href={link.url} target="_blank" className="p-2 bg-white/10 hover:bg-white/20 rounded-full text-white/80 transition-colors">
                           <IconComponent size={18} />
                         </Link>
                       );
@@ -269,40 +243,48 @@ export default function ProjectPage() {
               )}
             </div>
             
-            {/* Dashboard Grid */}
+            {/* --- GRID LAYOUT --- */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
 
-              {/* Charts - Passed projectId to all charts to be safe */}
-              <div className="space-y-3">
-                <h3 className="text-sm font-semibold text-white/60 flex items-center gap-2"><Code size={16} className="text-purple-400" /> Contribution Heatmap</h3>
-                <HEATMAP />
+              {/* 1. Contribution Heatmap */}
+              <div className="h-full">
+                <ChartWidget title="Contribution Heatmap" icon={Code} iconColor="text-purple-400">
+                   <HEATMAP />
+                </ChartWidget>
               </div>
 
-              <div className="space-y-3">
-                <h3 className="text-sm font-semibold text-white/60 flex items-center gap-2"><Users size={16} className="text-blue-400" /> Collaboration Status</h3>
-                <PIECHART />
+              {/* 2. Collaboration Status */}
+              <div className="h-full">
+                <ChartWidget title="Collaboration Status" icon={Users} iconColor="text-blue-400">
+                   <PIECHART />
+                </ChartWidget>
               </div>
 
-              <div className="space-y-3">
-                <h3 className="text-sm font-semibold text-white/60 flex items-center gap-2"><Bug size={16} className="text-red-400" /> Issue Priority</h3>
-                
-                {/* Type error is now resolved because projectId is guaranteed to be a string 
-                   due to the '|| ""' fallback added at the top.
-                */}
-                <PIECHARTSISSUES projectId={projectId}/>
+              {/* 3. Issue Priority */}
+              <div className="h-full">
+                <ChartWidget title="Issue Priority" icon={Bug} iconColor="text-red-400">
+                   <PIECHARTSISSUES projectId={projectId}/>
+                </ChartWidget>
               </div>
 
-              <div className="lg:col-span-2 space-y-3 mt-[50px]">
-                <h3 className="text-sm font-semibold text-white/60 flex items-center gap-2"><CalendarIcon size={16} className="text-green-400" /> Project Timeline & Events</h3>
-                <CALENDAR />
+              {/* 4. Timeline (Spans 2 Cols) */}
+              <div className="lg:col-span-2 mt-[20px] h-[500px]">
+                <ChartWidget title="Project Timeline & Events" icon={CalendarIcon} iconColor="text-green-400">
+                   <CALENDAR />
+                </ChartWidget>
               </div>
               
-              <div className="space-y-3 mt-[50px]">
-                <h3 className="text-sm font-semibold text-white/60 flex items-center gap-2"><Bot size={16} className="text-pink-400" /> AI Tool Usage</h3>
-                <AIUSAGE projectId={projectId}/>
+              {/* 5. AI Usage */}
+              <div className="mt-[20px] h-[500px]">
+                <ChartWidget title="AI Tool Usage" icon={Bot} iconColor="text-pink-400">
+                   <AIUSAGE projectId={projectId}/>
+                </ChartWidget>
               </div>
-              <br /><br /><br /><br /><br />
+
+              {/* Spacer */}
+              <div className="col-span-full h-20"></div>
             </div>
+
           </div>
         </div>
       </main>

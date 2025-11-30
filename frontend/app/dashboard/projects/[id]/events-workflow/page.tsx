@@ -274,7 +274,7 @@ export default function CalendarPage() {
         {/* --- HEADER --- */}
         <div className="flex-none h-16 mt-[60px] px-6 border-b border-white/5 flex items-center justify-between bg-[#0a0a0a] z-20">
             <div className="flex items-center gap-6">
-                <h1 className="text-xl font-bold tracking-tight">Calendar<span className="text-white/30 text-lg font-light">Overview</span></h1>
+                <h1 className="text-xl font-bold tracking-tight">Calendar<span className="text-white/30 text-lg font-light ml-1">Overview</span></h1>
                 <div className="h-6 w-px bg-white/10"></div>
                 
                 {/* Date Navigation */}
