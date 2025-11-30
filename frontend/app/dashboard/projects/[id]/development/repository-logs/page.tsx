@@ -5,7 +5,7 @@ import { useParams, useRouter } from "next/navigation";
 import { createClient } from "@/utils/supabase/client";
 
 // Components
-import Menu from "../components/menu";
+import Menu from "../../components/menu";
 
 // Icons
 import { 

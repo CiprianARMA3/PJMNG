@@ -46,11 +46,11 @@ export default function Menu({ project, user }: MenuProps) {
     {
       title: "Development",
       items: [
-        { label: "Issues", icon: Bug, href: `/dashboard/projects/${project.id}/issues` },
-        { label: "Board", icon: KanbanSquare, href: `/dashboard/projects/${project.id}/board` },
-        { label: "Events and Workflow", icon: Calendar, href: `/dashboard/projects/${project.id}/events-workflow` },
-        { label: "Activity Overview", icon: Calendar, href: `/dashboard/projects/${project.id}/calendar` },
-        { label: "Repository logs", icon: Logs, href: `/dashboard/projects/${project.id}/repository-logs` },
+        { label: "Issues", icon: Bug, href: `/dashboard/projects/${project.id}/development/issues` },
+        { label: "Board", icon: KanbanSquare, href: `/dashboard/projects/${project.id}/development/board` },
+        { label: "Events and Workflow", icon: Calendar, href: `/dashboard/projects/${project.id}/development/events-workflow` },
+        { label: "Activity Overview", icon: Calendar, href: `/dashboard/projects/${project.id}/development/calendar` },
+        { label: "Repository logs", icon: Logs, href: `/dashboard/projects/${project.id}/development/repository-logs` },
       ],
     },
     {
@@ -65,18 +65,18 @@ export default function Menu({ project, user }: MenuProps) {
         {
       title: "Settings",
       items: [
-        { label: "Project Settings", icon: Settings, href: `/dashboard/projects/${project.id}/project-settings` },
-        { label: "Collaborators", icon: UserCog, href: `/dashboard/projects/${project.id}/manage-team` },
-        { label: "AI Informations", icon: BrainCog, href: `/dashboard/projects/${project.id}/manage-team` },
+        { label: "Project Settings", icon: Settings, href: `/dashboard/projects/${project.id}/settings/project-settings` },
+        { label: "Collaborators", icon: UserCog, href: `/dashboard/projects/${project.id}/settings/collaborators` },
+        { label: "AI Informations", icon: BrainCog, href: `/dashboard/projects/${project.id}/settings/ai-info` },
       ],
     },
     {
       title: "Manager Settings",
       items: [
-        { label: "Project Settings", icon: Settings, href: `/dashboard/projects/${project.id}/project-settings` },
-        { label: "Workflow and Events Management", icon: Workflow, href: `/dashboard/projects/${project.id}/evwork-management` },
-        { label: "Manage Team", icon: UserCog, href: `/dashboard/projects/${project.id}/manage-team` },
-        { label: "Manage AI Assistant", icon: BrainCog, href: `/dashboard/projects/${project.id}/manage-team` },
+        { label: "Project Settings", icon: Settings, href: `/dashboard/projects/${project.id}/management/project-settings` },
+        { label: "Workflow and Events Management", icon: Workflow, href: `/dashboard/projects/${project.id}/management/workflow-events` },
+        { label: "Manage Team", icon: UserCog, href: `/dashboard/projects/${project.id}/management/team` },
+        { label: "Manage AI Assistant", icon: BrainCog, href: `/dashboard/projects/${project.id}/management/ai` },
       ],
     },
   ];
