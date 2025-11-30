@@ -252,6 +252,8 @@ export default function ConceptCalendarPage() {
                         <h2 className="text-sm font-semibold text-white/90 min-w-[140px]">
                             {currentDate.toLocaleString('default', { month: 'long' })} 
                             <span className="text-white/30 ml-1.5 font-normal">{currentDate.getFullYear()}</span>
+                            
+
                         </h2>
                     </div>
                 </div>

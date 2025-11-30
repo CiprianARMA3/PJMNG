@@ -10,8 +10,8 @@ interface IssuesBarChartProps {
 }
 
 interface ChartData {
-  day: string; // "Mon", "Tue"
-  date: string; // "2023-10-25" (for internal comparison)
+  day: string; 
+  date: string; 
   issues: number;
 }
 
@@ -41,81 +41,84 @@ const IssuesBarChart = ({ projectId }: IssuesBarChartProps) => {
       if (!projectId) return;
 
       try {
-        // 1. Setup Strict Midnight Boundaries
+        // 1. Get Today at Midnight (Start of day)
         const today = new Date();
-        today.setHours(23, 59, 59, 999); // End of today
+        today.setHours(0, 0, 0, 0);
 
-        const sevenDaysAgo = new Date();
-        sevenDaysAgo.setDate(today.getDate() - 7);
-        sevenDaysAgo.setHours(0, 0, 0, 0); // Start of 7 days ago
+        // 2. Calculate boundaries
+        // Current Week: [Today-6] to [Today] (7 days inclusive)
+        const startOfCurrentWeek = new Date(today);
+        startOfCurrentWeek.setDate(today.getDate() - 6);
 
-        const fourteenDaysAgo = new Date();
-        fourteenDaysAgo.setDate(today.getDate() - 14);
-        fourteenDaysAgo.setHours(0, 0, 0, 0); // Start of 14 days ago
+        // Previous Week: [Today-13] to [Today-7] (7 days inclusive)
+        const startOfPreviousWeek = new Date(today);
+        startOfPreviousWeek.setDate(today.getDate() - 13);
 
-        // 2. Fetch all issues from the last 14 days
+        // End of today (for DB Query upper limit)
+        const endOfToday = new Date();
+        endOfToday.setHours(23, 59, 59, 999);
+
+        // 3. Fetch all issues from the last 14 days
         const { data: rawData, error } = await supabase
           .from('issues')
           .select('created_at')
           .eq('project_id', projectId)
-          .gte('created_at', fourteenDaysAgo.toISOString())
-          .lte('created_at', today.toISOString());
+          .gte('created_at', startOfPreviousWeek.toISOString())
+          .lte('created_at', endOfToday.toISOString());
 
         if (error) throw error;
 
-        // 3. Process Data
-        const last7DaysMap = new Map<string, number>();
-        const chartData: ChartData[] = [];
-        
-        // Initialize the last 7 days chart structure (Current Week)
+        // 4. Initialize Chart Data Structure (Last 7 days)
+        const chartDataMap = new Map<string, number>();
+        const chartTemplate: ChartData[] = [];
+
+        // Loop 0 to 6 to build the last 7 days (including today)
         for (let i = 6; i >= 0; i--) {
             const d = new Date();
             d.setDate(d.getDate() - i);
-            // Use local date string to match user's timezone for grouping
-            const dateKey = d.toLocaleDateString('en-CA'); // YYYY-MM-DD format (local safe)
-            const dayName = d.toLocaleDateString('en-US', { weekday: 'short' }); // "Mon"
+            const dateKey = d.toLocaleDateString('en-CA'); // YYYY-MM-DD
+            const dayName = d.toLocaleDateString('en-US', { weekday: 'short' }); 
             
-            last7DaysMap.set(dateKey, 0);
-            chartData.push({ day: dayName, date: dateKey, issues: 0 });
+            chartDataMap.set(dateKey, 0); // Initialize with 0
+            chartTemplate.push({ day: dayName, date: dateKey, issues: 0 });
         }
 
         let currentPeriodCount = 0;
         let previousPeriodCount = 0;
 
+        // 5. Bucket the data
         rawData?.forEach((issue) => {
             const issueDate = new Date(issue.created_at);
-            // Get YYYY-MM-DD in local time to match the map keys
-            const localIssueDateKey = issueDate.toLocaleDateString('en-CA'); 
+            // Normalize issue date to Midnight for comparison
+            const normalizedIssueDate = new Date(issueDate);
+            normalizedIssueDate.setHours(0, 0, 0, 0);
+            
+            // Generate Key for Map lookup
+            const issueDateKey = issueDate.toLocaleDateString('en-CA');
 
-            if (issueDate >= sevenDaysAgo) {
-                // THIS WEEK (Last 7 days)
-                const currentCount = last7DaysMap.get(localIssueDateKey) || 0;
-                last7DaysMap.set(localIssueDateKey, currentCount + 1);
+            // Logic: Compare Time Values (ms) to be precise
+            if (normalizedIssueDate.getTime() >= startOfCurrentWeek.getTime()) {
+                // THIS WEEK
                 currentPeriodCount++;
-            } else if (issueDate >= fourteenDaysAgo) {
-                // PREVIOUS WEEK (Days 8-14)
+                const existingCount = chartDataMap.get(issueDateKey) || 0;
+                chartDataMap.set(issueDateKey, existingCount + 1);
+            } else if (normalizedIssueDate.getTime() >= startOfPreviousWeek.getTime()) {
+                // PREVIOUS WEEK
                 previousPeriodCount++;
             }
         });
 
-        // Map processed counts back to chart array
-        const finalChartData = chartData.map(item => ({
+        // 6. Merge counts into chart template
+        const finalChartData = chartTemplate.map(item => ({
             ...item,
-            issues: last7DaysMap.get(item.date) || 0
+            issues: chartDataMap.get(item.date) || 0
         }));
 
-        // 4. Calculate Trend Logic
+        // 7. Calculate Trend
         let percentage = 0;
-
         if (previousPeriodCount === 0) {
-            // Logic: If we had 0 issues last week...
-            if (currentPeriodCount === 0) {
-                percentage = 0; // 0 to 0 = No change
-            } else {
-                percentage = 100; // 0 to X = 100% increase (technically infinite, but 100 is standard for UI)
-            }
+            percentage = currentPeriodCount > 0 ? 100 : 0;
         } else {
-            // Standard Formula: ((New - Old) / Old) * 100
             percentage = ((currentPeriodCount - previousPeriodCount) / previousPeriodCount) * 100;
         }
 
@@ -133,8 +136,7 @@ const IssuesBarChart = ({ projectId }: IssuesBarChartProps) => {
     fetchChartData();
   }, [projectId]);
 
-  // Helper to determine trend color and icon
-  // For Issues: Increase (+) is BAD (Red), Decrease (-) is GOOD (Green)
+  // Determine colors
   const isIncrease = trendPercentage > 0;
   const isDecrease = trendPercentage < 0;
   const isNeutral = trendPercentage === 0;
@@ -158,7 +160,7 @@ const IssuesBarChart = ({ projectId }: IssuesBarChartProps) => {
          <div className="text-right">
              <div className="text-2xl font-bold text-white mb-1">{totalThisWeek}</div>
              
-             {/* <div className={`text-xs px-2 py-1 rounded border font-medium flex items-center gap-1 w-fit ml-auto transition-colors
+             <div className={`text-xs px-2 py-1 rounded border font-medium flex items-center gap-1 w-fit ml-auto transition-colors
                 ${isIncrease ? 'text-rose-400 bg-rose-400/10 border-rose-400/20' : ''}
                 ${isDecrease ? 'text-emerald-400 bg-emerald-400/10 border-emerald-400/20' : ''}
                 ${isNeutral ? 'text-zinc-400 bg-zinc-400/10 border-zinc-400/20' : ''}
@@ -168,7 +170,7 @@ const IssuesBarChart = ({ projectId }: IssuesBarChartProps) => {
                 {isNeutral && <Minus size={12} />}
                 
                 {trendPercentage > 0 ? '+' : ''}{trendPercentage}%
-             </div> */}
+             </div>
          </div>
       </div>
       

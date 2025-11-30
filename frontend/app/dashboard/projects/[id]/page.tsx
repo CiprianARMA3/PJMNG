@@ -299,7 +299,7 @@ export default function ProjectPage() {
               
               <div className="space-y-3 mt-[50px]">
                 <h3 className="text-sm font-semibold text-white/60 flex items-center gap-2"><Bot size={16} className="text-pink-400" /> AI Tool Usage</h3>
-                <AIUSAGE />
+                <AIUSAGE projectId={projectId}/>
               </div>
               <br /><br /><br /><br /><br />
             </div>
