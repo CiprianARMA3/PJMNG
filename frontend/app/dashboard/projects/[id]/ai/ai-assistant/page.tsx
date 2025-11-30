@@ -1,8 +1,9 @@
-"use client";
+'use client';
 
 import { useEffect, useState, useRef } from "react";
 import { createClient } from "@/utils/supabase/client";
 import Menu from "../../components/menu";
+import { ChatInput } from "./ChatInput"; // Ensure this matches your file path
 import { generateAiResponse, createChatGroup, deleteChatGroup, updateChatGroup, deleteChat, renameChat, updateGroupTags } from "./actions";
 import {
   Sparkles,
@@ -38,7 +39,6 @@ type Profile = { id: string; full_name: string; avatar_url: string | null };
 type GroupTag = { id: string; label: string; color: string; };
 type ChatGroup = { id: string; name: string; user_id: string; metadata?: { tags: GroupTag[] } };
 type ChatSession = { id: string; title: string; group_id: string | null; total_tokens_used: number; updated_at: string; user_id: string; };
-// Updated Message Type to match DB column 'ai_model'
 type Message = { role: 'user' | 'ai'; content: string; cost?: number; ai_model?: string; };
 
 const MODELS = [
@@ -58,7 +58,7 @@ const TAG_COLORS = [
     { name: "Gray", hex: "#71717A" },
 ];
 
-// --- REUSABLE CREATOR PFP COMPONENT ---
+// --- REUSABLE CREATOR PFP COMPONENT (UNMODIFIED) ---
 interface CreatorPfpProps {
     userId: string;
     currentUserId: string;
@@ -119,10 +119,9 @@ export default function AiAssistantPage({ params }: PageProps) {
   const [activeChatId, setActiveChatId] = useState<string | null>(null);
   const [selectedGroupId, setSelectedGroupId] = useState<string | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
-  const [input, setInput] = useState("");
+  // REMOVED: input, showModelMenu
   const [isGenerating, setIsGenerating] = useState(false);
   const [selectedModel, setSelectedModel] = useState(MODELS[0]);
-  const [showModelMenu, setShowModelMenu] = useState(false);
   const [copiedIndex, setCopiedIndex] = useState<number | null>(null);
   const [showTokenInfo, setShowTokenInfo] = useState(false);
 
@@ -138,7 +137,7 @@ export default function AiAssistantPage({ params }: PageProps) {
   // Chat Renaming
   const [editingChatId, setEditingChatId] = useState<string | null>(null);
 
-  const textareaRef = useRef<HTMLTextAreaElement>(null);
+  // REMOVED: textareaRef
   const chatContainerRef = useRef<HTMLDivElement>(null);
 
   // --- HELPER FUNCTIONS ---
@@ -219,7 +218,7 @@ export default function AiAssistantPage({ params }: PageProps) {
                 role: m.role as 'user' | 'ai', 
                 content: m.content, 
                 cost: m.tokens_used,
-                ai_model: m.ai_model // Now fetching the specific column 'ai_model'
+                ai_model: m.ai_model
             })));
         }
     }
@@ -231,12 +230,7 @@ export default function AiAssistantPage({ params }: PageProps) {
     if (chatContainerRef.current) chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight;
   }, [messages, isGenerating]);
 
-  useEffect(() => {
-    if (textareaRef.current) {
-        textareaRef.current.style.height = "auto";
-        textareaRef.current.style.height = Math.min(textareaRef.current.scrollHeight, 200) + "px";
-    }
-  }, [input]);
+  // REMOVED: Textarea auto-resize effect
 
   // --- HANDLERS (Drag, Create, Delete, etc.) ---
   const handleDrop = (e: React.DragEvent, targetGroupId: string | null) => {
@@ -330,8 +324,7 @@ export default function AiAssistantPage({ params }: PageProps) {
     setActiveChatId(null);
     setSelectedGroupId(groupId);
     setMessages([]);
-    setInput("");
-    if (textareaRef.current) textareaRef.current.focus();
+    // Removed setInput(""); and textareaRef.current.focus();
   };
 
   // --- ACTIONS: COPY & REGENERATE ---
@@ -381,23 +374,30 @@ export default function AiAssistantPage({ params }: PageProps) {
   };
 
   const selectedModelBalance = tokenBalances[selectedModel.id] || 0;
-  const estimatedInputTokens = Math.ceil(input.length / 4);
-  const isInputTooExpensive = estimatedInputTokens > selectedModelBalance;
-  const isLocked = selectedModelBalance <= 0 || isInputTooExpensive;
+  // NOTE: isInputTooExpensive and isLocked will be calculated inside ChatInput for input validation/UI
+  const isTokenLocked = selectedModelBalance <= 0;
 
-  async function handleSend() {
-    if (!input.trim() || isGenerating || isLocked) return;
+  // UPDATED handleSend to receive text from ChatInput
+  async function handleSend(text: string) {
+    if (!text.trim() || isGenerating) return;
     
-    const currentPrompt = input;
-    setInput("");
+    // Perform necessary pre-checks outside of ChatInput's immediate UI logic
+    if (isTokenLocked) return; 
+
+    const currentPrompt = text;
     setIsGenerating(true);
 
+    // Optimistic update
     setMessages(prev => [...prev, { role: 'user', content: currentPrompt }]);
 
     const result = await generateAiResponse(projectId, currentPrompt, activeChatId || undefined, selectedGroupId || undefined, selectedModel.id, false);
 
     if (result.error) {
-        setMessages(prev => [...prev, { role: 'ai', content: `**Error:** ${result.error}` }]);
+        // Revert optimistic update (or replace it with error)
+        setMessages(prev => {
+            const newMsgs = prev.slice(0, -1);
+            return [...newMsgs, { role: 'ai', content: `**Error:** ${result.error}` }];
+        });
         setIsGenerating(false);
         return;
     }
@@ -407,7 +407,7 @@ export default function AiAssistantPage({ params }: PageProps) {
             role: 'ai', 
             content: result.message!, 
             cost: result.tokensUsed,
-            ai_model: result.ai_model // Using updated key from backend
+            ai_model: result.ai_model
         }]);
         if (result.newBalance) setTokenBalances(result.newBalance);
 
@@ -425,6 +425,8 @@ export default function AiAssistantPage({ params }: PageProps) {
     }
     setIsGenerating(false);
   }
+
+  // CodeBlock component (unmodified)
   const CodeBlock = ({ language, children }: { language: string, children: React.ReactNode }) => {
     const [isCopied, setIsCopied] = useState(false);
 
@@ -519,7 +521,7 @@ export default function AiAssistantPage({ params }: PageProps) {
                 </span>
             </div>
              <div className="flex items-center gap-2">
-                <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[#18181B] border border-[#27272A] ${isLocked ? 'border-red-900/50' : ''}`}>
+                <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[#18181B] border border-[#27272A] ${isTokenLocked ? 'border-red-900/50' : ''}`}>
                     <selectedModel.icon size={12} className={selectedModel.id.includes('flash') ? 'text-amber-400' : 'text-indigo-400'} />
                     <span className="text-xs text-zinc-300 hidden sm:inline">{selectedModel.name}</span>
                     <div className="w-px h-3 bg-[#27272A] mx-1"></div>
@@ -833,57 +835,16 @@ export default function AiAssistantPage({ params }: PageProps) {
                     )}
                 </div>
 
-                <div className="absolute bottom-6 left-0 right-0 px-4 md:px-12 lg:px-24 pointer-events-none z-30">
-                    <div className="relative max-w-4xl mx-auto pointer-events-auto">
-                        <div className={`relative bg-[#18181B] rounded-xl border transition-all duration-200 shadow-2xl shadow-black/80 ${isLocked ? 'border-red-900/50 opacity-80' : 'border-[#27272A] focus-within:border-zinc-500'}`}>
-                            <textarea
-                                ref={textareaRef}
-                                value={input}
-                                onChange={(e) => setInput(e.target.value)}
-                                onKeyDown={(e) => { if(e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend(); }}}
-                                placeholder={isInputTooExpensive ? `Input exceeds balance` : isLocked ? `Insufficient ${selectedModel.name} tokens.` : "Ask anything..."}
-                                className={`w-full bg-transparent text-[#E4E4E7] placeholder-zinc-600 resize-none focus:outline-none text-[15px] px-4 py-4 pr-12 max-h-[200px] leading-relaxed rounded-xl ${isLocked ? 'cursor-not-allowed text-zinc-500' : ''}`}
-                                rows={1}
-                            />
-                            
-                            <div className="flex items-center justify-between px-3 pb-3 pt-1">
-                                <div className="flex items-center gap-2">
-                                    <div className="relative">
-                                        <button onClick={() => setShowModelMenu(!showModelMenu)} className="flex items-center gap-1.5 px-2.5 py-1.5 bg-[#27272A]/50 hover:bg-[#27272A] rounded-md text-xs text-zinc-400 hover:text-zinc-200 transition-colors border border-transparent hover:border-zinc-700">
-                                            <selectedModel.icon size={12} className={selectedModel.id.includes('flash') ? 'text-amber-400' : 'text-indigo-400'} />
-                                            <span className="font-medium">{selectedModel.name}</span>
-                                            <ChevronDown size={10} className="opacity-50" />
-                                        </button>
-                                        {showModelMenu && (
-                                            <>
-                                                <div className="fixed inset-0 z-40" onClick={() => setShowModelMenu(false)} />
-                                                <div className="absolute bottom-full left-0 mb-2 w-64 bg-[#18181B] border border-[#27272A] rounded-lg shadow-2xl z-50 overflow-hidden py-1">
-                                                    <div className="px-3 py-2 text-[10px] font-bold text-zinc-600 uppercase tracking-wider">Select Model</div>
-                                                    {MODELS.map((model) => {
-                                                        const bal = tokenBalances[model.id] || 0;
-                                                        return (
-                                                            <button key={model.id} onClick={() => { setSelectedModel(model); setShowModelMenu(false); }} className="w-full flex items-center justify-between px-3 py-2 text-sm text-left text-zinc-400 hover:bg-[#27272A] hover:text-zinc-100 transition-colors">
-                                                                <span className="flex items-center gap-2"><model.icon size={14} className={model.id.includes('flash') ? 'text-amber-400' : 'text-indigo-400'} />{model.name}</span>
-                                                                <span className={`text-[10px] font-mono ${bal > 0 ? 'text-emerald-500' : 'text-zinc-600'}`}>{bal.toLocaleString()}</span>
-                                                            </button>
-                                                        )
-                                                    })}
-                                                </div>
-                                            </>
-                                        )}
-                                    </div>
-                                    {input.length > 0 && !isLocked && <span className={`text-[10px] font-mono ${isInputTooExpensive ? 'text-red-500' : 'text-zinc-500'}`}>~{estimatedInputTokens} tok</span>}
-                                </div>
-                                <div className="flex items-center gap-2">
-                                    {isLocked && <div className="flex items-center gap-1 text-[10px] text-red-500 bg-red-950/20 px-2 py-1 rounded"><Lock size={10} /><span>{isInputTooExpensive ? 'Prompt too long' : 'No tokens'}</span></div>}
-                                    <button onClick={handleSend} disabled={!input.trim() || isGenerating || isLocked} className={`p-2 rounded-lg transition-all duration-200 flex items-center justify-center ${input.trim() && !isGenerating && !isLocked ? 'bg-zinc-100 text-black hover:bg-white shadow-[0_0_10px_rgba(255,255,255,0.1)]' : 'bg-[#27272A] text-zinc-500 cursor-not-allowed'}`}>
-                                        {isGenerating ? <div className="w-4 h-4 border-2 border-zinc-500 border-t-transparent rounded-full animate-spin"/> : <CornerDownLeft size={16} strokeWidth={2.5} />}
-                                    </button>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
+                {/* INTEGRATED CHAT INPUT COMPONENT */}
+                <ChatInput 
+                    onSend={handleSend}
+                    isGenerating={isGenerating}
+                    selectedModel={selectedModel}
+                    selectedModelBalance={selectedModelBalance}
+                    tokenBalances={tokenBalances}
+                    models={MODELS}
+                    onModelSelect={setSelectedModel}
+                />
             </div>
         </div>
       </main>
@@ -891,7 +852,7 @@ export default function AiAssistantPage({ params }: PageProps) {
   );
 }
 
-// --- SUB-COMPONENT: SIDEBAR ITEM ---
+// --- SUB-COMPONENT: SIDEBAR ITEM (UNMODIFIED) ---
 const SidebarItem = ({ 
     chat, isActive, isDragging, onClick, onDelete, onDragStart, onDragEnd, 
     profiles, currentUserId, currentUserPfp, currentUserName, isEditing, onEdit, onRename

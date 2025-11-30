@@ -3,6 +3,7 @@
 import { useEffect, useState, useRef } from "react";
 import { createClient } from "@/utils/supabase/client";
 import Menu from "../../components/menu";
+import { ChatInput } from "./ChatInput"; // Ensure this matches your file path
 import { 
   generateAiResponse, 
   createChatGroup, 
@@ -127,15 +128,15 @@ export default function AiAssistantPage({ params }: PageProps) {
   const [activeChatId, setActiveChatId] = useState<string | null>(null);
   const [selectedGroupId, setSelectedGroupId] = useState<string | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
-  const [input, setInput] = useState("");
+  
+  // REMOVED LOCAL INPUT STATE (Moved to ChatInput)
   const [isGenerating, setIsGenerating] = useState(false);
-  const selectedModel = MODELS[0]; // Always Pro
+  const [selectedModel, setSelectedModel] = useState(MODELS[0]); // Changed to state to be compatible with ChatInput
   const [copiedIndex, setCopiedIndex] = useState<number | null>(null);
   const [showTokenInfo, setShowTokenInfo] = useState(false);
-  // 🚨 MODIFIED: ADDED STATE FOR CONFIG ALERT
   const [showConfigAlert, setShowConfigAlert] = useState(false); 
   
-  // 🚨 SYNCING STATE & FALLBACK
+  // Syncing & Fallback
   const [isSyncing, setIsSyncing] = useState(false);
   const [activeCacheKey, setActiveCacheKey] = useState<string | null>(null);
   const [fallbackRepoContext, setFallbackRepoContext] = useState<string | null>(null);
@@ -153,12 +154,10 @@ export default function AiAssistantPage({ params }: PageProps) {
   // Chat Renaming
   const [editingChatId, setEditingChatId] = useState<string | null>(null);
 
-  const textareaRef = useRef<HTMLTextAreaElement>(null);
   const chatContainerRef = useRef<HTMLDivElement>(null);
   
   // --- HELPER FUNCTIONS ---
   
-  // 🚨 NEW NOTIFICATION HELPER
   const showNotification = (message: string, type: 'success' | 'error' | 'info' = 'info') => {
     setNotification({ message, type });
     setTimeout(() => setNotification(null), 5000);
@@ -201,17 +200,14 @@ export default function AiAssistantPage({ params }: PageProps) {
       const { data: projectData } = await supabase.from("projects").select("*").eq("id", id).single();
       setProject(projectData);
 
-      // 🚨 MODIFICATION START: Check for missing GitHub configuration
       const repoUrl = projectData?.github_repo_url;
       const pat = projectData?.github_personalaccesstoken;
 
-      // Check if EITHER the URL or the PAT is missing
       if (!repoUrl || !pat) {
           setShowConfigAlert(true); 
       } else {
           setShowConfigAlert(false);
       }
-      // 🚨 MODIFICATION END
 
       fetchBalance(id);
 
@@ -237,7 +233,6 @@ export default function AiAssistantPage({ params }: PageProps) {
       const uniqueUserIds = [...new Set(userIdsToFetch)].filter(uid => uid !== currentUserId);
       await fetchProfiles(uniqueUserIds);
 
-      // Fetch initial cache status silently
       const initialCacheKey = await getCacheStatus(id);
       setActiveCacheKey(initialCacheKey);
 
@@ -246,7 +241,7 @@ export default function AiAssistantPage({ params }: PageProps) {
     load();
   }, []);
 
-  // 🚨 MESSAGE FETCHING EFFECT 🚨
+  // --- MESSAGES LOAD ---
   useEffect(() => {
     async function fetchMessages() {
         if (!activeChatId) return;
@@ -271,7 +266,6 @@ export default function AiAssistantPage({ params }: PageProps) {
                 ai_model: m.ai_model
             }));
             setMessages(mappedMessages);
-            // Scroll to bottom after messages load
             if (chatContainerRef.current) {
                 chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight;
             }
@@ -279,7 +273,7 @@ export default function AiAssistantPage({ params }: PageProps) {
     }
 
     fetchMessages();
-  }, [activeChatId]); // Runs whenever the chat ID changes
+  }, [activeChatId]); 
   
   // Auto-scroll on new message
   useEffect(() => {
@@ -296,7 +290,6 @@ export default function AiAssistantPage({ params }: PageProps) {
         const res = await syncRepository(projectId); 
         
         if (res.error) {
-             // If strategy is INJECT, save the text to inject later
              if (res.strategy === 'INJECT' && res.repoText) {
                  setFallbackRepoContext(res.repoText);
                  return { success: false, strategy: 'INJECT', error: res.error, repoText: res.repoText };
@@ -304,7 +297,7 @@ export default function AiAssistantPage({ params }: PageProps) {
              return { success: false, error: res.error };
         } else if (res.success && res.cacheKey) {
             setActiveCacheKey(res.cacheKey);
-            setFallbackRepoContext(null); // Clear fallback if real cache works
+            setFallbackRepoContext(null); 
             return { success: true, cacheKey: res.cacheKey };
         }
     } catch(e: any) {
@@ -415,8 +408,6 @@ export default function AiAssistantPage({ params }: PageProps) {
     setActiveChatId(null);
     setSelectedGroupId(groupId);
     setMessages([]);
-    setInput("");
-    if (textareaRef.current) textareaRef.current.focus();
   };
 
   const handleCopy = (content: string, idx: number) => {
@@ -425,7 +416,6 @@ export default function AiAssistantPage({ params }: PageProps) {
       setTimeout(() => setCopiedIndex(null), 2000);
   };
   
-  // Regeneration logic remains robust
   const handleRegenerate = async () => {
       if (isGenerating || messages.length === 0) return;
       
@@ -436,7 +426,6 @@ export default function AiAssistantPage({ params }: PageProps) {
       }
       const lastUserPrompt = messages[lastUserMsgIndex].content;
 
-      // Filter out AI messages that follow the last user prompt
       const newMessages = messages.slice(0, lastUserMsgIndex + 1);
       setMessages(newMessages);
 
@@ -449,12 +438,11 @@ export default function AiAssistantPage({ params }: PageProps) {
           selectedGroupId || undefined, 
           selectedModel.id, 
           true, 
-          fallbackRepoContext // Pass existing fallback context
+          fallbackRepoContext 
       );
 
       if (result.error) {
           showNotification(result.error, 'error');
-          // If regeneration failed, ensure we revert to the state before the AI message
           setMessages(newMessages); 
           setIsGenerating(false);
           return;
@@ -467,118 +455,99 @@ export default function AiAssistantPage({ params }: PageProps) {
               cost: result.tokensUsed,
               ai_model: result.ai_model
           }]);
-          if (result.newBalance) fetchBalance(projectId); // Re-fetch balance
+          if (result.newBalance) fetchBalance(projectId);
       }
       setIsGenerating(false);
   };
 
   const selectedModelBalance = tokenBalances[selectedModel.id] || 0;
-  const estimatedInputTokens = Math.ceil(input.length / 4);
-  const isInputTooExpensive = estimatedInputTokens > selectedModelBalance;
   
-  // Determine if the chat is locked due to tokens or missing config
-  const isTokenLocked = selectedModelBalance <= 0 || isInputTooExpensive;
-  const isLocked = isTokenLocked || showConfigAlert; // 🚨 MODIFIED: includes config lock
+  // Updated handleSend to receive text from ChatInput
+  async function handleSend(text: string) {
+    if (!text.trim() || isGenerating) return;
+    
+    // Check if configuration is missing before proceeding
+    if (showConfigAlert) {
+        showNotification("Configuration required. Please set up GitHub token.", 'error');
+        return;
+    }
 
-  // 🛠️ REVISED: Handle Send for Robust Async State Updates
-async function handleSend() {
-  if (!input.trim() || isGenerating || isLocked) return; // Check isLocked here
-  
-  let injectedContext = fallbackRepoContext; // Start with pre-loaded fallback context if available
-  const currentPrompt = input;
+    let injectedContext = fallbackRepoContext; 
+    const currentPrompt = text;
 
-  // 1. Reset input, start loading, and optimistically add user message 
-  setInput("");
-  setIsGenerating(true);
-  const userMessage: Message = { role: 'user', content: currentPrompt };
-  setMessages(prev => [...prev, userMessage]); 
+    setIsGenerating(true);
+    const userMessage: Message = { role: 'user', content: currentPrompt };
+    setMessages(prev => [...prev, userMessage]); 
 
-  // 2. AUTO-SYNC / CACHE CHECK LOGIC
-  if (!activeCacheKey && !isSyncing) {
-      showNotification("Checking repository context...", 'info');
-      
-      const syncResult = await handleSyncRepo();
-      
-      setNotification(null); // Clear temporary status
+    // Auto-Sync / Cache Check Logic
+    if (!activeCacheKey && !isSyncing) {
+        showNotification("Checking repository context...", 'info');
+        
+        const syncResult = await handleSyncRepo();
+        
+        setNotification(null); 
 
-      if (!syncResult.success) {
-          if (syncResult.strategy === 'INJECT' && syncResult.repoText) {
-               injectedContext = syncResult.repoText;
-               showNotification("Repository is small. Context is injected directly into the prompt.", 'info');
-          } else {
-               // If the sync failed (and not due to small repo), the error is already handled by syncRepository
-               showNotification(`Repository Sync Failed: ${syncResult.error || "Unknown Error"}. Continuing without code context.`, 'error');
-               injectedContext = null; 
-          }
-      } else if (syncResult.success && syncResult.cacheKey) {
-           showNotification("Repository context is now cached.", 'success');
-           injectedContext = null; // Ensure no injection if caching worked
-      }
-  } else if (activeCacheKey) {
-      // Caching is active, ensure no injection
-      injectedContext = null;
+        if (!syncResult.success) {
+            if (syncResult.strategy === 'INJECT' && syncResult.repoText) {
+                 injectedContext = syncResult.repoText;
+                 showNotification("Repository is small. Context is injected directly into the prompt.", 'info');
+            } else {
+                 showNotification(`Repository Sync Failed: ${syncResult.error || "Unknown Error"}. Continuing without code context.`, 'error');
+                 injectedContext = null; 
+            }
+        } else if (syncResult.success && syncResult.cacheKey) {
+             showNotification("Repository context is now cached.", 'success');
+             injectedContext = null; 
+        }
+    } else if (activeCacheKey) {
+        injectedContext = null;
+    }
+
+    const result = await generateAiResponse(
+        projectId, 
+        currentPrompt, 
+        activeChatId || undefined, 
+        selectedGroupId || undefined, 
+        selectedModel.id, 
+        false, 
+        injectedContext 
+    );
+
+    if (result.error) {
+        showNotification(`Failed to generate response: ${result.error}`, 'error');
+        setMessages(prev => prev.slice(0, -1)); 
+        setIsGenerating(false);
+        return;
+    }
+
+    if (result.success) {
+        const aiMessage: Message = { 
+            role: 'ai', 
+            content: result.message!, 
+            cost: result.tokensUsed,
+            ai_model: result.ai_model 
+        };
+        
+        setMessages(prev => [...prev, aiMessage]); 
+
+        if (result.newBalance) fetchBalance(projectId);
+
+        if (!activeChatId && result.chatId) {
+            setActiveChatId(result.chatId);
+            const { data: newChat } = await supabase.from("ai_code_review_chats").select("*").eq("id", result.chatId).single();
+            if (newChat) setChats(prev => [newChat as ChatSession, ...prev]);
+        } else {
+            setChats(prev => prev.map(c =>
+                c.id === activeChatId
+                ? { ...c, total_tokens_used: (c.total_tokens_used || 0) + (result.tokensUsed || 0), updated_at: new Date().toISOString() }
+                : c
+            ).sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime()));
+        }
+    }
+    
+    setIsGenerating(false);
   }
 
-  // 3. GENERATE RESPONSE
-  const result = await generateAiResponse(
-      projectId, 
-      currentPrompt, 
-      activeChatId || undefined, 
-      selectedGroupId || undefined, 
-      selectedModel.id, 
-      false, 
-      injectedContext 
-  );
-
-  // 4. ERROR HANDLING 🚨
-  if (result.error) {
-      // Show the failure message in the notification area
-      showNotification(`Failed to generate response: ${result.error}`, 'error');
-      
-      // CRITICAL FIX: Remove only the last (failed) user prompt from the state
-      setMessages(prev => prev.slice(0, -1)); 
-      
-      // Stop the loading spinner
-      setIsGenerating(false);
-      
-      // Prevent any further success processing
-      return;
-  }
-
-  // 5. SUCCESS HANDLING
-  if (result.success) {
-      // Append the AI response. The user message is already in the state.
-      const aiMessage: Message = { 
-          role: 'ai', 
-          content: result.message!, 
-          cost: result.tokensUsed,
-          ai_model: result.ai_model 
-      };
-      
-      setMessages(prev => [...prev, aiMessage]); 
-
-      if (result.newBalance) fetchBalance(projectId);
-
-      // Update chat list metadata (creation or update)
-      if (!activeChatId && result.chatId) {
-          setActiveChatId(result.chatId);
-          const { data: newChat } = await supabase.from("ai_code_review_chats").select("*").eq("id", result.chatId).single();
-          if (newChat) setChats(prev => [newChat as ChatSession, ...prev]);
-      } else {
-          setChats(prev => prev.map(c =>
-              c.id === activeChatId
-              ? { ...c, total_tokens_used: (c.total_tokens_used || 0) + (result.tokensUsed || 0), updated_at: new Date().toISOString() }
-              : c
-          ).sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime()));
-      }
-  }
-  
-  // Stop the loading spinner once processing is complete
-  setIsGenerating(false);
-}
-
-  // ... (CodeBlock, toggleGroup remain the same)
-  
   const CodeBlock = ({ language, children }: { language: string, children: React.ReactNode }) => {
     const [isCopied, setIsCopied] = useState(false);
     const handleCopy = () => {
@@ -647,7 +616,6 @@ async function handleSend() {
 
       <main className="flex-1 flex flex-col h-full ml-64 relative bg-[#0E0E10]">
         
-        {/* 🚨 NOTIFICATION POPUP */}
         {notification && (
             <div className={`fixed top-4 right-4 z-[100] p-4 rounded-lg shadow-xl flex items-center gap-3 transition-opacity duration-300 ${notification.type === 'error' ? 'bg-red-900/90 text-white border border-red-700' : notification.type === 'success' ? 'bg-emerald-700/90 text-white border border-emerald-500' : 'bg-blue-900/90 text-white border border-blue-700'}`}>
                 {notification.type === 'error' ? <X size={18} className="flex-shrink-0" /> : notification.type === 'success' ? <Check size={18} className="flex-shrink-0" /> : <Info size={18} className="flex-shrink-0" />}
@@ -666,7 +634,7 @@ async function handleSend() {
                 </span>
             </div>
              <div className="flex items-center gap-4">
-                <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[#18181B] border border-[#27272A] ${isLocked ? 'border-red-900/50' : ''}`}>
+                <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[#18181B] border border-[#27272A] ${showConfigAlert || selectedModelBalance <= 0 ? 'border-red-900/50' : ''}`}>
                     <selectedModel.icon size={12} className='text-indigo-400' />
                     <span className="text-xs text-zinc-300 hidden sm:inline">{selectedModel.name}</span>
                     <div className="w-px h-3 bg-[#27272A] mx-1"></div>
@@ -844,7 +812,7 @@ async function handleSend() {
                         {/* Tips Card (Including the red alert text inside) */}
                         <div className="w-full max-w-xs bg-[#18181B] border border-[#27272A] rounded-xl p-5 text-left shadow-lg shadow-black/10 backdrop-blur-sm">
                             
-                            {/* 🚨 CONDITIONAL RED ALERT SECTION - Only show if config is missing */}
+                            {/* CONDITIONAL RED ALERT SECTION */}
                             {showConfigAlert && (
                                 <div className="mb-4 p-2 rounded bg-red-900/10 border border-red-700/50">
                                     <p className="text-[10px] font-bold text-red-300 uppercase tracking-widest mb-1 flex items-center gap-2">
@@ -976,50 +944,17 @@ async function handleSend() {
                     )}
                 </div>
 
-                <div className="absolute bottom-6 left-0 right-0 px-4 md:px-12 lg:px-24 pointer-events-none z-30">
-                    <div className="relative max-w-4xl mx-auto pointer-events-auto">
-                        <div className={`relative bg-[#18181B] rounded-xl border transition-all duration-200 shadow-2xl shadow-black/80 ${isLocked ? 'border-red-900/50 opacity-80' : 'border-[#27272A] focus-within:border-zinc-500'}`}>
-                            <textarea
-                                ref={textareaRef}
-                                value={input}
-                                onChange={(e) => setInput(e.target.value)}
-                                onKeyDown={(e) => { if(e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend(); }}}
-                                // 🚨 MODIFIED: Placeholder logic updated to include config alert
-                                placeholder={showConfigAlert ? "Configuration required in project settings to enable chat." : isInputTooExpensive ? `Input exceeds balance` : isTokenLocked ? `Insufficient ${selectedModel.name} tokens.` : "Ask anything..."}
-                                className={`w-full bg-transparent text-[#E4E4E7] placeholder-zinc-600 resize-none focus:outline-none text-[15px] px-4 py-4 pr-12 max-h-[200px] leading-relaxed rounded-xl ${isLocked ? 'cursor-not-allowed text-zinc-500' : ''}`}
-                                rows={1}
-                                disabled={isLocked} // 🚨 MODIFIED: disabled if locked by tokens OR config
-                            />
-                            
-                            <div className="flex items-center justify-between px-3 pb-3 pt-1">
-                                <div className="flex items-center gap-2">
-                                    <div className="relative">
-                                        <div className="flex items-center gap-1.5 px-2.5 py-1.5 bg-[#27272A]/30 rounded-md text-xs text-zinc-500 cursor-default border border-transparent">
-                                            <selectedModel.icon size={12} className='text-indigo-400' />
-                                            <span className="font-medium">{selectedModel.name}</span>
-                                        </div>
-                                    </div>
-                                    {input.length > 0 && !isLocked && <span className={`text-[10px] font-mono ${isInputTooExpensive ? 'text-red-500' : 'text-zinc-500'}`}>~{estimatedInputTokens} tok</span>}
-                                </div>
-                                <div className="flex items-center gap-2">
-                                    {isLocked && (
-                                        <div className="flex items-center gap-1 text-[10px] text-red-500 bg-red-950/20 px-2 py-1 rounded">
-                                            <Lock size={10} />
-                                            {/* 🚨 MODIFIED: Lock message */}
-                                            <span>{showConfigAlert ? 'Config Missing' : isInputTooExpensive ? 'Prompt too long' : 'No tokens'}</span>
-                                        </div>
-                                    )}
-                                    <button 
-                                        onClick={handleSend} 
-                                        disabled={!input.trim() || isGenerating || isLocked} // 🚨 MODIFIED: disabled if locked by tokens OR config
-                                        className={`p-2 rounded-lg transition-all duration-200 flex items-center justify-center ${input.trim() && !isGenerating && !isLocked ? 'bg-zinc-100 text-black hover:bg-white shadow-[0_0_10px_rgba(255,255,255,0.1)]' : 'bg-[#27272A] text-zinc-500 cursor-not-allowed'}`}>
-                                        {isGenerating ? <div className="w-4 h-4 border-2 border-zinc-500 border-t-transparent rounded-full animate-spin"/> : <CornerDownLeft size={16} strokeWidth={2.5} />}
-                                    </button>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
+                {/* INTEGRATED CHAT INPUT COMPONENT */}
+                <ChatInput 
+                    onSend={handleSend}
+                    isGenerating={isGenerating}
+                    isLocked={selectedModelBalance <= 0 || showConfigAlert}
+                    selectedModel={selectedModel}
+                    selectedModelBalance={selectedModelBalance}
+                    // SPECIFIC OVERRIDES FOR THIS PAGE
+                    customPlaceholder={showConfigAlert ? "Configuration required in project settings to enable chat." : undefined}
+                    customLockMessage={showConfigAlert ? "Config Missing" : undefined}
+                />
             </div>
         </div>
       </main>

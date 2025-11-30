@@ -1,10 +1,11 @@
 "use client";
 
-import { useEffect, useState, useRef } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import { createClient } from "@/utils/supabase/client";
 import Menu from "../../components/menu";
 import { createPortal } from "react-dom"; 
 import { generateAiResponse, createChatGroup, deleteChatGroup, updateChatGroup, deleteChat, renameChat, updateGroupTags } from "./actions-roadmapvisualizer";
+import { ChatInput } from "./ChatInput"; // Ensure this path matches where you saved the file above
 import {
     ReactFlow,
     Background,
@@ -27,10 +28,8 @@ import {
   Folder,
   ChevronDown,
   ChevronRight,
-  CornerDownLeft,
   CreditCard,
   Cpu,
-  Lock,
   Tag,
   X,
   Copy,
@@ -44,7 +43,8 @@ import {
   Server,
   SignpostBig,
   Maximize2,
-  Minimize2
+  Minimize2,
+  Lock
 } from "lucide-react";
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
@@ -60,7 +60,6 @@ type Profile = { id: string; full_name: string; avatar_url: string | null };
 type GroupTag = { id: string; label: string; color: string; };
 type ChatGroup = { id: string; name: string; user_id: string; metadata?: { tags: GroupTag[] } };
 type ChatSession = { id: string; title: string; group_id: string | null; total_tokens_used: number; updated_at: string; user_id: string; };
-// Updated Message Type to match DB column 'ai_model'
 type Message = { role: 'user' | 'ai'; content: string; cost?: number; ai_model?: string; };
 
 const MODELS = [
@@ -122,6 +121,7 @@ const CreatorPfp: React.FC<CreatorPfpProps> = ({
     );
 };
 
+// --- ROADMAP GRAPH COMPONENTS ---
 const CustomRoadmapNode = ({ data }: any) => {
     let Icon = SignpostBig;
     let colorClass = "text-zinc-400";
@@ -129,60 +129,49 @@ const CustomRoadmapNode = ({ data }: any) => {
 
     const type = (data.type || "").toLowerCase();
     
-    // Color coding based on type
     if (type.includes('front') || type.includes('mobile')) { 
-        // Frontend & Mobile -> Blue
         Icon = LayoutTemplate; 
         colorClass = "text-blue-400"; 
         bgBorderClass = "border-blue-900/40 bg-blue-950/20"; 
     }
     else if (type.includes('back')) { 
-        // Backend -> Emerald
         Icon = Server; 
         colorClass = "text-emerald-400"; 
         bgBorderClass = "border-emerald-900/40 bg-emerald-950/20"; 
     }
     else if (type.includes('design')) { 
-        // Design -> Pink
         Icon = PenTool; 
         colorClass = "text-pink-400"; 
         bgBorderClass = "border-pink-900/40 bg-pink-950/20"; 
     }
     else if (type.includes('data')) { 
-        // Database -> Amber
         Icon = Database; 
         colorClass = "text-amber-400"; 
         bgBorderClass = "border-amber-900/40 bg-amber-950/20"; 
     }
     else if (type.includes('ops') || type.includes('cloud')) { 
-        // DevOps -> Cyan
         Icon = Cloud; 
         colorClass = "text-cyan-400"; 
         bgBorderClass = "border-cyan-900/40 bg-cyan-950/20"; 
     }
     else if (type.includes('ai') || type.includes('ml')) { 
-        // AI/ML -> Purple (New!)
         Icon = Sparkles; 
         colorClass = "text-purple-400"; 
         bgBorderClass = "border-purple-900/40 bg-purple-950/20"; 
     }
     else if (type.includes('sec')) { 
-        // Security -> Red (New!)
         Icon = Lock; 
         colorClass = "text-red-400"; 
         bgBorderClass = "border-red-900/40 bg-red-950/20"; 
     }
     else if (type.includes('qa') || type.includes('test')) { 
-        // QA -> Orange (New!)
         Icon = Check; 
         colorClass = "text-orange-400"; 
         bgBorderClass = "border-orange-900/40 bg-orange-950/20"; 
     }
 
     return (
-        // ... (Keep the return JSX exactly the same as before)
         <div className={`px-4 py-3 rounded-md border shadow-2xl min-w-[200px] backdrop-blur-md ${bgBorderClass} transition-all duration-300 hover:border-zinc-500 hover:shadow-zinc-500/10 hover:-translate-y-1`}>
-             {/* ... rest of your node code ... */}
              <Handle type="target" position={Position.Top} className="!bg-zinc-500 !w-2 !h-1 !rounded-none !-top-[5px]" />
             
             <div className="flex items-start gap-3">
@@ -204,12 +193,10 @@ const CustomRoadmapNode = ({ data }: any) => {
 
 const nodeTypes = { roadmapNode: CustomRoadmapNode };
 
-// 2. Layout Engine (Dagre): Calculates the "Pyramid" positions
 const getLayoutedElements = (nodes: any[], edges: any[], direction = 'TB') => {
     const dagreGraph = new dagre.graphlib.Graph();
     dagreGraph.setDefaultEdgeLabel(() => ({}));
 
-    // Width/Height must match the approximate size of your CustomNode
     const nodeWidth = 240;
     const nodeHeight = 80;
 
@@ -227,7 +214,6 @@ const getLayoutedElements = (nodes: any[], edges: any[], direction = 'TB') => {
 
     const layoutedNodes = nodes.map((node) => {
         const nodeWithPosition = dagreGraph.node(node.id);
-        // We shift the node so the center is at the x,y coordinates
         return {
             ...node,
             position: {
@@ -240,13 +226,11 @@ const getLayoutedElements = (nodes: any[], edges: any[], direction = 'TB') => {
     return { nodes: layoutedNodes, edges };
 };
 
-// 3. Main Graph Component
 const RoadmapGraph = ({ rawData }: { rawData: any[] }) => {
     
     const [isFullscreen, setIsFullscreen] = useState(false);
     const [mounted, setMounted] = useState(false);
 
-    // Handle "Escape" key to close fullscreen
     useEffect(() => {
         setMounted(true);
         const handleEsc = (e: KeyboardEvent) => {
@@ -256,14 +240,12 @@ const RoadmapGraph = ({ rawData }: { rawData: any[] }) => {
         return () => window.removeEventListener('keydown', handleEsc);
     }, []);
 
-    // 1. Sanitize Data
     const cleanData = rawData.map(item => ({
         ...item,
         id: item.id.trim(),
         dependency: item.dependency ? item.dependency.toString().trim() : 'None'
     }));
 
-    // 2. Prepare Nodes
     const initialNodes = cleanData.map(item => ({
         id: item.id,
         type: 'roadmapNode',
@@ -271,7 +253,6 @@ const RoadmapGraph = ({ rawData }: { rawData: any[] }) => {
         position: { x: 0, y: 0 } 
     }));
 
-    // 3. Prepare Edges
     const initialEdges = cleanData
         .filter(item => {
             const d = item.dependency.toLowerCase();
@@ -294,7 +275,6 @@ const RoadmapGraph = ({ rawData }: { rawData: any[] }) => {
     const [nodes, setNodes, onNodesChange] = useNodesState(layoutedNodes);
     const [edges, setEdges, onEdgesChange] = useEdgesState(layoutedEdges);
 
-    // Actual Graph Content
     const GraphContent = (
         <div 
             className={`
@@ -305,12 +285,10 @@ const RoadmapGraph = ({ rawData }: { rawData: any[] }) => {
                 }
             `}
         >
-            {/* Badge */}
             <div className="absolute top-4 left-4 z-10 px-3 py-1 bg-[#18181B] border border-[#27272A] rounded-full text-[10px] font-bold text-zinc-500 uppercase tracking-widest pointer-events-none shadow-lg backdrop-blur-md">
                 Interactive Roadmap
             </div>
 
-            {/* Fullscreen Toggle Button */}
             <button 
                 onClick={() => setIsFullscreen(!isFullscreen)}
                 className="absolute top-4 right-4 z-10 p-2 bg-[#18181B] border border-[#27272A] rounded-lg text-zinc-400 hover:text-white hover:bg-[#27272A] transition-colors shadow-lg backdrop-blur-md"
@@ -331,11 +309,6 @@ const RoadmapGraph = ({ rawData }: { rawData: any[] }) => {
                 minZoom={0.1}
             >
                 <Background color="#27272A" gap={25} size={1} />
-                
-                {/* 
-                   UPDATED CONTROLS STYLING
-                   We strictly target [&_button] and [&_svg] to override browser/library defaults.
-                */}
                 <Controls 
                     position="bottom-left"
                     className="
@@ -345,22 +318,14 @@ const RoadmapGraph = ({ rawData }: { rawData: any[] }) => {
                         !rounded-lg 
                         !shadow-xl 
                         !m-4
-                        
-                        /* Force Button Backgrounds to Dark */
                         [&_button]:!bg-[#18181B]
                         [&_button]:!border-b-[#27272A]
                         [&_button]:!transition-colors
-                        
-                        /* Force Icon Colors (Fixes the black icon issue) */
                         [&_button_svg]:!fill-zinc-400
                         [&_button_path]:!fill-zinc-400
-                        
-                        /* Hover States */
                         [&_button:hover]:!bg-[#27272A]
                         [&_button:hover_svg]:!fill-white
                         [&_button:hover_path]:!fill-white
-                        
-                        /* Remove bottom border from last item */
                         [&_button:last-child]:!border-b-0
                     " 
                 />
@@ -368,186 +333,24 @@ const RoadmapGraph = ({ rawData }: { rawData: any[] }) => {
         </div>
     );
 
-    // Fullscreen via Portal
     if (isFullscreen && mounted) {
         return (
             <>
-                {/* Placeholder to prevent layout jump */}
                 <div className="h-[500px] w-full border border-[#27272A]/30 rounded-xl bg-[#0e0e10]/30 my-6 flex items-center justify-center dashed border-zinc-800">
                     <div className="flex flex-col items-center gap-2 text-zinc-600 animate-pulse">
                         <Maximize2 size={24} />
                         <span className="text-xs font-medium uppercase tracking-wider">Viewing in Fullscreen</span>
                     </div>
                 </div>
-
                 {createPortal(GraphContent, document.body)}
             </>
         );
     }
-
-    // Normal Inline
     return <div className="my-6">{GraphContent}</div>;
 };
 
-export default function AiAssistantPage({ params }: PageProps) {
-    
-  const supabase = createClient();
-
-  // Core
-  const [projectId, setProjectId] = useState<string>("");
-  const [project, setProject] = useState<any | null>(null);
-  const [user, setUser] = useState<any | null>(null);
-  const [loading, setLoading] = useState(true);
-
-  // Data
-  const [tokenBalances, setTokenBalances] = useState<Record<string, number>>({});
-  const [groups, setGroups] = useState<ChatGroup[]>([]);
-  const [chats, setChats] = useState<ChatSession[]>([]);
-  const [profiles, setProfiles] = useState<Record<string, Profile>>({});
-
-  // UI
-  const [activeChatId, setActiveChatId] = useState<string | null>(null);
-  const [selectedGroupId, setSelectedGroupId] = useState<string | null>(null);
-  const [messages, setMessages] = useState<Message[]>([]);
-  const [input, setInput] = useState("");
-  const [isGenerating, setIsGenerating] = useState(false);
-  const [selectedModel, setSelectedModel] = useState(MODELS[0]);
-  const [showModelMenu, setShowModelMenu] = useState(false);
-  const [copiedIndex, setCopiedIndex] = useState<number | null>(null);
-  const [showTokenInfo, setShowTokenInfo] = useState(false);
-
-  // Groups UI & Tags
-  const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>({});
-  const [newGroupName, setNewGroupName] = useState("");
-  const [showGroupInput, setShowGroupInput] = useState(false);
-  const [draggingId, setDraggingId] = useState<string | null>(null);
-  const [activeTagMenuId, setActiveTagMenuId] = useState<string | null>(null);
-  const [newTagLabel, setNewTagLabel] = useState("");
-  const [newTagColor, setNewTagColor] = useState(TAG_COLORS[0].hex);
-
-  // Chat Renaming
-  const [editingChatId, setEditingChatId] = useState<string | null>(null);
-
-  const textareaRef = useRef<HTMLTextAreaElement>(null);
-  const chatContainerRef = useRef<HTMLDivElement>(null);
-
-  // --- HELPER FUNCTIONS ---
-  async function fetchProfiles(userIds: string[]) {
-      if (userIds.length === 0) return;
-      const { data } = await supabase.from("profiles").select("id, full_name, avatar_url").in("id", userIds);
-      if (data) {
-          const profileMap: Record<string, Profile> = {};
-          data.forEach(p => { profileMap[p.id] = p as Profile; });
-          setProfiles(prev => ({...prev, ...profileMap}));
-      }
-  }
-
-  async function fetchBalance(pid: string) {
-      const { data: tokenPack } = await supabase
-        .from("token_packs").select("remaining_tokens").eq("project_id", pid)
-        .gt("expires_at", new Date().toISOString()).order("purchased_at", { ascending: false }).limit(1).single();
-
-      if (tokenPack?.remaining_tokens) {
-        let rt = tokenPack.remaining_tokens as any;
-        if (typeof rt === 'string') { try { rt = JSON.parse(rt); } catch(e) {} }
-        setTokenBalances(rt || {});
-      }
-  }
-
-  // Find model based on DB ID (ai_model)
-  const getModelById = (id?: string) => MODELS.find(m => m.id === id) || MODELS[0];
-
-  // --- INITIAL LOAD ---
-  useEffect(() => {
-    async function load() {
-      const { id } = await params;
-      setProjectId(id);
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) { window.location.href = "/auth/login"; return; }
-      setUser(user);
-      const currentUserId = user.id;
-
-      const { data: projectData } = await supabase.from("projects").select("*").eq("id", id).single();
-      setProject(projectData);
-
-      fetchBalance(id);
-
-     // Fetch from SQL-specific tables
-            // Fetch from Roadmap-specific tables
-        const { data: groupsData } = await supabase.from("ai_roadmap_chat_groups").select("*").eq("project_id", id).order("created_at", { ascending: true });
-        const { data: chatsData } = await supabase.from("ai_roadmap_chats").select("*, user_id").eq("project_id", id).order("updated_at", { ascending: false });
-
-      if (groupsData) {
-          const parsedGroups = groupsData.map((g: any) => ({
-             ...g,
-             metadata: typeof g.metadata === 'string' ? JSON.parse(g.metadata) : g.metadata
-          }));
-          setGroups(parsedGroups as ChatGroup[]);
-          const expandState: any = {};
-          groupsData.forEach((g: any) => expandState[g.id] = true);
-          setExpandedGroups(expandState);
-      }
-      if (chatsData) setChats(chatsData as ChatSession[]);
-
-      const userIdsToFetch = [
-          ...(groupsData || []).map((g: any) => g.user_id),
-          ...(chatsData || []).map((c: any) => c.user_id)
-      ];
-      const uniqueUserIds = [...new Set(userIdsToFetch)].filter(uid => uid !== currentUserId);
-      await fetchProfiles(uniqueUserIds);
-
-      setLoading(false);
-    }
-    load();
-  }, []);
-
-  // --- MESSAGES LOAD ---
-  useEffect(() => {
-    if (!activeChatId) { setMessages([]); return; }
-    async function loadMessages() {
-// Fetch from SQL-specific messages table
-const { data: msgs } = await supabase.from("ai_roadmap_messages").select("*").eq("chat_id", activeChatId).order("created_at", { ascending: true });
-        if (msgs) {
-            setMessages(msgs.map(m => ({ 
-                role: m.role as 'user' | 'ai', 
-                content: m.content, 
-                cost: m.tokens_used,
-                ai_model: m.ai_model // Now fetching the specific column 'ai_model'
-            })));
-        }
-    }
-    loadMessages();
-  }, [activeChatId]);
-
-  // --- SCROLLING ---
-  useEffect(() => {
-    if (chatContainerRef.current) chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight;
-  }, [messages, isGenerating]);
-
-  useEffect(() => {
-    if (textareaRef.current) {
-        textareaRef.current.style.height = "auto";
-        textareaRef.current.style.height = Math.min(textareaRef.current.scrollHeight, 200) + "px";
-    }
-  }, [input]);
-
-  // --- HANDLERS (Drag, Create, Delete, etc.) ---
-  const handleDrop = (e: React.DragEvent, targetGroupId: string | null) => {
-    e.preventDefault();
-    setDraggingId(null);
-    const chatId = e.dataTransfer.getData("text/plain");
-    if (!chatId) return;
-
-    setChats(prev => {
-        const updated = prev.map(c =>
-            c.id === chatId ? { ...c, group_id: targetGroupId, updated_at: new Date().toISOString() } : c
-        );
-        return updated.sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime());
-    });
-    updateChatGroup(chatId, targetGroupId);
-  };
-
-  const CodeBlock = ({ language, children }: { language: string, children: React.ReactNode }) => {
+// --- HELPER COMPONENTS ---
+const CodeBlock = ({ language, children }: { language: string, children: React.ReactNode }) => {
     const [isCopied, setIsCopied] = useState(false);
 
     const handleCopy = () => {
@@ -581,6 +384,234 @@ const { data: msgs } = await supabase.from("ai_roadmap_messages").select("*").eq
         </div>
     );
 };
+
+// --- SUB-COMPONENT: SIDEBAR ITEM ---
+const SidebarItem = ({ 
+    chat, isActive, isDragging, onClick, onDelete, onDragStart, onDragEnd, 
+    profiles, currentUserId, currentUserPfp, currentUserName, isEditing, onEdit, onRename
+}: any) => {
+    const isCurrentUser = chat.user_id === currentUserId;
+    const profile = isCurrentUser ? { full_name: currentUserName, avatar_url: currentUserPfp } : profiles[chat.user_id];
+    const name = profile?.full_name || "Unknown";
+    const firstName = name.split(' ')[0];
+    const pfpUrl = profile?.avatar_url || "https://avatar.vercel.sh/" + chat.user_id;
+    
+    const [editValue, setEditValue] = useState(chat.title);
+
+    const handleBlur = () => onRename(editValue);
+    const handleKeyDown = (e: React.KeyboardEvent) => {
+        if (e.key === 'Enter') onRename(editValue);
+        if (e.key === 'Escape') {
+            setEditValue(chat.title);
+            onRename(chat.title); 
+        }
+    };
+
+    return (
+        <div
+            draggable
+            onDragStart={onDragStart}
+            onDragEnd={onDragEnd}
+            onClick={onClick}
+            className={`
+                group relative flex items-center justify-between w-full text-left py-2 px-2.5 rounded-md cursor-pointer transition-all duration-300 ease-in-out
+                ${isActive ? 'bg-[#18181B] shadow-sm border border-[#27272A]' : 'hover:bg-[#18181B] border border-transparent'}
+                ${isDragging ? 'opacity-40 dashed border-zinc-600' : ''}
+            `}
+        >
+            <div className="flex items-center gap-2.5 flex-1 min-w-0">
+                <div className={`w-1 h-1 rounded-full flex-shrink-0 transition-colors duration-300 ${isActive ? 'bg-indigo-500' : 'bg-transparent group-hover:bg-zinc-700'}`} />
+                {isEditing ? (
+                    <input 
+                        autoFocus
+                        value={editValue}
+                        onChange={(e) => setEditValue(e.target.value)}
+                        onBlur={handleBlur}
+                        onKeyDown={handleKeyDown}
+                        className="bg-transparent text-xs text-white border-none outline-none w-full"
+                    />
+                ) : (
+                    <span 
+                        onDoubleClick={(e) => { e.stopPropagation(); onEdit(chat.id); setEditValue(chat.title); }}
+                        className={`truncate text-xs transition-colors duration-300 ${isActive ? 'text-zinc-200 font-medium' : 'text-zinc-500 group-hover:text-zinc-300'}`}
+                    >
+                        {chat.title || "Untitled Chat"}
+                    </span>
+                )}
+            </div>
+
+            <div className="flex items-center gap-2 pl-2 ml-4 flex-shrink-0">
+                <div className={`
+                    flex items-center gap-1.5 transition-all duration-300 ease-out transform
+                    ${isActive ? 'opacity-100 translate-x-0' : 'opacity-0 translate-x-4 group-hover:opacity-100 group-hover:translate-x-0'}
+                `}>
+                    <span className="text-[10px] text-zinc-600 hidden group-hover:block max-w-[50px] truncate">{firstName}</span>
+                    <img 
+                        src={pfpUrl} 
+                        alt={name} 
+                        className="w-4 h-4 rounded-full object-cover ring-1 ring-[#27272A]" 
+                        title={name} 
+                    />
+                </div>
+                <button
+                    onClick={onDelete}
+                    className={`
+                        p-1 hover:bg-[#27272A] rounded text-zinc-500 hover:text-red-400 
+                        transition-all duration-300 ease-out transform scale-75 opacity-0
+                        group-hover:opacity-100 group-hover:scale-100
+                    `}
+                >
+                    <Trash2 size={11} />
+                </button>
+            </div>
+        </div>
+    )
+}
+
+// --- MAIN PAGE COMPONENT ---
+export default function AiAssistantPage({ params }: PageProps) {
+    
+  const supabase = createClient();
+
+  // Core
+  const [projectId, setProjectId] = useState<string>("");
+  const [project, setProject] = useState<any | null>(null);
+  const [user, setUser] = useState<any | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  // Data
+  const [tokenBalances, setTokenBalances] = useState<Record<string, number>>({});
+  const [groups, setGroups] = useState<ChatGroup[]>([]);
+  const [chats, setChats] = useState<ChatSession[]>([]);
+  const [profiles, setProfiles] = useState<Record<string, Profile>>({});
+
+  // UI
+  const [activeChatId, setActiveChatId] = useState<string | null>(null);
+  const [selectedGroupId, setSelectedGroupId] = useState<string | null>(null);
+  const [messages, setMessages] = useState<Message[]>([]);
+  // REMOVED LOCAL INPUT STATE (Moved to ChatInput)
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [selectedModel, setSelectedModel] = useState(MODELS[0]);
+  const [copiedIndex, setCopiedIndex] = useState<number | null>(null);
+  const [showTokenInfo, setShowTokenInfo] = useState(false);
+
+  // Groups UI & Tags
+  const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>({});
+  const [newGroupName, setNewGroupName] = useState("");
+  const [showGroupInput, setShowGroupInput] = useState(false);
+  const [draggingId, setDraggingId] = useState<string | null>(null);
+  const [activeTagMenuId, setActiveTagMenuId] = useState<string | null>(null);
+  const [newTagLabel, setNewTagLabel] = useState("");
+  const [newTagColor, setNewTagColor] = useState(TAG_COLORS[0].hex);
+
+  // Chat Renaming
+  const [editingChatId, setEditingChatId] = useState<string | null>(null);
+  const chatContainerRef = useRef<HTMLDivElement>(null);
+
+  // --- HELPER FUNCTIONS ---
+  async function fetchProfiles(userIds: string[]) {
+      if (userIds.length === 0) return;
+      const { data } = await supabase.from("profiles").select("id, full_name, avatar_url").in("id", userIds);
+      if (data) {
+          const profileMap: Record<string, Profile> = {};
+          data.forEach(p => { profileMap[p.id] = p as Profile; });
+          setProfiles(prev => ({...prev, ...profileMap}));
+      }
+  }
+
+  async function fetchBalance(pid: string) {
+      const { data: tokenPack } = await supabase
+        .from("token_packs").select("remaining_tokens").eq("project_id", pid)
+        .gt("expires_at", new Date().toISOString()).order("purchased_at", { ascending: false }).limit(1).single();
+
+      if (tokenPack?.remaining_tokens) {
+        let rt = tokenPack.remaining_tokens as any;
+        if (typeof rt === 'string') { try { rt = JSON.parse(rt); } catch(e) {} }
+        setTokenBalances(rt || {});
+      }
+  }
+
+  const getModelById = (id?: string) => MODELS.find(m => m.id === id) || MODELS[0];
+
+  // --- INITIAL LOAD ---
+  useEffect(() => {
+    async function load() {
+      const { id } = await params;
+      setProjectId(id);
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) { window.location.href = "/auth/login"; return; }
+      setUser(user);
+      const currentUserId = user.id;
+
+      const { data: projectData } = await supabase.from("projects").select("*").eq("id", id).single();
+      setProject(projectData);
+
+      fetchBalance(id);
+
+        const { data: groupsData } = await supabase.from("ai_roadmap_chat_groups").select("*").eq("project_id", id).order("created_at", { ascending: true });
+        const { data: chatsData } = await supabase.from("ai_roadmap_chats").select("*, user_id").eq("project_id", id).order("updated_at", { ascending: false });
+
+      if (groupsData) {
+          const parsedGroups = groupsData.map((g: any) => ({
+             ...g,
+             metadata: typeof g.metadata === 'string' ? JSON.parse(g.metadata) : g.metadata
+          }));
+          setGroups(parsedGroups as ChatGroup[]);
+          const expandState: any = {};
+          groupsData.forEach((g: any) => expandState[g.id] = true);
+          setExpandedGroups(expandState);
+      }
+      if (chatsData) setChats(chatsData as ChatSession[]);
+
+      const userIdsToFetch = [
+          ...(groupsData || []).map((g: any) => g.user_id),
+          ...(chatsData || []).map((c: any) => c.user_id)
+      ];
+      const uniqueUserIds = [...new Set(userIdsToFetch)].filter(uid => uid !== currentUserId);
+      await fetchProfiles(uniqueUserIds);
+
+      setLoading(false);
+    }
+    load();
+  }, []);
+
+  // --- MESSAGES LOAD ---
+  useEffect(() => {
+    if (!activeChatId) { setMessages([]); return; }
+    async function loadMessages() {
+        const { data: msgs } = await supabase.from("ai_roadmap_messages").select("*").eq("chat_id", activeChatId).order("created_at", { ascending: true });
+        if (msgs) {
+            setMessages(msgs.map(m => ({ 
+                role: m.role as 'user' | 'ai', 
+                content: m.content, 
+                cost: m.tokens_used,
+                ai_model: m.ai_model 
+            })));
+        }
+    }
+    loadMessages();
+  }, [activeChatId]);
+
+  // --- SCROLLING ---
+  useEffect(() => {
+    if (chatContainerRef.current) chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight;
+  }, [messages, isGenerating]);
+
+  // --- HANDLERS (Drag, Create, Delete, etc.) ---
+  const handleDrop = (e: React.DragEvent, targetGroupId: string | null) => {
+    e.preventDefault();
+    setDraggingId(null);
+    const chatId = e.dataTransfer.getData("text/plain");
+    if (!chatId) return;
+
+    setChats(prev => {
+        const updated = prev.map(c =>
+            c.id === chatId ? { ...c, group_id: targetGroupId, updated_at: new Date().toISOString() } : c
+        );
+        return updated.sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime());
+    });
+    updateChatGroup(chatId, targetGroupId);
+  };
 
   const handleCreateGroup = async () => {
       if (!newGroupName.trim()) return;
@@ -637,7 +668,6 @@ const { data: msgs } = await supabase.from("ai_roadmap_messages").select("*").eq
     e.stopPropagation();
     if (!confirm("Permanently delete this chat?")) return;
 
-    // 1. Optimistic Update (Remove from UI immediately)
     const previousChats = chats;
     setChats(prev => prev.filter(c => c.id !== chatId));
 
@@ -646,13 +676,11 @@ const { data: msgs } = await supabase.from("ai_roadmap_messages").select("*").eq
         setMessages([]);
     }
 
-    // 2. Call Server Action
     const result = await deleteChat(chatId);
 
-    // 3. Rollback if failed
     if (result && result.error) {
         alert("Error deleting chat: " + result.error);
-        setChats(previousChats); // Put it back
+        setChats(previousChats); 
     }
 };
 
@@ -670,8 +698,6 @@ const { data: msgs } = await supabase.from("ai_roadmap_messages").select("*").eq
     setActiveChatId(null);
     setSelectedGroupId(groupId);
     setMessages([]);
-    setInput("");
-    if (textareaRef.current) textareaRef.current.focus();
   };
 
   // --- ACTIONS: COPY & REGENERATE ---
@@ -721,20 +747,15 @@ const { data: msgs } = await supabase.from("ai_roadmap_messages").select("*").eq
   };
 
   const selectedModelBalance = tokenBalances[selectedModel.id] || 0;
-  const estimatedInputTokens = Math.ceil(input.length / 4);
-  const isInputTooExpensive = estimatedInputTokens > selectedModelBalance;
-  const isLocked = selectedModelBalance <= 0 || isInputTooExpensive;
-
-  async function handleSend() {
-    if (!input.trim() || isGenerating || isLocked) return;
+  
+  // Updated handleSend to receive text from ChatInput
+  async function handleSend(text: string) {
+    if (!text.trim() || isGenerating) return;
     
-    const currentPrompt = input;
-    setInput("");
     setIsGenerating(true);
+    setMessages(prev => [...prev, { role: 'user', content: text }]);
 
-    setMessages(prev => [...prev, { role: 'user', content: currentPrompt }]);
-
-    const result = await generateAiResponse(projectId, currentPrompt, activeChatId || undefined, selectedGroupId || undefined, selectedModel.id, false);
+    const result = await generateAiResponse(projectId, text, activeChatId || undefined, selectedGroupId || undefined, selectedModel.id, false);
 
     if (result.error) {
         setMessages(prev => [...prev, { role: 'ai', content: `**Error:** ${result.error}` }]);
@@ -747,16 +768,15 @@ const { data: msgs } = await supabase.from("ai_roadmap_messages").select("*").eq
             role: 'ai', 
             content: result.message!, 
             cost: result.tokensUsed,
-            ai_model: result.ai_model // Using updated key from backend
+            ai_model: result.ai_model
         }]);
         if (result.newBalance) setTokenBalances(result.newBalance);
 
-if (!activeChatId && result.chatId) {
-    setActiveChatId(result.chatId);
-    // Fetch from Roadmap-specific chats table
-    const { data: newChat } = await supabase.from("ai_roadmap_chats").select("*").eq("id", result.chatId).single();
-    if (newChat) setChats(prev => [newChat as ChatSession, ...prev]);
-} else {
+        if (!activeChatId && result.chatId) {
+            setActiveChatId(result.chatId);
+            const { data: newChat } = await supabase.from("ai_roadmap_chats").select("*").eq("id", result.chatId).single();
+            if (newChat) setChats(prev => [newChat as ChatSession, ...prev]);
+        } else {
             setChats(prev => prev.map(c =>
                 c.id === activeChatId
                 ? { ...c, total_tokens_used: (c.total_tokens_used || 0) + (result.tokensUsed || 0), updated_at: new Date().toISOString() }
@@ -827,7 +847,7 @@ if (!activeChatId && result.chatId) {
                 </span>
             </div>
              <div className="flex items-center gap-2">
-                <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[#18181B] border border-[#27272A] ${isLocked ? 'border-red-900/50' : ''}`}>
+                <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[#18181B] border border-[#27272A]`}>
                     <selectedModel.icon size={12} className={selectedModel.id.includes('flash') ? 'text-amber-400' : 'text-indigo-400'} />
                     <span className="text-xs text-zinc-300 hidden sm:inline">{selectedModel.name}</span>
                     <div className="w-px h-3 bg-[#27272A] mx-1"></div>
@@ -973,7 +993,6 @@ if (!activeChatId && result.chatId) {
                             : 'bg-amber-500' // Warning (Between 25k and 250k)
                     }`} 
                     style={{ 
-                        // I also updated the denominator to 250000 so the bar isn't always 100% full
                         width: `${Math.min((selectedModelBalance / 250000) * 100, 100)}%` 
                     }} 
                     />                    </div>
@@ -1148,7 +1167,7 @@ if (!activeChatId && result.chatId) {
                                       data[0].id && 
                                       data[0].feature && 
                                       // Check if the type column loosely matches our known types
-                                      knownTypes.some(t => (data[0].type || "").toLowerCase().includes(t));
+                                      knownTypes.some((t: string) => (data[0].type || "").toLowerCase().includes(t));
 
                     // 4. Render Graph
                     if (isRoadmap) {
@@ -1196,10 +1215,10 @@ if (!activeChatId && result.chatId) {
 >
     {msg.content}
 </ReactMarkdown>
-                                            </div>
-                                        ) : (
-                                            <div className="whitespace-pre-wrap">{msg.content}</div>
-                                        )}
+                                    </div>
+                                    ) : (
+                                        <div className="whitespace-pre-wrap">{msg.content}</div>
+                                    )}
                                     </div>
                                     
                                     {msg.role === 'ai' && (
@@ -1248,144 +1267,20 @@ if (!activeChatId && result.chatId) {
                     )}
                 </div>
 
-                <div className="absolute bottom-6 left-0 right-0 px-4 md:px-12 lg:px-24 pointer-events-none z-30">
-                    <div className="relative max-w-4xl mx-auto pointer-events-auto">
-                        <div className={`relative bg-[#18181B] rounded-xl border transition-all duration-200 shadow-2xl shadow-black/80 ${isLocked ? 'border-red-900/50 opacity-80' : 'border-[#27272A] focus-within:border-zinc-500'}`}>
-                            <textarea
-                                ref={textareaRef}
-                                value={input}
-                                onChange={(e) => setInput(e.target.value)}
-                                onKeyDown={(e) => { if(e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend(); }}}
-                                placeholder={isInputTooExpensive ? `Input exceeds balance` : isLocked ? `Insufficient ${selectedModel.name} tokens.` : "Ask anything..."}
-                                className={`w-full bg-transparent text-[#E4E4E7] placeholder-zinc-600 resize-none focus:outline-none text-[15px] px-4 py-4 pr-12 max-h-[200px] leading-relaxed rounded-xl ${isLocked ? 'cursor-not-allowed text-zinc-500' : ''}`}
-                                rows={1}
-                            />
-                            
-                            <div className="flex items-center justify-between px-3 pb-3 pt-1">
-                                <div className="flex items-center gap-2">
-                                    <div className="relative">
-                                        <button onClick={() => setShowModelMenu(!showModelMenu)} className="flex items-center gap-1.5 px-2.5 py-1.5 bg-[#27272A]/50 hover:bg-[#27272A] rounded-md text-xs text-zinc-400 hover:text-zinc-200 transition-colors border border-transparent hover:border-zinc-700">
-                                            <selectedModel.icon size={12} className={selectedModel.id.includes('flash') ? 'text-amber-400' : 'text-indigo-400'} />
-                                            <span className="font-medium">{selectedModel.name}</span>
-                                            <ChevronDown size={10} className="opacity-50" />
-                                        </button>
-                                        {showModelMenu && (
-                                            <>
-                                                <div className="fixed inset-0 z-40" onClick={() => setShowModelMenu(false)} />
-                                                <div className="absolute bottom-full left-0 mb-2 w-64 bg-[#18181B] border border-[#27272A] rounded-lg shadow-2xl z-50 overflow-hidden py-1">
-                                                    <div className="px-3 py-2 text-[10px] font-bold text-zinc-600 uppercase tracking-wider">Select Model</div>
-                                                    {MODELS.map((model) => {
-                                                        const bal = tokenBalances[model.id] || 0;
-                                                        return (
-                                                            <button key={model.id} onClick={() => { setSelectedModel(model); setShowModelMenu(false); }} className="w-full flex items-center justify-between px-3 py-2 text-sm text-left text-zinc-400 hover:bg-[#27272A] hover:text-zinc-100 transition-colors">
-                                                                <span className="flex items-center gap-2"><model.icon size={14} className={model.id.includes('flash') ? 'text-amber-400' : 'text-indigo-400'} />{model.name}</span>
-                                                                <span className={`text-[10px] font-mono ${bal > 0 ? 'text-emerald-500' : 'text-zinc-600'}`}>{bal.toLocaleString()}</span>
-                                                            </button>
-                                                        )
-                                                    })}
-                                                </div>
-                                            </>
-                                        )}
-                                    </div>
-                                    {input.length > 0 && !isLocked && <span className={`text-[10px] font-mono ${isInputTooExpensive ? 'text-red-500' : 'text-zinc-500'}`}>~{estimatedInputTokens} tok</span>}
-                                </div>
-                                <div className="flex items-center gap-2">
-                                    {isLocked && <div className="flex items-center gap-1 text-[10px] text-red-500 bg-red-950/20 px-2 py-1 rounded"><Lock size={10} /><span>{isInputTooExpensive ? 'Prompt too long' : 'No tokens'}</span></div>}
-                                    <button onClick={handleSend} disabled={!input.trim() || isGenerating || isLocked} className={`p-2 rounded-lg transition-all duration-200 flex items-center justify-center ${input.trim() && !isGenerating && !isLocked ? 'bg-zinc-100 text-black hover:bg-white shadow-[0_0_10px_rgba(255,255,255,0.1)]' : 'bg-[#27272A] text-zinc-500 cursor-not-allowed'}`}>
-                                        {isGenerating ? <div className="w-4 h-4 border-2 border-zinc-500 border-t-transparent rounded-full animate-spin"/> : <CornerDownLeft size={16} strokeWidth={2.5} />}
-                                    </button>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
+                {/* INTEGRATED CHAT INPUT COMPONENT */}
+                <ChatInput 
+                    onSend={handleSend}
+                    isGenerating={isGenerating}
+                    isLocked={selectedModelBalance <= 0}
+                    selectedModel={selectedModel}
+                    selectedModelBalance={selectedModelBalance}
+                    tokenBalances={tokenBalances}
+                    models={MODELS}
+                    onModelSelect={setSelectedModel}
+                />
             </div>
         </div>
       </main>
     </div>
   );
-}
-
-// --- SUB-COMPONENT: SIDEBAR ITEM ---
-const SidebarItem = ({ 
-    chat, isActive, isDragging, onClick, onDelete, onDragStart, onDragEnd, 
-    profiles, currentUserId, currentUserPfp, currentUserName, isEditing, onEdit, onRename
-}: any) => {
-    
-    const isCurrentUser = chat.user_id === currentUserId;
-    const profile = isCurrentUser ? { full_name: currentUserName, avatar_url: currentUserPfp } : profiles[chat.user_id];
-    const name = profile?.full_name || "Unknown";
-    const firstName = name.split(' ')[0];
-    const pfpUrl = profile?.avatar_url || "https://avatar.vercel.sh/" + chat.user_id;
-    
-    const [editValue, setEditValue] = useState(chat.title);
-
-    const handleBlur = () => onRename(editValue);
-    const handleKeyDown = (e: React.KeyboardEvent) => {
-        if (e.key === 'Enter') onRename(editValue);
-        if (e.key === 'Escape') {
-            setEditValue(chat.title);
-            onRename(chat.title); 
-        }
-    };
-
-    return (
-        <div
-            draggable
-            onDragStart={onDragStart}
-            onDragEnd={onDragEnd}
-            onClick={onClick}
-            className={`
-                group relative flex items-center justify-between w-full text-left py-2 px-2.5 rounded-md cursor-pointer transition-all duration-300 ease-in-out
-                ${isActive ? 'bg-[#18181B] shadow-sm border border-[#27272A]' : 'hover:bg-[#18181B] border border-transparent'}
-                ${isDragging ? 'opacity-40 dashed border-zinc-600' : ''}
-            `}
-        >
-            <div className="flex items-center gap-2.5 flex-1 min-w-0">
-                <div className={`w-1 h-1 rounded-full flex-shrink-0 transition-colors duration-300 ${isActive ? 'bg-indigo-500' : 'bg-transparent group-hover:bg-zinc-700'}`} />
-                {isEditing ? (
-                    <input 
-                        autoFocus
-                        value={editValue}
-                        onChange={(e) => setEditValue(e.target.value)}
-                        onBlur={handleBlur}
-                        onKeyDown={handleKeyDown}
-                        className="bg-transparent text-xs text-white border-none outline-none w-full"
-                    />
-                ) : (
-                    <span 
-                        onDoubleClick={(e) => { e.stopPropagation(); onEdit(chat.id); setEditValue(chat.title); }}
-                        className={`truncate text-xs transition-colors duration-300 ${isActive ? 'text-zinc-200 font-medium' : 'text-zinc-500 group-hover:text-zinc-300'}`}
-                    >
-                        {chat.title || "Untitled Chat"}
-                    </span>
-                )}
-            </div>
-
-            <div className="flex items-center gap-2 pl-2 ml-4 flex-shrink-0">
-                <div className={`
-                    flex items-center gap-1.5 transition-all duration-300 ease-out transform
-                    ${isActive ? 'opacity-100 translate-x-0' : 'opacity-0 translate-x-4 group-hover:opacity-100 group-hover:translate-x-0'}
-                `}>
-                    <span className="text-[10px] text-zinc-600 hidden group-hover:block max-w-[50px] truncate">{firstName}</span>
-                    <img 
-                        src={pfpUrl} 
-                        alt={name} 
-                        className="w-4 h-4 rounded-full object-cover ring-1 ring-[#27272A]" 
-                        title={name} 
-                    />
-                </div>
-                <button
-                    onClick={onDelete}
-                    className={`
-                        p-1 hover:bg-[#27272A] rounded text-zinc-500 hover:text-red-400 
-                        transition-all duration-300 ease-out transform scale-75 opacity-0
-                        group-hover:opacity-100 group-hover:scale-100
-                    `}
-                >
-                    <Trash2 size={11} />
-                </button>
-            </div>
-        </div>
-    )
 }
