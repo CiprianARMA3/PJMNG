@@ -544,11 +544,11 @@ export default function IssuesPage() {
           <div className="flex items-center gap-4">
              {/* <h1 className="text-lg font-bold tracking-tight">{project?.name || "Project"}</h1>
              <span className="px-2 py-0.5 bg-white/5 text-white/40 text-[10px] uppercase font-bold tracking-wider rounded border border-white/5">Issues Board</span> */}
-            <h1 className="text-xl font-bold tracking-tight">Issues <span className="text-white/30 text-lg font-light">Panel</span></h1>
+            <h1 className="text-xl font-bold tracking-tight">Tasks <span className="text-white/30 text-lg font-light">Panel</span></h1>
 
           </div>
           <button onClick={() => openModal()} className="flex items-center gap-2 px-3 py-1.5 bg-white text-black hover:bg-gray-200 text-sm font-bold rounded transition-colors">
-            <Plus size={16} /> New Issue
+            <Plus size={16} /> New Post
           </button>
         </div>
 
