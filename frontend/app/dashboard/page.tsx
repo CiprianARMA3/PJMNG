@@ -178,7 +178,7 @@ export default function DashboardPage() {
 
   if (loading || userLoading || !user) {
     return (
-      <div role="status" className="flex justify-center items-center h-screen bg-black">
+      <div role="status" className="flex justify-center items-center h-screen bg-[#0a0a0a]">
         <svg
           aria-hidden="true"
           className="inline w-8 h-8 text-neutral-400 animate-spin fill-white"
