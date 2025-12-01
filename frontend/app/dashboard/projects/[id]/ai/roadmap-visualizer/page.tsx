@@ -60,7 +60,13 @@ type Profile = { id: string; full_name: string; avatar_url: string | null };
 type GroupTag = { id: string; label: string; color: string; };
 type ChatGroup = { id: string; name: string; user_id: string; metadata?: { tags: GroupTag[] } };
 type ChatSession = { id: string; title: string; group_id: string | null; total_tokens_used: number; updated_at: string; user_id: string; };
-type Message = { role: 'user' | 'ai'; content: string; cost?: number; ai_model?: string; };
+type Message = { 
+  role: 'user' | 'ai'; 
+  content: string; 
+  cost?: number; 
+  ai_model?: string;
+  user_id?: string;
+};
 
 const MODELS = [
   { id: "gemini-3-pro-preview", name: "Gemini 3 Pro", icon: Sparkles, description: "Reasoning & Coding" },
@@ -616,17 +622,33 @@ async function fetchProfiles(userIds: string[]) {
   }, []);
 
   // --- MESSAGES LOAD ---
-  useEffect(() => {
+useEffect(() => {
     if (!activeChatId) { setMessages([]); return; }
+    
     async function loadMessages() {
-        const { data: msgs } = await supabase.from("ai_roadmap_messages").select("*").eq("chat_id", activeChatId).order("created_at", { ascending: true });
+        const { data: msgs } = await supabase
+            .from("ai_roadmap_messages")
+            .select("*")
+            .eq("chat_id", activeChatId)
+            .order("created_at", { ascending: true });
+
         if (msgs) {
-            setMessages(msgs.map(m => ({ 
+            const mappedMessages: Message[] = msgs.map((m: any) => ({ 
                 role: m.role as 'user' | 'ai', 
                 content: m.content, 
                 cost: m.tokens_used,
-                ai_model: m.ai_model 
-            })));
+                ai_model: m.ai_model,
+                user_id: m.user_id // <--- Map the ID
+            }));
+            setMessages(mappedMessages);
+
+            // Fetch profiles for users we don't know yet (Collaborators)
+            const uniqueUserIds = [...new Set(mappedMessages.map(m => m.user_id).filter(id => id))];
+            const missingUserIds = uniqueUserIds.filter(id => id && !profiles[id] && id !== currentUserId);
+            
+            if (missingUserIds.length > 0) {
+                await fetchProfiles(missingUserIds as string[]);
+            }
         }
     }
     loadMessages();
@@ -793,8 +815,7 @@ async function fetchProfiles(userIds: string[]) {
     if (!text.trim() || isGenerating) return;
     
     setIsGenerating(true);
-    setMessages(prev => [...prev, { role: 'user', content: text }]);
-
+    setMessages(prev => [...prev, { role: 'user', content: text, user_id: currentUserId }]);
     const result = await generateAiResponse(projectId, text, activeChatId || undefined, selectedGroupId || undefined, selectedModel.id, false);
 
     if (result.error) {
@@ -1129,9 +1150,20 @@ const currentUserId = user?.id || "";
 
                     )}
 
-                    {messages.map((msg, idx) => {
-                        const modelInfo = getModelById(msg.ai_model); // Changed to use ai_model
+{messages.map((msg, idx) => {
+                        const modelInfo = getModelById(msg.ai_model); 
                         const ModelIcon = modelInfo.icon;
+
+                        // --- START: SENDER IDENTIFICATION LOGIC ---
+                        const msgSenderId = msg.user_id || chatOwnerId; 
+                        const isMsgSenderCurrentUser = msgSenderId === currentUserId;
+
+                        const msgSenderProfile = isMsgSenderCurrentUser 
+                            ? { full_name: currentUserName, avatar_url: currentUserPfp } 
+                            : profiles[msgSenderId];
+
+                        const msgSenderName = msgSenderProfile?.full_name || "Unknown";
+                        // --- END: SENDER IDENTIFICATION LOGIC ---
 
                         return (
                             <div key={idx} className={`group flex gap-5 ${msg.role === 'user' ? 'flex-row-reverse' : ''}`}>
@@ -1143,9 +1175,9 @@ const currentUserId = user?.id || "";
                                     ) : (
                                         <>
                                              <div className="w-8 h-8 rounded-full overflow-hidden ring-1 ring-[#27272A]">
-                                                {/* FIXED: Chat Owner Avatar */}
+                                                {/* FIXED: Using msgSenderId */}
                                                 <CreatorPfp 
-                                                    userId={chatOwnerId} 
+                                                    userId={msgSenderId} 
                                                     currentUserId={currentUserId} 
                                                     currentUserPfp={currentUserPfp} 
                                                     currentUserName={currentUserName} 
@@ -1155,7 +1187,7 @@ const currentUserId = user?.id || "";
                                                 />
                                             </div>
                                             <span className="text-[12px] text-zinc-500 font-medium leading-tight text-center whitespace-nowrap px-1">
-                                                {chatOwnerName}
+                                                {msgSenderName}
                                             </span>
                                         </>
                                     )}
@@ -1164,110 +1196,89 @@ const currentUserId = user?.id || "";
                                     <div className={`relative px-5 py-3.5 rounded-2xl text-sm leading-relaxed shadow-sm ${msg.role === 'user' ? 'bg-[#27272A] text-zinc-100 rounded-tr-sm' : 'bg-transparent text-zinc-300 px-0 py-1'}`}>
                                         {msg.role === 'ai' ? (
                                             <div className="prose prose-invert max-w-none">
-<ReactMarkdown 
-    remarkPlugins={[remarkGfm]}
-    components={{
-        // 1. Code Blocks
-        code({node, inline, className, children, ...props}: any) {
-            const match = /language-(\w+)/.exec(className || '')
-            return !inline && match ? (
-                <CodeBlock language={match[1]}>{children}</CodeBlock>
-            ) : (
-                <code className={`${className} bg-[#27272A] text-zinc-200 px-1 py-0.5 rounded text-[13px]`} {...props}>{children}</code>
-            )
-        },
+                                                <ReactMarkdown 
+                                                    remarkPlugins={[remarkGfm]}
+                                                    components={{
+                                                        // 1. Code Blocks
+                                                        code({node, inline, className, children, ...props}: any) {
+                                                            const match = /language-(\w+)/.exec(className || '')
+                                                            return !inline && match ? (
+                                                                <CodeBlock language={match[1]}>{children}</CodeBlock>
+                                                            ) : (
+                                                                <code className={`${className} bg-[#27272A] text-zinc-200 px-1 py-0.5 rounded text-[13px]`} {...props}>{children}</code>
+                                                            )
+                                                        },
 
-        // 2. Table Interception Logic (FIXED)
-        table: ({ node, children }: any) => {
-            try {
-                // robustly find the tbody
-                const tbody = node.children?.find((c: any) => c.tagName === 'tbody');
-                
-                if (tbody && tbody.children) {
-                    // CRITICAL FIX: Filter out text nodes (newlines) to get only actual 'tr' elements
-                    const rows = tbody.children.filter((child: any) => child.tagName === 'tr');
-                    
-                    // Helper to extract clean text
-                    const getCellText = (cellNode: any): string => {
-                        if (!cellNode) return '';
-                        if (cellNode.value) return cellNode.value;
-                        if (cellNode.children) return cellNode.children.map(getCellText).join('');
-                        return '';
-                    };
+                                                        // 2. Table Interception Logic (Roadmap Visualizer)
+                                                        table: ({ node, children }: any) => {
+                                                            try {
+                                                                const tbody = node.children?.find((c: any) => c.tagName === 'tbody');
+                                                                if (tbody && tbody.children) {
+                                                                    const rows = tbody.children.filter((child: any) => child.tagName === 'tr');
+                                                                    
+                                                                    const getCellText = (cellNode: any): string => {
+                                                                        if (!cellNode) return '';
+                                                                        if (cellNode.value) return cellNode.value;
+                                                                        if (cellNode.children) return cellNode.children.map(getCellText).join('');
+                                                                        return '';
+                                                                    };
 
-                    const data = rows.map((row: any) => {
-                        // CRITICAL FIX: Filter out text nodes to get only 'td' elements
-                        const cells = row.children?.filter((child: any) => child.tagName === 'td');
-                        
-                        if (!cells || cells.length < 5) return null;
+                                                                    const data = rows.map((row: any) => {
+                                                                        const cells = row.children?.filter((child: any) => child.tagName === 'td');
+                                                                        if (!cells || cells.length < 5) return null;
 
-                        return {
-                            id: getCellText(cells[0]),
-                            feature: getCellText(cells[1]),
-                            type: getCellText(cells[2]),
-                            timeline: getCellText(cells[3]),
-                            dependency: getCellText(cells[4]),
-                        };
-                    }).filter(Boolean);
+                                                                        return {
+                                                                            id: getCellText(cells[0]),
+                                                                            feature: getCellText(cells[1]),
+                                                                            type: getCellText(cells[2]),
+                                                                            timeline: getCellText(cells[3]),
+                                                                            dependency: getCellText(cells[4]),
+                                                                        };
+                                                                    }).filter(Boolean);
 
-                    // 3. Validation
-                    const knownTypes = ['frontend', 'backend', 'design', 'database', 'devops', 'strategy', 'cloud', 'security', 'mobile'];
-                    const isRoadmap = data.length > 0 && 
-                                      data[0].id && 
-                                      data[0].feature && 
-                                      // Check if the type column loosely matches our known types
-                                      knownTypes.some((t: string) => (data[0].type || "").toLowerCase().includes(t));
+                                                                    const knownTypes = ['frontend', 'backend', 'design', 'database', 'devops', 'strategy', 'cloud', 'security', 'mobile'];
+                                                                    const isRoadmap = data.length > 0 && 
+                                                                                    data[0].id && 
+                                                                                    data[0].feature && 
+                                                                                    knownTypes.some((t: string) => (data[0].type || "").toLowerCase().includes(t));
 
-                    // 4. Render Graph
-                    if (isRoadmap) {
-                        return (
-                            <ReactFlowProvider>
-                                <RoadmapGraph rawData={data} />
-                            </ReactFlowProvider>
-                        );
-                    }
-                }
-            } catch (e) {
-                console.error("Graph parsing error:", e);
-                // Fallthrough to standard table
-            }
+                                                                    if (isRoadmap) {
+                                                                        return (
+                                                                            <ReactFlowProvider>
+                                                                                <RoadmapGraph rawData={data} />
+                                                                            </ReactFlowProvider>
+                                                                        );
+                                                                    }
+                                                                }
+                                                            } catch (e) {
+                                                                console.error("Graph parsing error:", e);
+                                                            }
 
-            // 5. Fallback: Render Standard Table
-            return (
-                <div className="my-6 w-full overflow-hidden rounded-lg border border-[#27272A] shadow-sm">
-                    <div className="overflow-x-auto">
-                        <table className="w-full text-left text-sm text-zinc-300">
-                            {children}
-                        </table>
-                    </div>
-                </div>
-            );
-        },
+                                                            return (
+                                                                <div className="my-6 w-full overflow-hidden rounded-lg border border-[#27272A] shadow-sm">
+                                                                    <div className="overflow-x-auto">
+                                                                        <table className="w-full text-left text-sm text-zinc-300">
+                                                                            {children}
+                                                                        </table>
+                                                                    </div>
+                                                                </div>
+                                                            );
+                                                        },
 
-        // 3. Standard Table Elements
-        thead({children}: any) {
-            return <thead className="bg-[#18181B] text-xs uppercase font-semibold text-zinc-500 border-b border-[#27272A]">{children}</thead>;
-        },
-        tbody({children}: any) {
-            return <tbody className="divide-y divide-[#27272A] bg-transparent">{children}</tbody>;
-        },
-        tr({children}: any) {
-            return <tr className="transition-colors hover:bg-white/5 group/row">{children}</tr>;
-        },
-        th({children}: any) {
-            return <th className="px-4 py-3 whitespace-nowrap tracking-wider">{children}</th>;
-        },
-        td({children}: any) {
-            return <td className="px-4 py-3 align-top leading-relaxed text-zinc-300">{children}</td>;
-        }
-    }}
->
-    {msg.content}
-</ReactMarkdown>
-                                    </div>
-                                    ) : (
-                                        <div className="whitespace-pre-wrap">{msg.content}</div>
-                                    )}
+                                                        // 3. Standard Table Elements
+                                                        thead({children}: any) { return <thead className="bg-[#18181B] text-xs uppercase font-semibold text-zinc-500 border-b border-[#27272A]">{children}</thead>; },
+                                                        tbody({children}: any) { return <tbody className="divide-y divide-[#27272A] bg-transparent">{children}</tbody>; },
+                                                        tr({children}: any) { return <tr className="transition-colors hover:bg-white/5 group/row">{children}</tr>; },
+                                                        th({children}: any) { return <th className="px-4 py-3 whitespace-nowrap tracking-wider">{children}</th>; },
+                                                        td({children}: any) { return <td className="px-4 py-3 align-top leading-relaxed text-zinc-300">{children}</td>; }
+                                                    }}
+                                                >
+                                                    {msg.content}
+                                                </ReactMarkdown>
+                                            </div>
+                                        ) : (
+                                            <div className="whitespace-pre-wrap">{msg.content}</div>
+                                        )}
                                     </div>
                                     
                                     {msg.role === 'ai' && (

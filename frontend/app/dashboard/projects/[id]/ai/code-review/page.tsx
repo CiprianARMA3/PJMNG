@@ -49,7 +49,13 @@ type Profile = { id: string; full_name: string; avatar_url: string | null };
 type GroupTag = { id: string; label: string; color: string; };
 type ChatGroup = { id: string; name: string; user_id: string; metadata?: { tags: GroupTag[] } };
 type ChatSession = { id: string; title: string; group_id: string | null; total_tokens_used: number; updated_at: string; user_id: string; };
-type Message = { role: 'user' | 'ai'; content: string; cost?: number; ai_model?: string; };
+type Message = { 
+  role: 'user' | 'ai'; 
+  content: string; 
+  cost?: number; 
+  ai_model?: string;
+  user_id?: string; // <--- ADD THIS
+};
 type Notification = { message: string; type: 'success' | 'error' | 'info' } | null;
 
 const MODELS = [
@@ -281,11 +287,12 @@ async function fetchProfiles(userIds: string[]) {
     load();
   }, []);
 
-  // --- MESSAGES LOAD ---
+// --- MESSAGES LOAD ---
   useEffect(() => {
     async function fetchMessages() {
         if (!activeChatId) return;
         
+        // 1. Fetch Messages
         const { data, error } = await supabase
             .from("ai_code_review_messages")
             .select("*")
@@ -303,9 +310,21 @@ async function fetchProfiles(userIds: string[]) {
                 role: m.role,
                 content: m.content,
                 cost: m.tokens_used,
-                ai_model: m.ai_model
+                ai_model: m.ai_model,
+                user_id: m.user_id // <--- Ensuring this is mapped
             }));
             setMessages(mappedMessages);
+
+            // 2. FETCH MISSING PROFILES (The missing link)
+            // Identify user_ids in the chat that we don't have profiles for yet
+            const uniqueUserIds = [...new Set(mappedMessages.map(m => m.user_id).filter(id => id))];
+            const missingUserIds = uniqueUserIds.filter(id => id && !profiles[id] && id !== currentUserId);
+            
+            if (missingUserIds.length > 0) {
+                // Fetch and update profiles so their avatars render correctly
+                await fetchProfiles(missingUserIds as string[]);
+            }
+
             if (chatContainerRef.current) {
                 chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight;
             }
@@ -313,7 +332,7 @@ async function fetchProfiles(userIds: string[]) {
     }
 
     fetchMessages();
-  }, [activeChatId]); 
+  }, [activeChatId]); // Note: We rely on profiles state, but adding it to dependency might cause loops. This works for initial load.
   
   // Auto-scroll on new message
   useEffect(() => {
@@ -516,7 +535,7 @@ async function fetchProfiles(userIds: string[]) {
     const currentPrompt = text;
 
     setIsGenerating(true);
-    const userMessage: Message = { role: 'user', content: currentPrompt };
+    const userMessage: Message = { role: 'user', content: currentPrompt, user_id: currentUserId };
     setMessages(prev => [...prev, userMessage]); 
 
     // Auto-Sync / Cache Check Logic
@@ -919,9 +938,21 @@ const currentUserId = user?.id || "";
                         </div>
                     )}
                     
-                    {messages.map((msg, idx) => {
+{messages.map((msg, idx) => {
                         const modelInfo = getModelById(msg.ai_model); 
                         const ModelIcon = modelInfo.icon;
+
+                        // --- START REPLACEMENT LOGIC ---
+                        const msgSenderId = msg.user_id || chatOwnerId; 
+                        const isMsgSenderCurrentUser = msgSenderId === currentUserId;
+
+                        const msgSenderProfile = isMsgSenderCurrentUser 
+                            ? { full_name: currentUserName, avatar_url: currentUserPfp } 
+                            : profiles[msgSenderId];
+
+                        const msgSenderName = msgSenderProfile?.full_name || "Unknown";
+                        // --- END REPLACEMENT LOGIC ---
+
                         return (
                             <div key={idx} className={`group flex gap-5 ${msg.role === 'user' ? 'flex-row-reverse' : ''}`}>
                                 <div className="flex-shrink-0 mt-1 flex flex-col items-center gap-1">
@@ -931,11 +962,10 @@ const currentUserId = user?.id || "";
                                         </div>
                                     ) : (
                                         <>
-                                            <>
                                             <div className="w-8 h-8 rounded-full overflow-hidden ring-1 ring-[#27272A]">
-                                                {/* FIXED: Chat Owner Avatar */}
+                                                {/* FIXED: Uses specific message sender ID */}
                                                 <CreatorPfp 
-                                                    userId={chatOwnerId} 
+                                                    userId={msgSenderId} 
                                                     currentUserId={currentUserId} 
                                                     currentUserPfp={currentUserPfp} 
                                                     currentUserName={currentUserName} 
@@ -945,9 +975,8 @@ const currentUserId = user?.id || "";
                                                 />
                                             </div>
                                             <span className="text-[12px] text-zinc-500 font-medium leading-tight text-center whitespace-nowrap px-1">
-                                                {chatOwnerName}
+                                                {msgSenderName}
                                             </span>
-                                        </>
                                         </>
                                     )}
                                 </div>

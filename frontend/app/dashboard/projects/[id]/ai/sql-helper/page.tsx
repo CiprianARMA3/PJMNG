@@ -38,8 +38,13 @@ type Profile = { id: string; full_name: string; avatar_url: string | null };
 type GroupTag = { id: string; label: string; color: string; };
 type ChatGroup = { id: string; name: string; user_id: string; metadata?: { tags: GroupTag[] } };
 type ChatSession = { id: string; title: string; group_id: string | null; total_tokens_used: number; updated_at: string; user_id: string; };
-type Message = { role: 'user' | 'ai'; content: string; cost?: number; ai_model?: string; };
-
+type Message = { 
+  role: 'user' | 'ai'; 
+  content: string; 
+  cost?: number; 
+  ai_model?: string;
+  user_id?: string; 
+};
 interface CreatorPfpProps {
   userId: string;
   currentUserId: string;
@@ -441,18 +446,34 @@ async function fetchProfiles(userIds: string[]) {
     load();
   }, []);
 
-  // --- MESSAGES LOAD ---
+// --- MESSAGES LOAD ---
   useEffect(() => {
     if (!activeChatId) { setMessages([]); return; }
+    
     async function loadMessages() {
-        const { data: msgs } = await supabase.from("ai_sql_messages").select("*").eq("chat_id", activeChatId).order("created_at", { ascending: true });
+        const { data: msgs, error } = await supabase
+            .from("ai_sql_messages")
+            .select("*")
+            .eq("chat_id", activeChatId)
+            .order("created_at", { ascending: true });
+
         if (msgs) {
-            setMessages(msgs.map(m => ({ 
+            const mappedMessages: Message[] = msgs.map((m: any) => ({ 
                 role: m.role as 'user' | 'ai', 
                 content: m.content, 
                 cost: m.tokens_used,
-                ai_model: m.ai_model
-            })));
+                ai_model: m.ai_model,
+                user_id: m.user_id // <--- Map the ID
+            }));
+            setMessages(mappedMessages);
+
+            // Fetch profiles for users we don't know yet (Collaborators)
+            const uniqueUserIds = [...new Set(mappedMessages.map(m => m.user_id).filter(id => id))];
+            const missingUserIds = uniqueUserIds.filter(id => id && !profiles[id] && id !== currentUserId);
+            
+            if (missingUserIds.length > 0) {
+                await fetchProfiles(missingUserIds as string[]);
+            }
         }
     }
     loadMessages();
@@ -609,7 +630,7 @@ async function fetchProfiles(userIds: string[]) {
     if (!text.trim() || isGenerating) return;
     
     setIsGenerating(true);
-    setMessages(prev => [...prev, { role: 'user', content: text }]);
+setMessages(prev => [...prev, { role: 'user', content: text, user_id: currentUserId }]);
 
     const result = await generateAiResponse(projectId, text, activeChatId || undefined, selectedGroupId || undefined, selectedModel.id, false);
 
@@ -899,79 +920,99 @@ const currentUserId = user?.id || "";
                     </div>
                     )}
 
-                    {messages.map((msg, idx) => {
-                        const modelInfo = getModelById(msg.ai_model); 
-                        const ModelIcon = modelInfo.icon;
+                 {messages.map((msg, idx) => {
+    const modelInfo = getModelById(msg.ai_model); 
+    const ModelIcon = modelInfo.icon;
 
-                        return (
-                            <div key={idx} className={`group flex gap-5 ${msg.role === 'user' ? 'flex-row-reverse' : ''}`}>
-                                <div className="flex-shrink-0 mt-1 flex flex-col items-center gap-1">
-                                    {msg.role === 'ai' ? (
-                                        <div className="w-8 h-8 rounded-lg bg-[#18181B] border border-[#27272A] flex items-center justify-center">
-                                            <ModelIcon size={14} className={msg.ai_model?.includes('flash') ? 'text-amber-400' : 'text-indigo-400'} />
-                                        </div>
-                                    ) : (
-                                        <>
-  <div className="w-8 h-8 rounded-full overflow-hidden ring-1 ring-[#27272A]">
-                                                {/* FIXED: Chat Owner Avatar */}
-                                                <CreatorPfp 
-                                                    userId={chatOwnerId} 
-                                                    currentUserId={currentUserId} 
-                                                    currentUserPfp={currentUserPfp} 
-                                                    currentUserName={currentUserName} 
-                                                    profiles={profiles} 
-                                                    size="w-full h-full" 
-                                                    showNameOnHover={true} 
-                                                />
-                                            </div>
-                                            <span className="text-[12px] text-zinc-500 font-medium leading-tight text-center whitespace-nowrap px-1">
-                                                {chatOwnerName}
-                                            </span>
-                                        </>
-                                    )}
+    // --- START: SENDER IDENTIFICATION LOGIC ---
+    // 1. Use the specific user_id attached to the message. 
+    //    If null (legacy messages), fallback to the Chat Owner.
+    const msgSenderId = msg.user_id || chatOwnerId; 
+    
+    // 2. Check if the sender is the current logged-in user
+    const isMsgSenderCurrentUser = msgSenderId === currentUserId;
+
+    // 3. Resolve the profile data (Name & Avatar)
+    const msgSenderProfile = isMsgSenderCurrentUser 
+        ? { full_name: currentUserName, avatar_url: currentUserPfp } 
+        : profiles[msgSenderId];
+
+    const msgSenderName = msgSenderProfile?.full_name || "Unknown";
+    // --- END: SENDER IDENTIFICATION LOGIC ---
+
+    return (
+        <div key={idx} className={`group flex gap-5 ${msg.role === 'user' ? 'flex-row-reverse' : ''}`}>
+            
+            {/* AVATAR COLUMN */}
+            <div className="flex-shrink-0 mt-1 flex flex-col items-center gap-1">
+                {msg.role === 'ai' ? (
+                    <div className="w-8 h-8 rounded-lg bg-[#18181B] border border-[#27272A] flex items-center justify-center">
+                        <ModelIcon size={14} className={msg.ai_model?.includes('flash') ? 'text-amber-400' : 'text-indigo-400'} />
+                    </div>
+                ) : (
+                    <>
+                        <div className="w-8 h-8 rounded-full overflow-hidden ring-1 ring-[#27272A]">
+                            {/* FIXED: Using msgSenderId instead of chatOwnerId */}
+                            <CreatorPfp 
+                                userId={msgSenderId} 
+                                currentUserId={currentUserId} 
+                                currentUserPfp={currentUserPfp} 
+                                currentUserName={currentUserName} 
+                                profiles={profiles} 
+                                size="w-full h-full" 
+                                showNameOnHover={true} 
+                            />
+                        </div>
+                        <span className="text-[12px] text-zinc-500 font-medium leading-tight text-center whitespace-nowrap px-1">
+                            {/* FIXED: Using msgSenderName instead of chatOwnerName */}
+                            {msgSenderName}
+                        </span>
+                    </>
+                )}
+            </div>
+
+            {/* MESSAGE CONTENT COLUMN */}
+            <div className={`flex flex-col max-w-[85%] ${msg.role === 'user' ? 'items-end' : 'items-start'}`}>
+                <div className={`relative px-5 py-3.5 rounded-2xl text-sm leading-relaxed shadow-sm ${msg.role === 'user' ? 'bg-[#27272A] text-zinc-100 rounded-tr-sm' : 'bg-transparent text-zinc-300 px-0 py-1'}`}>
+                    {msg.role === 'ai' ? (
+                        <div className="prose prose-invert max-w-none">
+                            <ReactMarkdown remarkPlugins={[remarkGfm]} components={MARKDOWN_COMPONENTS}>
+                                {msg.content}
+                            </ReactMarkdown>
+                        </div>
+                    ) : (
+                        <div className="whitespace-pre-wrap">{msg.content}</div>
+                    )}
+                </div>
+                
+                {msg.role === 'ai' && (
+                    <div className="mt-2 w-full flex items-center justify-between opacity-0 group-hover:opacity-100 transition-opacity duration-300 px-1">
+                        <div className="flex items-center gap-3">
+                            {msg.cost && (
+                                <div className="text-[10px] font-mono text-zinc-600 flex items-center gap-1">
+                                    <Zap size={10} /> {msg.cost} tokens
                                 </div>
-                                <div className={`flex flex-col max-w-[85%] ${msg.role === 'user' ? 'items-end' : 'items-start'}`}>
-                                    <div className={`relative px-5 py-3.5 rounded-2xl text-sm leading-relaxed shadow-sm ${msg.role === 'user' ? 'bg-[#27272A] text-zinc-100 rounded-tr-sm' : 'bg-transparent text-zinc-300 px-0 py-1'}`}>
-                                        {msg.role === 'ai' ? (
-                                            <div className="prose prose-invert max-w-none">
-                                                {/* Using externalized components to prevent re-renders */}
-                                                <ReactMarkdown remarkPlugins={[remarkGfm]} components={MARKDOWN_COMPONENTS}>
-                                                    {msg.content}
-                                                </ReactMarkdown>
-                                            </div>
-                                        ) : (
-                                            <div className="whitespace-pre-wrap">{msg.content}</div>
-                                        )}
-                                    </div>
-                                    
-                                    {msg.role === 'ai' && (
-                                        <div className="mt-2 w-full flex items-center justify-between opacity-0 group-hover:opacity-100 transition-opacity duration-300 px-1">
-                                            <div className="flex items-center gap-3">
-                                                {msg.cost && (
-                                                    <div className="text-[10px] font-mono text-zinc-600 flex items-center gap-1">
-                                                        <Zap size={10} /> {msg.cost} tokens
-                                                    </div>
-                                                )}
-                                                <div className="flex items-center gap-2">
-                                                    <button onClick={() => handleCopy(msg.content, idx)} className="p-1 hover:bg-[#27272A] rounded text-zinc-500 hover:text-zinc-300 transition-colors" title="Copy">
-                                                        {copiedIndex === idx ? <Check size={12} className="text-emerald-500"/> : <Copy size={12} />}
-                                                    </button>
-                                                    {idx === messages.length - 1 && !isGenerating && (
-                                                        <button onClick={handleRegenerate} className="p-1 hover:bg-[#27272A] rounded text-zinc-500 hover:text-zinc-300 transition-colors" title="Regenerate">
-                                                            <RefreshCw size={12} />
-                                                        </button>
-                                                    )}
-                                                </div>
-                                            </div>
-                                            <div className="text-[10px] text-zinc-600 font-medium tracking-wide">
-                                                {modelInfo.name}
-                                            </div>
-                                        </div>
-                                    )}
-                                </div>
+                            )}
+                            <div className="flex items-center gap-2">
+                                <button onClick={() => handleCopy(msg.content, idx)} className="p-1 hover:bg-[#27272A] rounded text-zinc-500 hover:text-zinc-300 transition-colors" title="Copy">
+                                    {copiedIndex === idx ? <Check size={12} className="text-emerald-500"/> : <Copy size={12} />}
+                                </button>
+                                {idx === messages.length - 1 && !isGenerating && (
+                                    <button onClick={handleRegenerate} className="p-1 hover:bg-[#27272A] rounded text-zinc-500 hover:text-zinc-300 transition-colors" title="Regenerate">
+                                        <RefreshCw size={12} />
+                                    </button>
+                                )}
                             </div>
-                        )
-                    })}
+                        </div>
+                        <div className="text-[10px] text-zinc-600 font-medium tracking-wide">
+                            {modelInfo.name}
+                        </div>
+                    </div>
+                )}
+            </div>
+        </div>
+    )
+})}
                     
                     {isGenerating && (
                          <div className="flex gap-5">

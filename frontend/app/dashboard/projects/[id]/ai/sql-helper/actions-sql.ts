@@ -196,7 +196,7 @@ If the user provides a specific RDBMS (PostgreSQL, MySQL, ScyllaDB), adhere stri
     }
 
     // --- DATABASE INSERT (SQL Messages) ---
-    const messagesToInsert: any[] = [];
+const messagesToInsert: any[] = [];
     
     if (!isRegeneration) {
         messagesToInsert.push({ 
@@ -204,7 +204,8 @@ If the user provides a specific RDBMS (PostgreSQL, MySQL, ScyllaDB), adhere stri
             role: 'user', 
             content: prompt, 
             tokens_used: estimatedInputTokens,
-            ai_model: null 
+            ai_model: null,
+            user_id: user.id // <--- ADD THIS LINE
         });
     }
     
@@ -213,14 +214,19 @@ If the user provides a specific RDBMS (PostgreSQL, MySQL, ScyllaDB), adhere stri
         role: 'ai', 
         content: text, 
         tokens_used: outputTokens, 
-        ai_model: modelKey 
+        ai_model: modelKey,
+        user_id: null // AI has no user_id
     });
 
     // UPDATED TABLE: ai_sql_messages
     const { error: insertError } = await supabase.from("ai_sql_messages").insert(messagesToInsert);
 
     if (insertError) {
-        throw new Error("Failed to save message: " + insertError.message);
+        console.warn("Insert failed with new columns. Retrying without them...", insertError.message);
+        // Fallback for legacy schema compatibility
+        const legacyMessages = messagesToInsert.map(({ ai_model, user_id, ...rest }) => rest);
+        const { error: legacyError } = await supabase.from("ai_sql_messages").insert(legacyMessages); 
+        if (legacyError) throw new Error("Failed to save message: " + legacyError.message);
     }
 
     // UPDATED TABLE: ai_sql_chats

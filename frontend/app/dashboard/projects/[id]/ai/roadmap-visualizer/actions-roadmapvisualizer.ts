@@ -215,7 +215,8 @@ You are an expert Senior Product Manager and Technical Architect (ex-Google/Stri
             role: 'user', 
             content: prompt, 
             tokens_used: estimatedInputTokens,
-            ai_model: null 
+            ai_model: null,
+            user_id: user.id // <--- ADD THIS LINE
         });
     }
     
@@ -224,13 +225,19 @@ You are an expert Senior Product Manager and Technical Architect (ex-Google/Stri
         role: 'ai', 
         content: text, 
         tokens_used: outputTokens, 
-        ai_model: modelKey 
+        ai_model: modelKey,
+        user_id: null // AI has no user_id
     });
 
+    // UPDATED TABLE: ai_roadmap_messages
     const { error: insertError } = await supabase.from("ai_roadmap_messages").insert(messagesToInsert);
 
     if (insertError) {
-        throw new Error("Failed to save message: " + insertError.message);
+        console.warn("Insert failed with new columns. Retrying without them...", insertError.message);
+        // Fallback for legacy schema compatibility
+        const legacyMessages = messagesToInsert.map(({ ai_model, user_id, ...rest }) => rest);
+        const { error: legacyError } = await supabase.from("ai_roadmap_messages").insert(legacyMessages); 
+        if (legacyError) throw new Error("Failed to save message: " + legacyError.message);
     }
 
     // 5. Update Chat Totals

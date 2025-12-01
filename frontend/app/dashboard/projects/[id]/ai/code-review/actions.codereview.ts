@@ -333,7 +333,6 @@ export async function generateAiResponse(
   groupId?: string,
   _ignoredModelKey?: string, 
   isRegeneration: boolean = false,
-  // 🚨 New parameter for small repo fallback injection
   injectedContext: string | null = null
 ) {
   const cookieStore = cookies(); 
@@ -342,22 +341,19 @@ export async function generateAiResponse(
   if (!user) throw new Error("Unauthorized");
 
   let finalPromptPayload = prompt;
-  let userContentToStore = prompt; // What the user originally typed
+  let userContentToStore = prompt;
   let estimatedInputTokens = Math.ceil(prompt.length / 4);
 
   // 🚨 CONTEXT HANDLING & TOKEN ESTIMATION
   if (injectedContext) {
-      // 1. Prepend the injected context to the prompt
       finalPromptPayload = `${injectedContext}\n\nUser Question: ${prompt}`;
-      // 2. Re-calculate tokens based on the full payload
       estimatedInputTokens = Math.ceil(finalPromptPayload.length / 4);
-      // 3. userContentToStore remains the original prompt
       userContentToStore = prompt; 
   }
 
   // --- TOKEN CHECK ---
   const MINIMUM_OUTPUT_BUFFER = 50; 
-  const requiredTokens = estimatedInputTokens + MINIMUM_OUTPUT_BUFFER; // Use updated estimate
+  const requiredTokens = estimatedInputTokens + MINIMUM_OUTPUT_BUFFER;
 
   const { data: tokenPack } = await supabase
     .from("token_packs")
@@ -375,12 +371,9 @@ export async function generateAiResponse(
   };
 
   const remainingTokens = parseTokens(tokenPack?.remaining_tokens);
-  
-  // Use DB_MODEL_KEY to check balance (no 'models/' prefix)
   const currentModelBalance = remainingTokens[DB_MODEL_KEY] || 0;
 
   if (!tokenPack || currentModelBalance < requiredTokens) {
-    // 🚨 Critical: Return error message only, client will handle notification
     return { error: `Insufficient tokens for ${DB_MODEL_KEY}. Balance: ${currentModelBalance}` };
   }
   
@@ -388,7 +381,6 @@ export async function generateAiResponse(
   let activeCacheKey = null;
   let cachedContentConfig = {};
 
-  // Skip cache check if we are using direct injection
   if (!injectedContext) {
       activeCacheKey = await getActiveCacheKey(projectId);
       if (activeCacheKey) {
@@ -401,12 +393,10 @@ export async function generateAiResponse(
        console.log("Using injected context (Repo too small for cache).");
   }
 
-
   try {
-    // Use API_MODEL_KEY for Google (with 'models/' prefix)
     const response = await ai.models.generateContent({
       model: API_MODEL_KEY, 
-      contents: finalPromptPayload, // 🚨 Use the potentially augmented payload
+      contents: finalPromptPayload,
       config: {
         systemInstruction: "You are a **Senior Software Architect and Security Analyst**(which you don't need to specify in the output) specializing in detailed code analysis. Your review must cover five key areas: 1. **Security:** Identify and flag common vulnerabilities (e.g., XSS, SQLi, insecure deserialization) with remediation steps. 2. **Performance & Scalability:** Critique data structures, API design, and potential bottlenecks. 3. **Correctness & Logic:** Verify business logic against common patterns and potential edge cases. 4. **Readability & Maintainability:** Assess code structure, naming conventions, and documentation quality. 5. **Architecture:** Evaluate alignment with established design patterns and system goals. Present findings clearly, categorize issues by severity (Critical, Major, Minor), and provide the corrected code snippet immediately following the explanation. **Always refer back to the repository context** when suggesting changes.",
         ...cachedContentConfig
@@ -415,12 +405,11 @@ export async function generateAiResponse(
 
     const text = response.text || "No response generated";
     const outputTokens = Math.ceil(text.length / 4);
-    const totalTokensUsed = estimatedInputTokens + outputTokens; // Use updated estimate
+    const totalTokensUsed = estimatedInputTokens + outputTokens;
 
     let activeChatId = chatId;
 
     if (!activeChatId) {
-        // Use the original user question for the title, regardless of injection
         const title = userContentToStore.length > 30 ? userContentToStore.substring(0, 30) + "..." : userContentToStore;
         
         const { data: newChat, error: chatError } = await supabase
@@ -439,32 +428,35 @@ export async function generateAiResponse(
         activeChatId = newChat.id;
     }
 
-    // --- DATABASE INSERT ---
+    // --- DATABASE INSERT (FIXED HERE) ---
     const messagesToInsert: any[] = [];
     
     if (!isRegeneration) {
         messagesToInsert.push({ 
             chat_id: activeChatId, 
             role: 'user', 
-            content: userContentToStore, // 🚨 Use the clean user prompt
-            tokens_used: estimatedInputTokens, // Use tokens from the full payload
-            ai_model: null 
+            content: userContentToStore, 
+            tokens_used: estimatedInputTokens, 
+            ai_model: null,
+            user_id: user.id // <--- THIS WAS MISSING. NOW IT IS FIXED.
         });
     }
     
     messagesToInsert.push({ 
         chat_id: activeChatId, 
-            role: 'ai', 
-            content: text, 
-            tokens_used: outputTokens, 
-            ai_model: DB_MODEL_KEY 
+        role: 'ai', 
+        content: text, 
+        tokens_used: outputTokens, 
+        ai_model: DB_MODEL_KEY,
+        user_id: null // AI messages do not have a user_id
     });
 
     const { error: insertError } = await supabase.from("ai_code_review_messages").insert(messagesToInsert); 
 
     if (insertError) {
-        console.warn("Insert failed with ai_model column. Retrying without it...", insertError.message);
-        const legacyMessages = messagesToInsert.map(({ ai_model, ...rest }) => rest);
+        console.warn("Insert failed with new columns. Retrying without them...", insertError.message);
+        // Fallback: remove user_id and ai_model if the DB schema isn't updated yet
+        const legacyMessages = messagesToInsert.map(({ ai_model, user_id, ...rest }) => rest);
         const { error: legacyError } = await supabase.from("ai_code_review_messages").insert(legacyMessages); 
         if (legacyError) throw new Error("Failed to save message: " + legacyError.message);
     }
@@ -474,7 +466,6 @@ export async function generateAiResponse(
 
     await supabase.from("ai_code_review_chats").update({ total_tokens_used: newChatTotal, updated_at: new Date().toISOString() }).eq("id", activeChatId); 
 
-    // Update balance using DB_MODEL_KEY
     const newRemaining = {
         ...remainingTokens,
         [DB_MODEL_KEY]: Math.max(0, currentModelBalance - totalTokensUsed)
@@ -501,7 +492,6 @@ export async function generateAiResponse(
     };
 
   } catch (error: any) {
-    // 🚨 Critical: Return error message only, client will handle notification
     console.error("AI Generation Error:", error);
     return { error: `AI Generation Failed: ${error.message}` };
   }
