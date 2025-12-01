@@ -17,7 +17,6 @@ import {
 } from 'libphonenumber-js';
 
 const supabase = createClient();
-const DEFAULT_AVATAR = "/default-avatar.png";
 
 // --- 1. MATTE BACKGROUND COMPONENT ---
 const NoiseBackground = () => (
@@ -271,7 +270,7 @@ export default function ProfileSetupPage() {
           surname: surname.trim(),
           phone_number: finalPhone,
           metadata: { 
-            avatar_url: avatarUrl || DEFAULT_AVATAR,
+            avatar_url: avatarUrl || null,
             phone_complete: !!finalPhone
           },
           updated_at: new Date().toISOString(),
