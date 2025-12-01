@@ -1,4 +1,5 @@
 "use client";
+
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/utils/supabase/client";
@@ -58,10 +59,7 @@ export default function ConfirmPage() {
 
           if (updateError) {
             console.error("Failed to update user:", updateError);
-            // Continue anyway - the email is verified in Auth
           }
-
-          console.log("✅ Email verified for user:", user.id);
         }
 
         // 🔥 IMPORTANT: Sign out immediately after verification
@@ -80,70 +78,110 @@ export default function ConfirmPage() {
     verifyEmailAndUpdateUser();
   }, [router]);
 
-  if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <div className="max-w-md w-full bg-white rounded-lg shadow-sm p-8 text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600 mx-auto mb-4"></div>
-          <p className="text-gray-700">{message}</p>
-        </div>
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <div className="max-w-md w-full bg-white rounded-lg shadow-sm p-8 text-center">
-          <div className="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-red-100 mb-4">
-            <svg className="h-6 w-6 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-            </svg>
-          </div>
-          <h3 className="text-lg font-medium text-red-900 mb-2">Verification Failed</h3>
-          <p className="text-red-700 text-sm mb-6">{error}</p>
-          <Link
-            href="/auth/login"
-            className="inline-block bg-red-600 text-white py-2 px-6 rounded-lg font-medium hover:bg-red-700 transition-colors"
-          >
-            Go to Sign In
-          </Link>
-        </div>
-      </div>
-    );
-  }
-
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50">
-      <div className="max-w-md w-full bg-white rounded-lg shadow-sm p-8 text-center">
-        <div className="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-green-100 mb-4">
-          <svg className="h-6 w-6 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-          </svg>
+    <div className="min-h-screen flex items-center justify-center bg-gray-50 p-4 font-sans">
+      
+      {/* Centered Card */}
+      <div className="w-full max-w-md bg-white rounded-2xl shadow-xl p-8 sm:p-10 relative overflow-hidden">
+        
+        {/* Logo Area */}
+        <div className="flex flex-col items-center mb-8">
+          <div className="flex flex-col leading-none text-gray-900 mb-2">
+            <span className="text-5xl font-normal tracking-wide">
+              KAPR<span className="text-purple-600 font-normal">Y</span>
+            </span>
+            <span className="text-4xl font-black tracking-tight -mt-1">
+              DEV
+            </span>
+          </div>          
         </div>
-        <h3 className="text-lg font-medium text-green-900 mb-2">Successfully Verified!</h3>
-        <p className="text-green-700 text-sm mb-6">
-          Your email has been verified. You can now sign in to your account.
-        </p>
-        <div className="space-y-3">
-          <Link
-            href="/auth/login"
-            className="block w-full bg-purple-700 text-white py-3 px-4 rounded-lg font-medium hover:bg-purple-900 transition-colors"
-          >
-            Sign In Now
-          </Link>
-          <Link
-            href="/"
-            className="block w-full bg-gray-600 text-white py-3 px-4 rounded-lg font-medium hover:bg-gray-700 transition-colors"
-          >
-            Go to Homepage
-          </Link>
+
+        {/* DYNAMIC CONTENT AREA */}
+        <div className="text-center">
+          
+          {/* 1. Loading State */}
+          {loading && (
+            <div className="flex flex-col items-center justify-center space-y-6 py-4">
+              <div className="relative w-16 h-16">
+                <div className="absolute top-0 left-0 w-full h-full border-4 border-gray-100 rounded-full"></div>
+                <div className="absolute top-0 left-0 w-full h-full border-4 border-purple-600 rounded-full animate-spin border-t-transparent"></div>
+              </div>
+              <div>
+                <h3 className="text-xl font-bold text-gray-900">Verifying...</h3>
+                <p className="text-gray-500 mt-2">{message}</p>
+              </div>
+            </div>
+          )}
+
+          {/* 2. Error State */}
+          {!loading && error && (
+            <div className="flex flex-col items-center justify-center space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+              <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mb-2">
+                <svg className="w-8 h-8 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </div>
+              <div>
+                <h3 className="text-xl font-bold text-gray-900">Verification Failed</h3>
+                <p className="text-red-600 mt-2 text-sm bg-red-50 p-3 rounded-lg border border-red-100">{error}</p>
+              </div>
+              <Link
+                href="/auth/login"
+                className="w-full bg-gray-800 text-white font-semibold py-3 rounded-lg hover:bg-black transition-colors shadow-sm"
+              >
+                Go to Sign In
+              </Link>
+            </div>
+          )}
+
+          {/* 3. Success State */}
+          {!loading && !error && (
+            <div className="flex flex-col items-center justify-center space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+              <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mb-2">
+                 <svg className="w-8 h-8 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                </svg>
+              </div>
+              <div>
+                <h3 className="text-xl font-bold text-gray-900">Successfully Verified!</h3>
+                <p className="text-gray-500 mt-2">
+                  Your email has been verified. You can now sign in to your account.
+                </p>
+              </div>
+              
+              <div className="w-full space-y-3">
+                <Link
+                  href="/auth/login"
+                  className="block w-full bg-gray-800 text-white font-semibold py-3 rounded-lg hover:bg-black transition-colors shadow-sm"
+                >
+                  Sign In Now
+                </Link>
+                <Link
+                  href="/"
+                  className="block w-full bg-white text-gray-700 border border-gray-200 font-semibold py-3 rounded-lg hover:bg-gray-50 transition-colors"
+                >
+                  Return to Home
+                </Link>
+              </div>
+
+              {/* <div className="text-xs text-blue-600 bg-blue-50 border border-blue-100 p-3 rounded-lg mt-4 w-full">
+                <strong>Note:</strong> You have been signed out automatically. Please sign in to continue.
+              </div> */}
+            </div>
+          )}
+
         </div>
-        <div className="mt-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-          <p className="text-blue-700 text-sm">
-            <strong>Note:</strong> You have been signed out automatically. Please sign in to access your account.
-          </p>
+        
+        {/* Footer Logos Area */}
+        <div className="pt-8 mt-8 border-t border-gray-100">
+          <p className="text-center text-xs text-gray-400 font-semibold mb-4 uppercase tracking-wider">Trusted by developers at</p>
+          <div className="flex justify-center gap-6 opacity-40 grayscale">
+            <div className="flex items-center gap-1 font-bold text-lg text-black">X</div>
+            <div className="flex items-center gap-1 font-bold text-lg text-black">Y</div>
+            <div className="flex items-center gap-1 font-bold text-lg text-black">Z</div>
+          </div>
         </div>
+
       </div>
     </div>
   );
