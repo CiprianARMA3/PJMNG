@@ -37,7 +37,13 @@ type Profile = { id: string; full_name: string; avatar_url: string | null };
 type GroupTag = { id: string; label: string; color: string; };
 type ChatGroup = { id: string; name: string; user_id: string; metadata?: { tags: GroupTag[] } };
 type ChatSession = { id: string; title: string; group_id: string | null; total_tokens_used: number; updated_at: string; user_id: string; };
-type Message = { role: 'user' | 'ai'; content: string; cost?: number; ai_model?: string; };
+type Message = { 
+  role: 'user' | 'ai'; 
+  content: string; 
+  cost?: number; 
+  ai_model?: string; 
+  user_id?: string; // <--- ADD THIS
+};
 
 const MODELS = [
   { id: "gemini-3-pro-preview", name: "Gemini 3 Pro", icon: Sparkles, description: "Reasoning & Coding" },
@@ -245,16 +251,23 @@ export default function AiAssistantPage({ params }: PageProps) {
   }, []);
 
   // --- MESSAGES LOAD ---
+// --- MESSAGES LOAD ---
   useEffect(() => {
     if (!activeChatId) { setMessages([]); return; }
     async function loadMessages() {
-        const { data: msgs } = await supabase.from("ai_messages").select("*").eq("chat_id", activeChatId).order("created_at", { ascending: true });
+        const { data: msgs } = await supabase
+            .from("ai_messages")
+            .select("*")
+            .eq("chat_id", activeChatId)
+            .order("created_at", { ascending: true });
+
         if (msgs) {
             setMessages(msgs.map(m => ({ 
                 role: m.role as 'user' | 'ai', 
                 content: m.content, 
                 cost: m.tokens_used,
-                ai_model: m.ai_model
+                ai_model: m.ai_model,
+                user_id: m.user_id // <--- THIS IS THE MISSING PIECE
             })));
         }
     }
@@ -408,16 +421,28 @@ export default function AiAssistantPage({ params }: PageProps) {
   const selectedModelBalance = tokenBalances[selectedModel.id] || 0;
   const isTokenLocked = selectedModelBalance <= 0;
 
-  async function handleSend(text: string) {
+async function handleSend(text: string) {
     if (!text.trim() || isGenerating) return;
     if (isTokenLocked) return; 
 
     const currentPrompt = text;
     setIsGenerating(true);
 
-    setMessages(prev => [...prev, { role: 'user', content: currentPrompt }]);
+    // Optimistic update: Add user_id immediately so your avatar shows instantly
+    setMessages(prev => [...prev, { 
+        role: 'user', 
+        content: currentPrompt, 
+        user_id: currentUserId 
+    }]);
 
-    const result = await generateAiResponse(projectId, currentPrompt, activeChatId || undefined, selectedGroupId || undefined, selectedModel.id, false);
+    const result = await generateAiResponse(
+        projectId, 
+        currentPrompt, 
+        activeChatId || undefined, 
+        selectedGroupId || undefined, 
+        selectedModel.id, 
+        false
+    );
 
     if (result.error) {
         setMessages(prev => {
@@ -435,6 +460,7 @@ export default function AiAssistantPage({ params }: PageProps) {
             cost: result.tokensUsed,
             ai_model: result.ai_model
         }]);
+        
         if (result.newBalance) setTokenBalances(result.newBalance);
 
         if (!activeChatId && result.chatId) {
@@ -699,146 +725,159 @@ export default function AiAssistantPage({ params }: PageProps) {
                         </div>
                     )}
 
-                    {messages.map((msg, idx) => {
-                        const modelInfo = getModelById(msg.ai_model); 
-                        const ModelIcon = modelInfo.icon;
+         {messages.map((msg, idx) => {
+    const modelInfo = getModelById(msg.ai_model); 
+    const ModelIcon = modelInfo.icon;
 
-                        return (
-                            <div key={idx} className={`group flex gap-5 ${msg.role === 'user' ? 'flex-row-reverse' : ''}`}>
-                                <div className="flex-shrink-0 mt-1 flex flex-col items-center gap-1">
-                                    {msg.role === 'ai' ? (
-                                        <div className="w-8 h-8 rounded-lg bg-[#18181B] border border-[#27272A] flex items-center justify-center">
-                                            <ModelIcon size={14} className={msg.ai_model?.includes('flash') ? 'text-amber-400' : 'text-indigo-400'} />
-                                        </div>
-                                    ) : (
-                                        <>
-                                            <div className="w-8 h-8 rounded-full overflow-hidden ring-1 ring-[#27272A]">
-                                                {/* FIXED: USE CHAT OWNER ID FOR AVATAR, NOT CURRENT USER */}
-                                                <CreatorPfp
-                                                    userId={chatOwnerId} 
-                                                    currentUserId={currentUserId}
-                                                    currentUserPfp={currentUserPfp}
-                                                    currentUserName={currentUserName}
-                                                    profiles={profiles}
-                                                    size="w-full h-full"
-                                                    showNameOnHover={true}
-                                                />
-                                            </div>
-                                            <span className="text-[12px] text-zinc-500 font-medium leading-tight text-center whitespace-nowrap px-1">
-                                                {/* FIXED: USE CHAT OWNER NAME */}
-                                                {chatOwnerName}
-                                            </span>
-                                        </>
-                                    )}
-                                </div>
-                                <div className={`flex flex-col max-w-[85%] ${msg.role === 'user' ? 'items-end' : 'items-start'}`}>
-                                    <div className={`relative px-5 py-3.5 rounded-2xl text-sm leading-relaxed shadow-sm ${msg.role === 'user' ? 'bg-[#27272A] text-zinc-100 rounded-tr-sm' : 'bg-transparent text-zinc-300 px-0 py-1'}`}>
-                                        {msg.role === 'ai' ? (
-                                            <div className="prose prose-invert max-w-none">
-                                                <ReactMarkdown 
-                                                    remarkPlugins={[remarkGfm]}
-                                                    components={{
-                                                        code({node, inline, className, children, ...props}: any) {
-                                                            const match = /language-(\w+)/.exec(className || '')
-                                                            return !inline && match ? (
-                                                                <CodeBlock language={match[1]}>{children}</CodeBlock>
-                                                            ) : (
-                                                                <code className={`${className} bg-[#27272A] text-zinc-200 px-1 py-0.5 rounded text-[13px]`} {...props}>{children}</code>
-                                                            )
-                                                        },
-                                                        table({children}: any) {
-                                                            return (
-                                                                <div className="my-6 w-full overflow-hidden rounded-lg border border-[#27272A] shadow-sm">
-                                                                    <div className="overflow-x-auto">
-                                                                        <table className="w-full text-left text-sm text-zinc-300">
-                                                                            {children}
-                                                                        </table>
-                                                                    </div>
-                                                                </div>
-                                                            );
-                                                        },
-                                                        thead({children}: any) {
-                                                            return (
-                                                                <thead className="bg-[#18181B] text-xs uppercase font-semibold text-zinc-500 border-b border-[#27272A]">
-                                                                    {children}
-                                                                </thead>
-                                                            );
-                                                        },
-                                                        tbody({children}: any) {
-                                                            return (
-                                                                <tbody className="divide-y divide-[#27272A] bg-transparent">
-                                                                    {children}
-                                                                </tbody>
-                                                            );
-                                                        },
-                                                        tr({children}: any) {
-                                                            return (
-                                                                <tr className="transition-colors hover:bg-white/5 group/row">
-                                                                    {children}
-                                                                </tr>
-                                                            );
-                                                        },
-                                                        th({children}: any) {
-                                                            return (
-                                                                <th className="px-4 py-3 whitespace-nowrap tracking-wider">
-                                                                    {children}
-                                                                </th>
-                                                            );
-                                                        },
-                                                        td({children}: any) {
-                                                            return (
-                                                                <td className="px-4 py-3 align-top leading-relaxed text-zinc-300">
-                                                                    {children}
-                                                                </td>
-                                                            );
-                                                        }
-                                                    }}
-                                                >
-                                                    {msg.content}
-                                                </ReactMarkdown>
-                                            </div>
+    // --- LOGIC TO IDENTIFY SENDER ---
+    // 1. Use the ID on the message. If missing (legacy/error), fallback to chat owner.
+    const msgSenderId = msg.user_id || chatOwnerId; 
+    
+    // 2. Check if the sender is the current logged-in user
+    const isMsgSenderCurrentUser = msgSenderId === currentUserId;
+
+    // 3. Resolve the profile (Use session data for self, 'profiles' map for others)
+    const msgSenderProfile = isMsgSenderCurrentUser 
+        ? { full_name: currentUserName, avatar_url: currentUserPfp } 
+        : profiles[msgSenderId];
+
+    const msgSenderName = msgSenderProfile?.full_name || "Unknown";
+    // -------------------------------
+
+    return (
+        <div key={idx} className={`group flex gap-5 ${msg.role === 'user' ? 'flex-row-reverse' : ''}`}>
+            <div className="flex-shrink-0 mt-1 flex flex-col items-center gap-1">
+                {msg.role === 'ai' ? (
+                    <div className="w-8 h-8 rounded-lg bg-[#18181B] border border-[#27272A] flex items-center justify-center">
+                        <ModelIcon size={14} className={msg.ai_model?.includes('flash') ? 'text-amber-400' : 'text-indigo-400'} />
+                    </div>
+                ) : (
+                    <>
+                        <div className="w-8 h-8 rounded-full overflow-hidden ring-1 ring-[#27272A]">
+                            <CreatorPfp
+                                userId={msgSenderId} // CHANGED: Uses specific message sender ID
+                                currentUserId={currentUserId}
+                                currentUserPfp={currentUserPfp}
+                                currentUserName={currentUserName}
+                                profiles={profiles}
+                                size="w-full h-full"
+                                showNameOnHover={true}
+                            />
+                        </div>
+                        <span className="text-[12px] text-zinc-500 font-medium leading-tight text-center whitespace-nowrap px-1">
+                            {msgSenderName} {/* CHANGED: Uses specific message sender name */}
+                        </span>
+                    </>
+                )}
+            </div>
+            <div className={`flex flex-col max-w-[85%] ${msg.role === 'user' ? 'items-end' : 'items-start'}`}>
+                <div className={`relative px-5 py-3.5 rounded-2xl text-sm leading-relaxed shadow-sm ${msg.role === 'user' ? 'bg-[#27272A] text-zinc-100 rounded-tr-sm' : 'bg-transparent text-zinc-300 px-0 py-1'}`}>
+                    {msg.role === 'ai' ? (
+                        <div className="prose prose-invert max-w-none">
+                            <ReactMarkdown 
+                                remarkPlugins={[remarkGfm]}
+                                components={{
+                                    code({node, inline, className, children, ...props}: any) {
+                                        const match = /language-(\w+)/.exec(className || '')
+                                        return !inline && match ? (
+                                            <CodeBlock language={match[1]}>{children}</CodeBlock>
                                         ) : (
-                                            <div className="whitespace-pre-wrap">{msg.content}</div>
-                                        )}
-                                    </div>
-                                    
-                                    {msg.role === 'ai' && (
-                                        <div className="mt-2 w-full flex items-center justify-between opacity-0 group-hover:opacity-100 transition-opacity duration-300 px-1">
-                                            <div className="flex items-center gap-3">
-                                                {msg.cost && (
-                                                    <div className="text-[10px] font-mono text-zinc-600 flex items-center gap-1">
-                                                        <Zap size={10} /> {msg.cost} tokens
-                                                    </div>
-                                                )}
-                                                <div className="flex items-center gap-2">
-                                                    <button 
-                                                        onClick={() => handleCopy(msg.content, idx)}
-                                                        className="p-1 hover:bg-[#27272A] rounded text-zinc-500 hover:text-zinc-300 transition-colors"
-                                                        title="Copy"
-                                                    >
-                                                        {copiedIndex === idx ? <Check size={12} className="text-emerald-500"/> : <Copy size={12} />}
-                                                    </button>
-                                                    {idx === messages.length - 1 && !isGenerating && (
-                                                        <button 
-                                                            onClick={handleRegenerate}
-                                                            className="p-1 hover:bg-[#27272A] rounded text-zinc-500 hover:text-zinc-300 transition-colors"
-                                                            title="Regenerate"
-                                                        >
-                                                            <RefreshCw size={12} />
-                                                        </button>
-                                                    )}
+                                            <code className={`${className} bg-[#27272A] text-zinc-200 px-1 py-0.5 rounded text-[13px]`} {...props}>{children}</code>
+                                        )
+                                    },
+                                    table({children}: any) {
+                                        return (
+                                            <div className="my-6 w-full overflow-hidden rounded-lg border border-[#27272A] shadow-sm">
+                                                <div className="overflow-x-auto">
+                                                    <table className="w-full text-left text-sm text-zinc-300">
+                                                        {children}
+                                                    </table>
                                                 </div>
                                             </div>
-                                            
-                                            <div className="text-[10px] text-zinc-600 font-medium tracking-wide">
-                                                {modelInfo.name}
-                                            </div>
-                                        </div>
-                                    )}
+                                        );
+                                    },
+                                    thead({children}: any) {
+                                        return (
+                                            <thead className="bg-[#18181B] text-xs uppercase font-semibold text-zinc-500 border-b border-[#27272A]">
+                                                {children}
+                                            </thead>
+                                        );
+                                    },
+                                    tbody({children}: any) {
+                                        return (
+                                            <tbody className="divide-y divide-[#27272A] bg-transparent">
+                                                {children}
+                                            </tbody>
+                                        );
+                                    },
+                                    tr({children}: any) {
+                                        return (
+                                            <tr className="transition-colors hover:bg-white/5 group/row">
+                                                {children}
+                                            </tr>
+                                        );
+                                    },
+                                    th({children}: any) {
+                                        return (
+                                            <th className="px-4 py-3 whitespace-nowrap tracking-wider">
+                                                {children}
+                                            </th>
+                                        );
+                                    },
+                                    td({children}: any) {
+                                        return (
+                                            <td className="px-4 py-3 align-top leading-relaxed text-zinc-300">
+                                                {children}
+                                            </td>
+                                        );
+                                    }
+                                }}
+                            >
+                                {msg.content}
+                            </ReactMarkdown>
+                        </div>
+                    ) : (
+                        <div className="whitespace-pre-wrap">{msg.content}</div>
+                    )}
+                </div>
+                
+                {msg.role === 'ai' && (
+                    <div className="mt-2 w-full flex items-center justify-between opacity-0 group-hover:opacity-100 transition-opacity duration-300 px-1">
+                        <div className="flex items-center gap-3">
+                            {msg.cost && (
+                                <div className="text-[10px] font-mono text-zinc-600 flex items-center gap-1">
+                                    <Zap size={10} /> {msg.cost} tokens
                                 </div>
+                            )}
+                            <div className="flex items-center gap-2">
+                                <button 
+                                    onClick={() => handleCopy(msg.content, idx)}
+                                    className="p-1 hover:bg-[#27272A] rounded text-zinc-500 hover:text-zinc-300 transition-colors"
+                                    title="Copy"
+                                >
+                                    {copiedIndex === idx ? <Check size={12} className="text-emerald-500"/> : <Copy size={12} />}
+                                </button>
+                                {idx === messages.length - 1 && !isGenerating && (
+                                    <button 
+                                        onClick={handleRegenerate}
+                                        className="p-1 hover:bg-[#27272A] rounded text-zinc-500 hover:text-zinc-300 transition-colors"
+                                        title="Regenerate"
+                                    >
+                                        <RefreshCw size={12} />
+                                    </button>
+                                )}
                             </div>
-                        )
-                    })}
+                        </div>
+                        
+                        <div className="text-[10px] text-zinc-600 font-medium tracking-wide">
+                            {modelInfo.name}
+                        </div>
+                    </div>
+                )}
+            </div>
+        </div>
+    )
+})}
                     
                     {isGenerating && (
                          <div className="flex gap-5">

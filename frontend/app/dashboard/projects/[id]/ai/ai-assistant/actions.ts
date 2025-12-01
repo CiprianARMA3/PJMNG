@@ -91,6 +91,7 @@ export async function updateChatGroup(chatId: string, groupId: string | null) {
 
 // --- GENERATION LOGIC ---
 
+
 export async function generateAiResponse(
   projectId: string, 
   prompt: string, 
@@ -108,6 +109,7 @@ export async function generateAiResponse(
   const MINIMUM_OUTPUT_BUFFER = 50; 
   const requiredTokens = estimatedInputTokens + MINIMUM_OUTPUT_BUFFER;
 
+  // ... Token checking logic remains the same ...
   const { data: tokenPack } = await supabase
     .from("token_packs")
     .select("*")
@@ -146,6 +148,7 @@ export async function generateAiResponse(
     let activeChatId = chatId;
 
     if (!activeChatId) {
+        // ... New chat creation logic remains the same ...
         const title = prompt.length > 30 ? prompt.substring(0, 30) + "..." : prompt;
         const { data: newChat, error: chatError } = await supabase
             .from("ai_chats")
@@ -164,7 +167,6 @@ export async function generateAiResponse(
     }
 
     // --- DATABASE INSERT ---
-    // Using 'ai_model' column as requested
     const messagesToInsert: any[] = [];
     
     if (!isRegeneration) {
@@ -173,7 +175,8 @@ export async function generateAiResponse(
             role: 'user', 
             content: prompt, 
             tokens_used: estimatedInputTokens,
-            ai_model: null // Explicitly null for user messages to match shape
+            ai_model: null,
+            user_id: user.id // <--- IMPORTANT: ADD THIS LINE
         });
     }
     
@@ -182,19 +185,22 @@ export async function generateAiResponse(
         role: 'ai', 
         content: text, 
         tokens_used: outputTokens, 
-        ai_model: modelKey // Saving specific model ID here
+        ai_model: modelKey, 
+        user_id: null // AI messages don't need a specific user_id
     });
 
     const { error: insertError } = await supabase.from("ai_messages").insert(messagesToInsert);
 
     if (insertError) {
-        console.warn("Insert failed with ai_model column. Retrying without it...", insertError.message);
-        // Fallback: Remove ai_model if column doesn't exist yet, to prevent total failure
-        const legacyMessages = messagesToInsert.map(({ ai_model, ...rest }) => rest);
+        // ... Fallback logic ...
+        console.warn("Insert failed. Retrying without new columns...", insertError.message);
+        // We strip both ai_model AND user_id for the legacy fallback just in case
+        const legacyMessages = messagesToInsert.map(({ ai_model, user_id, ...rest }) => rest);
         const { error: legacyError } = await supabase.from("ai_messages").insert(legacyMessages);
         if (legacyError) throw new Error("Failed to save message: " + legacyError.message);
     }
 
+    // ... Update totals and logs (remains the same) ...
     const { data: currentChat } = await supabase.from("ai_chats").select("total_tokens_used").eq("id", activeChatId).single();
     const newChatTotal = (currentChat?.total_tokens_used || 0) + totalTokensUsed;
 
@@ -222,7 +228,7 @@ export async function generateAiResponse(
         message: text, 
         tokensUsed: totalTokensUsed,
         newBalance: newRemaining,
-        ai_model: modelKey // Return as ai_model to frontend
+        ai_model: modelKey 
     };
 
   } catch (error: any) {
