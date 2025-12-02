@@ -69,7 +69,7 @@ export default function Menu({ project, user }: MenuProps) {
       items: [
         { label: "Project Settings", icon: Settings, href: `/dashboard/projects/${project.id}/settings/project-settings` },
         { label: "Collaborators", icon: UserCog, href: `/dashboard/projects/${project.id}/settings/collaborators` },
-        { label: "AI Informations", icon: BrainCog, href: `/dashboard/projects/${project.id}/settings/ai-info` },
+        { label: "AI Monitor", icon: BrainCog, href: `/dashboard/projects/${project.id}/settings/ai-info` },
       ],
     },
     {
