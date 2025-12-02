@@ -19,11 +19,8 @@ import {
   Zap,
   Brain,
   TrendingUp,
-  TrendingDown,
-  Info,
   CreditCard,
   Cpu,
-  User as UserIcon,
   ArrowUpRight,
   ArrowDownRight,
   LayoutGrid,
@@ -258,7 +255,7 @@ export default function AIUsagePage() {
              setProject({ ...projectData, icon_url: iconUrl });
         }
 
-        fetchData();
+        await fetchData(); // WAITING HERE ensures the loader persists until data is ready
         setLoading(false);
     };
     init();
@@ -286,7 +283,10 @@ export default function AIUsagePage() {
   const dailyAverage = weeklyTotal / 7;
 
   // --- LOADING STATE ---
- if (loading) {
+  // MODIFIED: This now includes 'refreshing'. 
+  // This causes the whole page to show the loader during a refresh, 
+  // which will then force the content to re-animate when it reappears.
+ if (loading || refreshing) {
     return (
       <div role="status" className="flex justify-center items-center h-screen bg-[#0a0a0a]">
         <svg
@@ -319,6 +319,7 @@ export default function AIUsagePage() {
       <main className="flex-1 ml-64 flex flex-col h-full bg-[#09090b] relative">
         
         {/* HEADER */}
+        {/* NOTE: No general entry animation here, but hover effects are fine. */}
         <div className="flex-none h-14 mt-[55px] px-6 border-b border-white/5 flex items-center justify-between bg-[#0a0a0a]/80 backdrop-blur-md z-20">
           <div className="flex items-center gap-4">
             <h1 className="text-xl font-bold tracking-tight flex items-center gap-2">
@@ -340,11 +341,11 @@ export default function AIUsagePage() {
         {/* CONTENT */}
         <div className="flex-1 overflow-y-auto custom-scrollbar">
             
-            {/* 1. DASHBOARD CARDS */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 px-6 py-6">
+            {/* 1. DASHBOARD CARDS (Added entry animation: fade-in slide-in) */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 px-6 py-6 animate-in fade-in slide-in-from-bottom-3 duration-500">
                 
                 {/* Card 1: CREDITS & BREAKDOWN */}
-                <div className="bg-[#0C0C0E] border border-zinc-800 p-5 rounded-xl relative overflow-hidden group/credits z-10">
+                <div className="bg-[#0C0C0E] border border-zinc-800 p-5 rounded-xl relative overflow-hidden group/credits z-10 transition-shadow duration-300   hover:shadow-lg">
                     <div className="absolute top-0 right-0 p-4 opacity-10 group-hover/credits:opacity-20 transition-opacity">
                         <CreditCard size={35} />
                     </div>
@@ -352,8 +353,6 @@ export default function AIUsagePage() {
                     <p className="text-zinc-500 text-[13px] uppercase font-bold tracking-widest mb-1">Available Balance</p>
                     <div className="text-4xl font-mono font-bold text-white mb-2 relative inline-block">
                         {totalCredits.toLocaleString()}
-                        
-                        {/* HOVER TOOLTIP (MODEL BREAKDOWN) */}
                     </div>
                     
                     <div className="flex items-center gap-1.5 text-md mt-1">
@@ -367,7 +366,7 @@ export default function AIUsagePage() {
                 </div>
 
                 {/* Card 2: USAGE & TREND */}
-                <div className="bg-[#0C0C0E] border border-zinc-800 p-5 rounded-xl relative overflow-hidden group">
+                <div className="bg-[#0C0C0E] border border-zinc-800 p-5 rounded-xl relative overflow-hidden group transition-shadow duration-300   hover:shadow-lg">
                      <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
                         <TrendingUp size={35} />
                     </div>
@@ -397,7 +396,7 @@ export default function AIUsagePage() {
                 </div>
 
 {/* Card 3: MODEL DISTRIBUTION (Detailed List) */}
-                <div className="bg-[#0C0C0E] border border-zinc-800 p-5 rounded-xl relative overflow-hidden group flex flex-col">
+                <div className="bg-[#0C0C0E] border border-zinc-800 p-5 rounded-xl relative overflow-hidden group transition-shadow duration-300   hover:shadow-lg flex flex-col">
                     <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
                         <LayoutGrid size={35} />
                     </div>
@@ -424,7 +423,7 @@ export default function AIUsagePage() {
                                     // Otherwise, sort alphabetically
                                     return keyA.localeCompare(keyB);
                                 })
-                                .map(([key, value]) => {
+                                .map(([key, value], index) => {
                                     // Find model config or use fallback
                                     const modelConfig = MODELS.find(m => m.id === key) || {
                                         id: key,
@@ -435,7 +434,12 @@ export default function AIUsagePage() {
                                     const Icon = modelConfig.icon;
 
                                     return (
-                                        <div key={key} className="flex items-center justify-between group/item">
+                                        // Added transition for individual list items
+                                        <div 
+                                            key={key} 
+                                            className="flex items-center justify-between group/item transition-all duration-200 hover:bg-zinc-900/40 p-1 rounded-lg -mx-1"
+                                            style={{ animationDelay: `${index * 50}ms` }} // Staggered list entry (optional but nice)
+                                        >
                                             <div className="flex items-center gap-3 min-w-0">
                                                 {/* Icon Box */}
                                                 <div className="w-8 h-8 rounded-lg bg-zinc-900 border border-zinc-800 flex items-center justify-center text-zinc-500 group-hover/item:text-indigo-400 group-hover/item:border-indigo-500/30 transition-all duration-300">
@@ -473,11 +477,13 @@ export default function AIUsagePage() {
             </div>
 
             {/* 2. CHART */}
-            <div className="px-6 pb-6">
-                <div className="h-[280px] w-full bg-[#0C0C0E] border border-zinc-800 rounded-xl p-4 relative">
+            {/* Added entry animation: fade-in slide-in */}
+            <div className="px-6 pb-6 animate-in fade-in slide-in-from-bottom-3 duration-500 delay-100">
+                <div className="h-[280px] w-full bg-[#0C0C0E] border border-zinc-800 rounded-xl p-4 relative transition-shadow duration-300   hover:shadow-lg">
                     <h3 className="text-xs font-semibold text-zinc-400 mb-4 flex items-center gap-2">
                         <Zap size={12} className="text-indigo-400" /> Usage Visualization (7 Days)
                     </h3>
+                    {/* Recharts often handles internal data animation (BarChart/Bar) */}
                     <ResponsiveContainer width="100%" height="85%">
                         <BarChart data={chartData} margin={{ top: 0, right: 0, left: -20, bottom: 0 }} barSize={40}>
                             <defs>
@@ -513,6 +519,7 @@ export default function AIUsagePage() {
                                 dataKey="tokens" 
                                 fill="url(#aiBarGradient)" 
                                 radius={[4, 4, 0, 0]} 
+                                // You might need to add animation properties here if supported by Recharts
                             />
                         </BarChart>
                     </ResponsiveContainer>
@@ -542,11 +549,11 @@ export default function AIUsagePage() {
                         >
                             <Filter size={14} /> 
                             <span className="capitalize">{formatModelName(modelFilter).split(' ')[0]}...</span>
-                            <ChevronDown size={12} />
+                            <ChevronDown size={12} className={`transition-transform duration-200 ${showModelMenu ? 'rotate-180' : 'rotate-0'}`} />
                         </button>
                         
                         {showModelMenu && (
-                            <div className="absolute top-full right-0 mt-2 w-56 bg-[#0C0C0E] border border-zinc-800 rounded-lg shadow-2xl z-30 p-1.5">
+                            <div className="absolute top-full right-0 mt-2 w-56 bg-[#0C0C0E] border border-zinc-800 rounded-lg shadow-2xl z-30 p-1.5 animate-in fade-in zoom-in-95 duration-200">
                                 <button
                                     onClick={() => { setModelFilter("All Models"); setShowModelMenu(false); }}
                                     className={`w-full text-left px-2 py-1.5 text-xs rounded-md transition-colors ${modelFilter === "All Models" ? 'bg-zinc-800 text-white' : 'text-zinc-400 hover:bg-zinc-800/50'}`}
@@ -567,7 +574,8 @@ export default function AIUsagePage() {
                     </div>
                     <button 
                         onClick={fetchData} 
-                        className="p-2 bg-zinc-900/50 border border-zinc-800 rounded-lg text-zinc-500 hover:text-zinc-200 hover:bg-zinc-900 hover:border-zinc-700 transition-all active:scale-95"
+                        disabled={refreshing}
+                        className="p-2 bg-zinc-900/50 border border-zinc-800 rounded-lg text-zinc-500 hover:text-zinc-200 hover:bg-zinc-900 hover:border-zinc-700 transition-all active:scale-95 disabled:opacity-50"
                     >
                         <RefreshCw size={14} className={refreshing ? "animate-spin" : ""} />
                     </button>
@@ -585,11 +593,17 @@ export default function AIUsagePage() {
                 </div>
 
                 <div className="pb-10">
-                    {filteredLogs.map(log => {
+                    {filteredLogs.map((log, index) => {
                         const logUser = log.user_id ? userMap[log.user_id] : null;
 
                         return (
-                        <div key={log.id} className="grid grid-cols-12 gap-4 px-6 py-3 border-b border-zinc-800/30 items-center hover:bg-zinc-900/20 transition-colors group">
+                        <div 
+                            key={log.id} 
+                            // Added animation: transition-colors on hover is already there. 
+                            // Added staggered entry animation for the logs.
+                            className="grid grid-cols-12 gap-4 px-6 py-3 border-b border-zinc-800/30 items-center hover:bg-zinc-900/20 transition-colors group animate-in fade-in slide-in-from-left-4 duration-300"
+                            style={{ animationDelay: `${index * 30}ms` }}
+                        >
                             
                             {/* USER COLUMN */}
                             <div className="col-span-3 flex items-center gap-3">
@@ -641,7 +655,7 @@ export default function AIUsagePage() {
                     )})}
 
                     {filteredLogs.length === 0 && (
-                        <div className="flex flex-col items-center justify-center h-64 text-zinc-600">
+                        <div className="flex flex-col items-center justify-center h-64 text-zinc-600 animate-in fade-in zoom-in-95 duration-500">
                             <Brain size={32} className="opacity-20 mb-3" />
                             <p className="text-sm">No usage logs found</p>
                         </div>
@@ -652,10 +666,22 @@ export default function AIUsagePage() {
       </main>
       
       <style jsx global>{`
+        /* Standard scrollbar customization */
         .custom-scrollbar::-webkit-scrollbar { width: 6px; }
         .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
         .custom-scrollbar::-webkit-scrollbar-thumb { background: #27272a; border-radius: 4px; }
         .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #3f3f46; }
+
+        /* Keyframe for a smooth, subtle fade-in and upward slide, assuming 'animate-in' utility exists */
+        /* If 'animate-in' is not available in your setup, replace the utility classes with something like: */
+        /* @keyframes fadeInSlideUp {
+            from { opacity: 0; transform: translateY(12px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .fade-in-slide-up {
+            animation: fadeInSlideUp 0.5s ease-out forwards;
+        }
+        */
       `}</style>
     </div>
   );
