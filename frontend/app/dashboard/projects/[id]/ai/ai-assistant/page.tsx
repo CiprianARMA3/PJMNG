@@ -280,19 +280,35 @@ export default function AiAssistantPage({ params }: PageProps) {
   }, [messages, isGenerating]);
 
   // --- HANDLERS ---
-  const handleDrop = (e: React.DragEvent, targetGroupId: string | null) => {
+const handleDrop = async (e: React.DragEvent, targetGroupId: string | null) => {
     e.preventDefault();
+    e.stopPropagation(); // <--- CRITICAL: Prevents event bubbling
+    
     setDraggingId(null);
     const chatId = e.dataTransfer.getData("text/plain");
+    
+    // Prevent dropping on itself or invalid data
     if (!chatId) return;
 
+    // 1. Snapshot previous state (in case we need to revert)
+    const previousChats = [...chats];
+
+    // 2. Optimistic UI Update (Makes it feel instant)
     setChats(prev => {
         const updated = prev.map(c =>
             c.id === chatId ? { ...c, group_id: targetGroupId, updated_at: new Date().toISOString() } : c
         );
         return updated.sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime());
     });
-    updateChatGroup(chatId, targetGroupId);
+
+    try {
+        // 3. Actual Server Save
+        await updateChatGroup(chatId, targetGroupId);
+    } catch (error) {
+        console.error("Failed to move chat:", error);
+        // Revert UI if server fails
+        setChats(previousChats);
+    }
   };
 
   const handleCreateGroup = async () => {
@@ -614,75 +630,103 @@ async function handleSend(text: string) {
                         </div>
                     )}
 
-                    {groups.map(group => (
-                        <div key={group.id} className="mb-1 relative">
-                            <div className={`group/header flex items-center justify-between px-2 py-1.5 rounded-md cursor-pointer select-none transition-colors ${draggingId ? 'border border-dashed border-zinc-700 bg-[#18181B]' : 'hover:bg-[#18181B]'}`} onClick={() => toggleGroup(group.id)} onDragOver={(e) => e.preventDefault()} onDrop={(e) => handleDrop(e, group.id)}>
-                                <div className="flex items-center gap-2 overflow-hidden text-zinc-400 group-hover/header:text-zinc-200 min-w-0 flex-1">
-                                    <div className="transition-transform duration-200">{expandedGroups[group.id] ? <ChevronDown size={12} /> : <ChevronRight size={12} />}</div>
-                                    <span className="text-xs font-semibold uppercase tracking-wider truncate">{group.name}</span>
-                                    <div className="flex items-center gap-1.5 ml-2 overflow-x-auto no-scrollbar mask-linear-fade">
-                                        {group.metadata?.tags?.map(tag => (
-                                            <span key={tag.id} className="flex items-center gap-1 px-1.5 py-0.5 rounded-[4px] bg-[#27272A] border border-[#3F3F46] text-[9px] text-zinc-300 whitespace-nowrap">
-                                                <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ backgroundColor: tag.color }} />
-                                                {tag.label}
-                                            </span>
-                                        ))}
-                                    </div>
-                                </div>
-                                <div className="flex items-center gap-1 opacity-0 group-hover/header:opacity-100 transition-opacity">
-                                    <button onClick={(e) => { e.stopPropagation(); setActiveTagMenuId(activeTagMenuId === group.id ? null : group.id); }} className="text-zinc-500 hover:text-white p-1 relative"><Tag size={12} /></button>
-                                    <button onClick={(e) => handleDeleteGroup(group.id, e)} className="text-zinc-500 hover:text-red-400 p-1"><Trash2 size={12} /></button>
-                                </div>
+{groups.map(group => (
+    <div key={group.id} className="mb-1 relative">
+        {/* GROUP HEADER - Drop Zone 1 (Dropping on the folder name) */}
+        <div 
+            className={`group/header flex items-center justify-between px-2 py-1.5 rounded-md cursor-pointer select-none transition-colors ${draggingId ? 'border border-dashed border-zinc-700 bg-[#18181B]' : 'hover:bg-[#18181B]'}`} 
+            onClick={() => toggleGroup(group.id)} 
+            onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); }} 
+            onDrop={(e) => handleDrop(e, group.id)}
+        >
+            <div className="flex items-center gap-2 overflow-hidden text-zinc-400 group-hover/header:text-zinc-200 min-w-0 flex-1">
+                <div className="transition-transform duration-200">
+                    {expandedGroups[group.id] ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
+                </div>
+                <span className="text-xs font-semibold uppercase tracking-wider truncate">{group.name}</span>
+                <div className="flex items-center gap-1.5 ml-2 overflow-x-auto no-scrollbar mask-linear-fade">
+                    {group.metadata?.tags?.map(tag => (
+                        <span key={tag.id} className="flex items-center gap-1 px-1.5 py-0.5 rounded-[4px] bg-[#27272A] border border-[#3F3F46] text-[9px] text-zinc-300 whitespace-nowrap">
+                            <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ backgroundColor: tag.color }} />
+                            {tag.label}
+                        </span>
+                    ))}
+                </div>
+            </div>
+            <div className="flex items-center gap-1 opacity-0 group-hover/header:opacity-100 transition-opacity">
+                <button onClick={(e) => { e.stopPropagation(); setActiveTagMenuId(activeTagMenuId === group.id ? null : group.id); }} className="text-zinc-500 hover:text-white p-1 relative"><Tag size={12} /></button>
+                <button onClick={(e) => handleDeleteGroup(group.id, e)} className="text-zinc-500 hover:text-red-400 p-1"><Trash2 size={12} /></button>
+            </div>
+        </div>
+
+        {/* TAG MENU POPUP */}
+        {activeTagMenuId === group.id && (
+            <div className="absolute left-4 top-8 z-50 bg-[#18181B] border border-[#27272A] rounded-lg shadow-2xl p-3 w-48">
+                <div className="flex items-center justify-between mb-2">
+                    <div className="text-[10px] font-bold text-zinc-500 uppercase">Manage Tags</div>
+                    <button onClick={() => setActiveTagMenuId(null)} className="text-zinc-500 hover:text-white"><X size={12} /></button>
+                </div>
+                <div className="space-y-1 mb-3 max-h-32 overflow-y-auto">
+                    {group.metadata?.tags?.length === 0 && <div className="text-[10px] text-zinc-600 italic">No tags yet</div>}
+                    {group.metadata?.tags?.map(tag => (
+                        <div key={tag.id} className="flex items-center justify-between text-xs bg-[#27272A] px-2 py-1 rounded">
+                            <div className="flex items-center gap-2">
+                                <div className="w-2 h-2 rounded-full" style={{ backgroundColor: tag.color }} />
+                                <span className="truncate max-w-[90px]">{tag.label}</span>
                             </div>
-
-                            {activeTagMenuId === group.id && (
-                                <div className="absolute left-4 top-8 z-50 bg-[#18181B] border border-[#27272A] rounded-lg shadow-2xl p-3 w-48">
-                                    <div className="flex items-center justify-between mb-2">
-                                        <div className="text-[10px] font-bold text-zinc-500 uppercase">Manage Tags</div>
-                                        <button onClick={() => setActiveTagMenuId(null)} className="text-zinc-500 hover:text-white"><X size={12} /></button>
-                                    </div>
-                                    <div className="space-y-1 mb-3 max-h-32 overflow-y-auto">
-                                        {group.metadata?.tags?.length === 0 && <div className="text-[10px] text-zinc-600 italic">No tags yet</div>}
-                                        {group.metadata?.tags?.map(tag => (
-                                            <div key={tag.id} className="flex items-center justify-between text-xs bg-[#27272A] px-2 py-1 rounded">
-                                                <div className="flex items-center gap-2">
-                                                    <div className="w-2 h-2 rounded-full" style={{ backgroundColor: tag.color }} />
-                                                    <span className="truncate max-w-[90px]">{tag.label}</span>
-                                                </div>
-                                                <button onClick={() => handleRemoveTag(group.id, tag.id)} className="text-zinc-500 hover:text-white"><X size={10} /></button>
-                                            </div>
-                                        ))}
-                                    </div>
-                                    <div className="border-t border-[#27272A] pt-2">
-                                        <input className="w-full bg-[#0E0E10] border border-[#27272A] rounded px-2 py-1 text-xs text-white mb-2 focus:border-indigo-500 outline-none" placeholder="Tag name..." value={newTagLabel} onChange={e => setNewTagLabel(e.target.value)} />
-                                        <div className="flex items-center justify-between mb-2">
-                                            {TAG_COLORS.map(c => (
-                                                <button key={c.hex} onClick={() => setNewTagColor(c.hex)} className={`w-3 h-3 rounded-full transition-transform hover:scale-125 ${newTagColor === c.hex ? 'ring-1 ring-white scale-110' : ''}`} style={{ backgroundColor: c.hex }} title={c.name} />
-                                            ))}
-                                        </div>
-                                        <button onClick={() => handleAddTag(group.id)} className="w-full bg-indigo-600 hover:bg-indigo-500 text-white text-[10px] font-bold py-1 rounded">Add Tag</button>
-                                    </div>
-                                </div>
-                            )}
-
-                            {expandedGroups[group.id] && (
-                                <div className="mt-0.5 space-y-0.5 relative z-0">
-                                    {chats.filter(c => c.group_id === group.id).map(chat => (
-                                        <SidebarItem 
-                                            key={chat.id} chat={chat} isActive={activeChatId === chat.id} isDragging={draggingId === chat.id}
-                                            isEditing={editingChatId === chat.id} onEdit={(id: string) => setEditingChatId(id)} onRename={(title: string) => handleRenameChat(chat.id, title)}
-                                            onClick={() => setActiveChatId(chat.id)}
-                                            onDelete={(e: React.MouseEvent) => handleDeleteChat(chat.id, e)}
-                                            onDragStart={(e: React.DragEvent) => { e.dataTransfer.setData("text/plain", chat.id); setDraggingId(chat.id); }}
-                                            onDragEnd={() => setDraggingId(null)}
-                                            profiles={profiles} currentUserId={currentUserId} currentUserPfp={currentUserPfp} currentUserName={currentUserName}
-                                        />
-                                    ))}
-                                    {chats.filter(c => c.group_id === group.id).length === 0 && <div className="pl-6 py-1 text-[10px] text-zinc-600 italic">No chats</div>}
-                                </div>
-                            )}
+                            <button onClick={() => handleRemoveTag(group.id, tag.id)} className="text-zinc-500 hover:text-white"><X size={10} /></button>
                         </div>
                     ))}
+                </div>
+                <div className="border-t border-[#27272A] pt-2">
+                    <input className="w-full bg-[#0E0E10] border border-[#27272A] rounded px-2 py-1 text-xs text-white mb-2 focus:border-indigo-500 outline-none" placeholder="Tag name..." value={newTagLabel} onChange={e => setNewTagLabel(e.target.value)} />
+                    <div className="flex items-center justify-between mb-2">
+                        {TAG_COLORS.map(c => (
+                            <button key={c.hex} onClick={() => setNewTagColor(c.hex)} className={`w-3 h-3 rounded-full transition-transform hover:scale-125 ${newTagColor === c.hex ? 'ring-1 ring-white scale-110' : ''}`} style={{ backgroundColor: c.hex }} title={c.name} />
+                        ))}
+                    </div>
+                    <button onClick={() => handleAddTag(group.id)} className="w-full bg-indigo-600 hover:bg-indigo-500 text-white text-[10px] font-bold py-1 rounded">Add Tag</button>
+                </div>
+            </div>
+        )}
+
+        {/* EXPANDED CONTENT - Drop Zone 2 (Dropping into the list) */}
+        {expandedGroups[group.id] && (
+            <div 
+                className="mt-0.5 space-y-0.5 relative z-0 min-h-[12px]"
+                onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); }} 
+                onDrop={(e) => handleDrop(e, group.id)}
+            >
+                {chats.filter(c => c.group_id === group.id).map(chat => (
+                    <SidebarItem 
+                        key={chat.id} 
+                        chat={chat} 
+                        isActive={activeChatId === chat.id} 
+                        isDragging={draggingId === chat.id}
+                        isEditing={editingChatId === chat.id} 
+                        onEdit={(id: string) => setEditingChatId(id)} 
+                        onRename={(title: string) => handleRenameChat(chat.id, title)}
+                        onClick={() => setActiveChatId(chat.id)}
+                        onDelete={(e: React.MouseEvent) => handleDeleteChat(chat.id, e)}
+                        onDragStart={(e: React.DragEvent) => { e.dataTransfer.setData("text/plain", chat.id); setDraggingId(chat.id); }}
+                        onDragEnd={() => setDraggingId(null)}
+                        profiles={profiles} 
+                        currentUserId={currentUserId} 
+                        currentUserPfp={currentUserPfp} 
+                        currentUserName={currentUserName}
+                    />
+                ))}
+                
+                {/* Visual Empty State (Still acts as a drop target because of the parent div) */}
+                {chats.filter(c => c.group_id === group.id).length === 0 && (
+                    <div className="pl-6 py-1 text-[10px] text-zinc-600 italic select-none pointer-events-none">
+                        No chats
+                    </div>
+                )}
+            </div>
+        )}
+    </div>
+))}
                     
                     <div className="pt-2 mt-2 border-t border-[#27272A]/50">
                         <div className="px-2 py-1 text-[10px] font-bold text-zinc-600 uppercase tracking-wider mb-1" onDragOver={(e) => e.preventDefault()} onDrop={(e) => handleDrop(e, null)}>Uncategorized</div>
