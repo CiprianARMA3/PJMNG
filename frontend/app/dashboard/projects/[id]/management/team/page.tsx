@@ -477,7 +477,7 @@ export default function ProjectManagementPage() {
                 {/* Invite Button */}
                 <button 
                     onClick={() => setIsInviteOpen(true)}
-                    className="flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold rounded-lg transition-all shadow-sm shadow-indigo-900/20 active:scale-95"
+                    className="flex items-center gap-2 px-4 py-2 bg-purple-600 hover:bg-purple-500 text-white text-xs font-semibold rounded-lg transition-all shadow-sm shadow-indigo-900/20 active:scale-95"
                 >
                     <Plus size={14} />
                     <span>Invite Collaborator</span>

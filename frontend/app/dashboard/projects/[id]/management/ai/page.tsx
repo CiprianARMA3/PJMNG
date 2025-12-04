@@ -335,7 +335,7 @@ export default function AIUsagePage() {
   }
 
   return (
-    <div className="h-screen bg-[#0a0a0a] text-zinc-100 flex overflow-hidden selection:bg-indigo-500/30">
+    <div className="h-screen bg-[#0a0a0a] text-zinc-100 flex overflow-hidden selection:bg-purple-500/30">
       
       {/* SIDEBAR */}
       <Menu project={project} user={user} />
@@ -347,15 +347,15 @@ export default function AIUsagePage() {
           <div className="flex items-center justify-between pb-4">
             <div className="flex items-center gap-4">
                 <h1 className="text-xl font-bold tracking-tight flex items-center gap-2">
-                <Brain size={20} className="text-indigo-500" />
+                <Brain size={20} className="text-purple-500" />
                 Administrator AI <span className="text-white/30 text-lg font-light">Monitor</span>
                 </h1>
             </div>
             <div className="flex items-center gap-3">
-                <div className="h-6 px-2.5 bg-indigo-500/10 border border-indigo-500/20 rounded-full text-[10px] font-bold text-indigo-400 flex items-center gap-2">
+                <div className="h-6 px-2.5 bg-purple-500/10 border border-purple-500/20 rounded-full text-[10px] font-bold text-purple-400 flex items-center gap-2">
                     <span className="relative flex h-2 w-2">
-                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-indigo-400 opacity-75"></span>
-                    <span className="relative inline-flex rounded-full h-2 w-2 bg-indigo-500"></span>
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-purple-400 opacity-75"></span>
+                    <span className="relative inline-flex rounded-full h-2 w-2 bg-purple-500"></span>
                     </span>
                     LIVE
                 </div>
@@ -368,7 +368,7 @@ export default function AIUsagePage() {
                 onClick={() => setActiveTab('overview')}
                 className={`pb-3 text-sm font-medium border-b-2 transition-all ${
                     activeTab === 'overview' 
-                    ? 'border-indigo-500 text-white' 
+                    ? 'border-purple-500 text-white' 
                     : 'border-transparent text-zinc-500 hover:text-zinc-300'
                 }`}
             >
@@ -378,7 +378,7 @@ export default function AIUsagePage() {
                 onClick={() => setActiveTab('history')}
                 className={`pb-3 text-sm font-medium border-b-2 transition-all ${
                     activeTab === 'history' 
-                    ? 'border-indigo-500 text-white' 
+                    ? 'border-purple-500 text-white' 
                     : 'border-transparent text-zinc-500 hover:text-zinc-300'
                 }`}
             >
@@ -419,7 +419,7 @@ export default function AIUsagePage() {
                         <div className="mt-5 pt-4 border-t border-zinc-800/50">
                             <button 
                                     onClick={() => router.push(`/dashboard/projects/${params.id}/payments`)}
-                                    className="w-full py-2 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold uppercase tracking-wider rounded-lg transition-all flex items-center justify-center gap-2 shadow-lg shadow-indigo-500/20 active:scale-95"
+                                    className="w-full py-2 bg-purple-600 hover:bg-purple-500 text-white text-xs font-bold uppercase tracking-wider rounded-lg transition-all flex items-center justify-center gap-2 shadow-lg shadow-purple-500/20 active:scale-95"
                             >
                                 <Plus size={14} strokeWidth={3} />
                                 Top Up Funds
@@ -487,7 +487,7 @@ export default function AIUsagePage() {
                                         return (
                                             <div key={key} className="flex items-center justify-between group/item">
                                                 <div className="flex items-center gap-3 min-w-0">
-                                                    <div className="w-8 h-8 rounded-lg bg-zinc-900 border border-zinc-800 flex items-center justify-center text-zinc-500 group-hover/item:text-indigo-400 group-hover/item:border-indigo-500/30 transition-all duration-300">
+                                                    <div className="w-8 h-8 rounded-lg bg-zinc-900 border border-zinc-800 flex items-center justify-center text-zinc-500 group-hover/item:text-purple-400 group-hover/item:border-purple-500/30 transition-all duration-300">
                                                         <Icon size={14} />
                                                     </div>
                                                     <div className="flex flex-col min-w-0">
@@ -521,7 +521,7 @@ export default function AIUsagePage() {
                 <div className="px-6 pb-6 animate-in fade-in slide-in-from-bottom-3 duration-500 delay-100">
                     <div className="h-[280px] w-full bg-[#0C0C0E] border border-zinc-800 rounded-xl p-4 relative">
                         <h3 className="text-xs font-semibold text-zinc-400 mb-4 flex items-center gap-2">
-                            <Zap size={12} className="text-indigo-400" /> Usage Visualization (7 Days)
+                            <Zap size={12} className="text-purple-400" /> Usage Visualization (7 Days)
                         </h3>
                         <ResponsiveContainer width="100%" height="85%">
                             <BarChart data={chartData} margin={{ top: 0, right: 0, left: -20, bottom: 0 }} barSize={40}>
@@ -719,7 +719,7 @@ export default function AIUsagePage() {
                   {/* Modal Header */}
                   <div className="p-6 border-b border-zinc-800 flex items-center justify-between">
                       <h3 className="text-lg font-bold text-white flex items-center gap-2">
-                          <Wallet size={20} className="text-indigo-500"/> Add Tokens
+                          <Wallet size={20} className="text-purple-500"/> Add Tokens
                       </h3>
                       <button onClick={() => setIsRefillModalOpen(false)} className="text-zinc-500 hover:text-white transition-colors">
                           <X size={20} />
@@ -728,13 +728,13 @@ export default function AIUsagePage() {
                   
                   {/* Modal Body */}
                   <div className="p-6 space-y-6">
-                      <div className="p-4 bg-indigo-500/10 border border-indigo-500/20 rounded-lg flex items-start gap-3">
-                            <div className="mt-0.5 bg-indigo-500 rounded-full p-0.5 text-black">
+                      <div className="p-4 bg-purple-500/10 border border-purple-500/20 rounded-lg flex items-start gap-3">
+                            <div className="mt-0.5 bg-purple-500 rounded-full p-0.5 text-black">
                                 <CheckCircle2 size={12} />
                             </div>
                             <div>
-                                <h4 className="text-sm font-bold text-indigo-400">Current Balance</h4>
-                                <p className="text-xs text-indigo-200/70 mt-1">You currently have <span className="font-mono text-white">{totalCredits.toLocaleString()}</span> tokens active.</p>
+                                <h4 className="text-sm font-bold text-purple-400">Current Balance</h4>
+                                <p className="text-xs text-purple-200/70 mt-1">You currently have <span className="font-mono text-white">{totalCredits.toLocaleString()}</span> tokens active.</p>
                             </div>
                       </div>
 
@@ -746,7 +746,7 @@ export default function AIUsagePage() {
                                 type="number" 
                                 value={refillAmount} 
                                 onChange={(e) => setRefillAmount(parseInt(e.target.value) || 0)}
-                                className="w-full bg-zinc-900 border border-zinc-700 rounded-lg pl-10 pr-4 py-3 text-white focus:ring-2 focus:ring-indigo-500 outline-none font-mono text-lg transition-all"
+                                className="w-full bg-zinc-900 border border-zinc-700 rounded-lg pl-10 pr-4 py-3 text-white focus:ring-2 focus:ring-purple-500 outline-none font-mono text-lg transition-all"
                             />
                           </div>
                           <div className="flex gap-2 mt-2">
@@ -774,7 +774,7 @@ export default function AIUsagePage() {
                       <button 
                         onClick={handleRefill}
                         disabled={isRefilling}
-                        className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-bold rounded-lg transition-all flex items-center gap-2 shadow-lg shadow-indigo-500/20 disabled:opacity-50 disabled:cursor-not-allowed"
+                        className="px-4 py-2 bg-purple-600 hover:bg-purple-500 text-white text-sm font-bold rounded-lg transition-all flex items-center gap-2 shadow-lg shadow-purple-500/20 disabled:opacity-50 disabled:cursor-not-allowed"
                       >
                           {isRefilling ? <RefreshCw size={14} className="animate-spin"/> : <Plus size={16} strokeWidth={3} />}
                           Confirm & Add

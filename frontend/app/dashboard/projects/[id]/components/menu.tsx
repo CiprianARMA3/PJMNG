@@ -4,36 +4,41 @@ import {
   LayoutGrid,
   KanbanSquare,
   Calendar,
-  Bug,
   Workflow,
   Bot,
-  Code,
   ChevronRight,
-  Bell,
   LogOut,
   Search,
   Settings,
-  Users,
-  ChevronDown,
-  Database,
-  Logs,
   UserCog,
   BrainCog,
   Route,
   GitBranch,
   ClipboardCheck,
+  Database,
+  Logs,
 } from "lucide-react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
+import { useState, useMemo } from "react";
 
 interface MenuProps {
   project: any;
   user: any;
 }
 
+// Helper type guard to check if the event is a KeyboardEvent
+const isKeyboardEvent = (e: React.FormEvent | React.KeyboardEvent<HTMLInputElement>): e is React.KeyboardEvent<HTMLInputElement> => {
+    return (e as React.KeyboardEvent<HTMLInputElement>).key !== undefined;
+};
+
 export default function Menu({ project, user }: MenuProps) {
   const pathname = usePathname();
+  const router = useRouter();
   
+  // --- Search State ---
+  const [searchQuery, setSearchQuery] = useState('');
+
   const getAvatarUrl = () =>
     user?.user_metadata?.avatar_url || "https://avatar.vercel.sh/user";
 
@@ -51,7 +56,6 @@ export default function Menu({ project, user }: MenuProps) {
         { label: "Board", icon: KanbanSquare, href: `/dashboard/projects/${project.id}/development/board` },
         { label: "Events and Workflow", icon: Calendar, href: `/dashboard/projects/${project.id}/development/events-workflow` },
         { label: "Activity Overview", icon: Calendar, href: `/dashboard/projects/${project.id}/development/calendar` },
-        // { label: "Tasks", icon: ClipboardCheck, href: `/dashboard/projects/${project.id}/development/tasks` },
         { label: "Repository logs", icon: Logs, href: `/dashboard/projects/${project.id}/development/repository-logs` },
       ],
     },
@@ -64,7 +68,7 @@ export default function Menu({ project, user }: MenuProps) {
         { label: "AI Roadmap Visualizer", icon: Route, href: `/dashboard/projects/${project.id}/ai/roadmap-visualizer` },
       ],
     },
-        {
+    {
       title: "Settings",
       items: [
         { label: "Project Settings", icon: Settings, href: `/dashboard/projects/${project.id}/settings/project-settings` },
@@ -84,6 +88,63 @@ export default function Menu({ project, user }: MenuProps) {
   ];
 
   const isActive = (href: string) => pathname === href;
+
+  // Combine all navigatable items for quick search results
+  const availableRoutes = useMemo(() => {
+    return sections.flatMap(section => section.items).map(item => ({
+        label: item.label,
+        href: item.href,
+    }));
+  }, [project.id, sections]);
+
+
+  // Filter the routes based on the search query
+  const filteredResults = availableRoutes.filter(route =>
+    route.label.toLowerCase().includes(searchQuery.toLowerCase())
+  ).slice(0, 5); // Limit to top 5 results
+
+  const isDropdownOpen = searchQuery.length > 0;
+
+  // Function to handle clicking on a search result (quick navigation)
+  const handleResultClick = (href: string) => {
+    setSearchQuery(''); // Close the dropdown
+    router.push(href);
+  };
+  
+  // --- Search Handler Function ---
+  const handleSearchSubmit = (e: React.FormEvent | React.KeyboardEvent<HTMLInputElement>) => {
+    e.preventDefault();
+    const query = searchQuery.trim();
+    
+    // Check if this submission was triggered by Enter, AND if there are quick results to jump to.
+    const isEnterPressWithResults = isKeyboardEvent(e) && e.key === 'Enter' && filteredResults.length > 0;
+
+    if (isEnterPressWithResults) {
+        handleResultClick(filteredResults[0].href);
+        return;
+    }
+
+    if (query) {
+      // General Search Redirect (if no quick results are used or if submitted normally)
+      router.push(`/dashboard/projects/${project.id}/search?q=${encodeURIComponent(query)}`);
+      setSearchQuery(''); // Clear input after search
+    }
+  };
+
+  // --- Key Down Handler for ⌘K and Enter ---
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    // Submit on Enter
+    if (e.key === 'Enter') {
+        handleSearchSubmit(e);
+        return;
+    }
+
+    // Check for ⌘K or Ctrl+K (Optional: prevent default browser behavior)
+    if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+        e.preventDefault();
+    }
+  };
+
 
   return (
     <>
@@ -113,36 +174,73 @@ export default function Menu({ project, user }: MenuProps) {
       {/* --- TOP BAR --- */}
       <header className="fixed top-0 left-0 right-0 h-14 bg-[#0a0a0a]/80 backdrop-blur-md border-b border-white/[0.08] z-50 flex items-center justify-between px-4 ml-64 transition-all">
    
-        {/* Left: Search */}
+        {/* Left: Search (Now positioned for dropdown) */}
         <div className="flex items-center gap-4 w-full max-w-md">
-          <div className="relative group w-full">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500 group-focus-within:text-zinc-300 transition-colors" />
-            <input
-              type="text"
-              placeholder="Search or type command..."
-              className="bg-zinc-900/50 border border-white/5 text-sm text-zinc-200 rounded-md pl-9 pr-10 py-1.5 w-full focus:outline-none focus:ring-1 focus:ring-purple-500/50 focus:bg-zinc-900 transition-all placeholder:text-zinc-600"
-            />
-            <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1 pointer-events-none">
-                <span className="bg-white/10 text-[10px] text-zinc-400 px-1.5 py-0.5 rounded border border-white/5 font-mono">⌘K</span>
+          <div className="relative group w-full"> {/* Make this relative for absolute dropdown */}
+            <form onSubmit={handleSearchSubmit} className="w-full">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500 group-focus-within:text-zinc-300 transition-colors z-10" />
+              <input
+                type="text"
+                placeholder="Search or type command..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                onKeyDown={handleKeyDown}
+                className="bg-zinc-900/50 border border-white/5 text-sm text-zinc-200 rounded-md pl-9 pr-10 py-1.5 w-full focus:outline-none focus:ring-1 focus:ring-purple-500/50 focus:bg-zinc-900 transition-all placeholder:text-zinc-600 relative z-10"
+              />
+              <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1 pointer-events-none z-10">
+                  <span className="bg-white/10 text-[10px] text-zinc-400 px-1.5 py-0.5 rounded border border-white/5 font-mono">⌘K</span>
+              </div>
+            </form>
+            
+            {/* --- Search Results Dropdown (Animated Box) --- */}
+            <div 
+              className={`
+                absolute top-full mt-2 w-full bg-[#18181b] border border-white/10 rounded-lg shadow-2xl overflow-hidden
+                transition-all duration-300 ease-in-out
+                ${isDropdownOpen ? 'max-h-64 opacity-100 p-1' : 'max-h-0 opacity-0'}
+                z-40 
+              `}
+            >
+              {isDropdownOpen && (
+                filteredResults.length > 0 ? (
+                  filteredResults.map((result, index) => (
+                    <button
+                      key={index}
+                      onClick={() => handleResultClick(result.href)}
+                      className="flex items-center w-full px-3 py-2 text-sm text-zinc-200 hover:bg-white/5 rounded-md text-left transition-colors"
+                    >
+                      <Route className="w-4 h-4 mr-3 text-zinc-500" /> {/* Using Route icon for navigation */}
+                      {result.label}
+                      <ChevronRight className="ml-auto w-3 h-3 text-zinc-500" />
+                    </button>
+                  ))
+                ) : (
+                  <div className="px-3 py-2 text-sm text-zinc-500">
+                    No quick results found. Press Enter to perform a full project search.
+                  </div>
+                )
+              )}
             </div>
           </div>
         </div>
 
         {/* Right: Actions */}
         <div className="flex items-center gap-3">
-          <button className="relative p-2 rounded-md hover:bg-white/5 text-zinc-400 hover:text-zinc-100 transition-colors">
+          {/* <button className="relative p-2 rounded-md hover:bg-white/5 text-zinc-400 hover:text-zinc-100 transition-colors">
             <Bell className="w-4 h-4" />
             <span className="absolute top-2 right-2 w-1.5 h-1.5 bg-purple-500 rounded-full border border-[#0a0a0a]"></span>
-          </button>
+          </button> */}
 
           <div className="h-4 w-[1px] bg-white/10 mx-1" />
 
           <div className="flex items-center gap-3 pl-2 cursor-pointer group">
-            <div className="text-right hidden sm:block">
-              <p className="text-xs font-medium text-zinc-200 group-hover:text-white transition-colors">
-                {user?.user_metadata?.full_name || "User"}
-              </p>
-            </div>
+            <a href={`/dashboard/projects/${project.id}/settings/project-settings`}>
+              <div className="text-right hidden sm:block">
+                <p className="text-xs font-medium text-zinc-200 group-hover:text-white transition-colors">
+                  {user?.user_metadata?.full_name || "User"}
+                </p>
+              </div>
+            </a>
             <img src={getAvatarUrl()} alt="Avatar" className="w-7 h-7 rounded-full ring-2 ring-white/5 group-hover:ring-white/20 transition-all" />
           </div>
         </div>

@@ -79,7 +79,7 @@ export default function ProjectCodeGeneration({ projectId }: ProjectCodeGenerati
     <div className="w-full  rounded-lg p-1 mb-6">
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-2 text-xs font-medium text-zinc-300">
-          <LinkIcon size={14} className="text-indigo-400" />
+          <LinkIcon size={14} className="text-purple-400" />
           <span>Project Invite Code</span>
         </div>
         <button
@@ -89,7 +89,7 @@ export default function ProjectCodeGeneration({ projectId }: ProjectCodeGenerati
           title="Regenerate Code"
         >
           <RefreshCw size={12} className={`group-hover:rotate-180 transition-transform duration-500 ${regenerating ? "animate-spin" : ""}`} />
-          <span>Reset Link</span>
+          <span>Reset Invite Code</span>
         </button>
       </div>
 

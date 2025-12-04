@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
+import Image from 'next/image';
 import {
   ChevronDown,
   Menu,
@@ -135,7 +136,7 @@ const Navbar = () => {
               </div>
             )}
           </div>
-          <a href="#" className="text-[15px] font-medium text-[#5f6368] hover:text-[#202124] transition-colors">Solutions</a>
+          <a href="#" className="text-[15px] font-medium text-[#5f6368] hover:text-[#202124] transition-colors">Blog</a>
           <a href="#" className="text-[15px] font-medium text-[#5f6368] hover:text-[#202124] transition-colors">Enterprise</a>
           <a href="#" className="text-[15px] font-medium text-[#5f6368] hover:text-[#202124] transition-colors">Pricing</a>
         </div>
@@ -200,10 +201,13 @@ const Hero = () => (
       </div>
       <div className="pt-8 animate-fade-in -mt-6">
         <div className="inline-flex items-center gap-2 px-5 py-2 mix-blend-multiply">
-          <span className="text-sm font-semibold text-[#5f6368] mt-5.5">
-            Powered by
-          </span>
+          {/* <span className="text-sm font-semibold text-[#5f6368] mt-5.5">
+            Uses the
+          </span> */}
           <img src="https://freepnglogo.com/images/all_img/1728457808_Google_Gemini_logo_PNG.png" className='w-30 mt-2 inline-block ml-2 opacity-80 mix-blend-multiply hover:grayscale-0 transition-all' alt="Gemini" />
+          {/* <span className="text-sm font-semibold text-[#5f6368] mt-5.5">
+            API 
+          </span> */}
         </div>
       </div>
     </div>
