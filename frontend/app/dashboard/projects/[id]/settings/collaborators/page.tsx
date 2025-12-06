@@ -19,6 +19,7 @@ import {
   Copy,
   Phone // Added Phone icon
 } from "lucide-react";
+import { useProjectPermissions } from "@/hooks/useProjectPermissions";
 
 // --- TYPES (Member Specific) ---
 type MemberData = {
@@ -84,6 +85,14 @@ export default function ProjectMembersPage() {
   const router = useRouter();
   const projectId = params.id as string;
   const [copyStatus, setCopyStatus] = useState<string | null>(null);
+
+  const { checkAccess, loading: authLoading } = useProjectPermissions(projectId);
+
+  if (!authLoading && !checkAccess('collaborators')) {
+    router.push(`/dashboard/projects/${projectId}`);
+    return null;
+  }
+  if (authLoading) return null;
   
   // --- MEMBER SPECIFIC STATE ---
   const [user, setUser] = useState<any>(null);

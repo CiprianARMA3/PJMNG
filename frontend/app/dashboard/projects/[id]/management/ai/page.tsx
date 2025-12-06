@@ -95,6 +95,14 @@ export default function AIUsagePage() {
   const router = useRouter();
   const projectId = params.id as string;
 
+  const { checkAccess, loading: authLoading } = useProjectPermissions(projectId);
+
+  if (!authLoading && !checkAccess('manage-ai-assistant')) {
+    router.push(`/dashboard/projects/${projectId}`);
+    return null;
+  }
+  if (authLoading) return null;
+
   // --- STATE ---
   const [user, setUser] = useState<any>(null);
   const [project, setProject] = useState<any>(null);

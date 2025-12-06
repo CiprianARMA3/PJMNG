@@ -30,6 +30,7 @@ import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism';
+import router from "next/router";
 
 interface PageProps {
   params: Promise<{ id: string }>;
@@ -313,6 +314,14 @@ export default function AiAssistantPage({ params }: PageProps) {
   const [project, setProject] = useState<any | null>(null);
   const [user, setUser] = useState<any | null>(null);
   const [loading, setLoading] = useState(true);
+
+    const { checkAccess, loading: authLoading } = useProjectPermissions(projectId);
+  
+    if (!authLoading && !checkAccess('ai-sql-helper')) {
+      router.push(`/dashboard/projects/${projectId}`);
+      return null;
+    }
+    if (authLoading) return null;
 
   // Data
   const [tokenBalances, setTokenBalances] = useState<Record<string, number>>({});

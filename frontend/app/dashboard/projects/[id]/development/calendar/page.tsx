@@ -11,6 +11,7 @@ import {
   Bug, Zap, Hammer, CheckCircle2, AlertTriangle, Layers,
   Clock, Hash, Loader2
 } from "lucide-react";
+import { useProjectPermissions } from "@/hooks/useProjectPermissions";
 
 // --- TYPES ---
 type Tag = { name: string; color: string; textColor?: string };
@@ -44,6 +45,14 @@ export default function ConceptCalendarPage() {
   const params = useParams();
   const router = useRouter();
   const projectId = params.id as string;
+
+  const { checkAccess, loading: authLoading } = useProjectPermissions(projectId);
+
+  if (!authLoading && !checkAccess('activity-overview')) {
+    router.push(`/dashboard/projects/${projectId}`);
+    return null;
+  }
+  if (authLoading) return null;
 
   // --- STATE ---
   const [user, setUser] = useState<any>(null);

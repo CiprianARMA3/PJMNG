@@ -57,6 +57,13 @@ export default function CalendarPage() {
   const params = useParams();
   const router = useRouter();
   const projectId = params.id as string;
+  const { checkAccess, loading: authLoading } = useProjectPermissions(projectId);
+
+  if (!authLoading && !checkAccess('manager-workflow-events')) {
+    router.push(`/dashboard/projects/${projectId}`);
+    return null;
+  }
+  if (authLoading) return null;
 
   // --- STATE ---
   const [user, setUser] = useState<any>(null);

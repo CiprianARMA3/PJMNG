@@ -70,6 +70,14 @@ export default function RepositoryPage() {
   const router = useRouter();
   const projectId = params.id as string;
 
+  const { checkAccess, loading: authLoading } = useProjectPermissions(projectId);
+
+  if (!authLoading && !checkAccess('repository-logs')) {
+    router.push(`/dashboard/projects/${projectId}`);
+    return null;
+  }
+  if (authLoading) return null;
+
   // --- STATE ---
 
   // Data State

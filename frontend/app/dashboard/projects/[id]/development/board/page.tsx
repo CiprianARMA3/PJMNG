@@ -17,6 +17,7 @@ import {
   Layout, 
   FileText 
 } from "lucide-react";
+import router from "next/router";
 
 interface PageProps {
   params: Promise<{ id: string }>;
@@ -64,6 +65,14 @@ export default function Board({ params }: PageProps) {
   const [groups, setGroups] = useState<Group[]>([]);
   const [concepts, setConcepts] = useState<Concept[]>([]);
   const [loading, setLoading] = useState(true);
+
+  const { checkAccess, loading: authLoading } = useProjectPermissions(projectId);
+
+  if (!authLoading && !checkAccess('board')) {
+    router.push(`/dashboard/projects/${projectId}`);
+    return null;
+  }
+  if (authLoading) return null;
 
   // --- MODALS STATE ---
   const [showGroupModal, setShowGroupModal] = useState(false);

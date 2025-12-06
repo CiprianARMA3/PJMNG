@@ -27,6 +27,7 @@ import {
   Sparkles,
   Database
 } from "lucide-react";
+import { useProjectPermissions } from "@/hooks/useProjectPermissions";
 
 // --- TYPES ---
 type TokenLog = {
@@ -87,6 +88,14 @@ export default function AIUsagePage() {
   const params = useParams();
   const router = useRouter();
   const projectId = params.id as string;
+
+  const { checkAccess, loading: authLoading } = useProjectPermissions(projectId);
+
+  if (!authLoading && !checkAccess('ai-monitor')) {
+    router.push(`/dashboard/projects/${projectId}`);
+    return null;
+  }
+  if (authLoading) return null;
 
   // --- STATE ---
   const [user, setUser] = useState<any>(null);
