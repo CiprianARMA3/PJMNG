@@ -334,9 +334,12 @@ export default function ProjectMembersPage() {
             <h1 className="text-xl font-bold tracking-tight">Collaborators <span className="text-white/30 text-lg font-light">Panel</span></h1>
           </div>
           <div className="flex items-center gap-3">
-             <div className="h-6 px-2 bg-zinc-900 border border-zinc-800 rounded text-[10px] font-mono text-zinc-500 flex items-center">
-                MEMBERS: {filteredMembers.length}
-             </div>
+<div className="h-6 px-2 bg-zinc-900 border border-zinc-800 rounded text-[12px] font-mono text-zinc-500 flex items-center gap-2">
+    <span>SHOWING:</span>
+    <span className="text-zinc-300">{filteredMembers.length}</span>
+    <span className="text-zinc-600">/</span>
+    <span className="text-zinc-500">{allMembers.length}</span>
+</div>
           </div>
         </div>
 

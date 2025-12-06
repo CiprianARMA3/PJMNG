@@ -1,248 +1,640 @@
 "use client";
 
-import { useState, useRef, useMemo, useEffect } from "react";
-import { MoreHorizontal, Code, ChevronDown, Search } from "lucide-react";
+import { useState } from "react";
 import { 
-  getCountries, 
-  getCountryCallingCode, 
-  AsYouType, 
-  isValidPhoneNumber,
-  CountryCode
-} from 'libphonenumber-js';
+  Settings,
+  Shield,
+  Plus,
+  Edit2,
+  Trash2,
+  Search,
+  Filter,
+  Check,
+  X,
+  Save,
+  Users,
+  Eye,
+  FileText,
+  UserPlus,
+  Database,
+  Copy,
+  Lock,
+  ChevronDown,
+  AlertTriangle,
+  Calendar,
+  Mail,
+  Phone,
+  User as UserIcon,
+  GitBranch,
+  MoreHorizontal,
+  RefreshCw
+} from "lucide-react";
 
-// --- MATTE TEXTURE COMPONENT ---
-const NoiseBackground = () => (
-  <div className="fixed inset-0 z-0 w-full h-full bg-[#0a0a0a]">
-    {/* Base Gradient - Deep and subtle */}
-    <div className="absolute inset-0 bg-gradient-to-tr from-[#050505] to-[#111111]" />
-    
-    {/* NOISE OVERLAY - This creates the "Matte" feel */}
-    <div 
-      className="absolute inset-0 opacity-[0.03] pointer-events-none"
-      style={{
-        backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E")`
-      }}
-    />
-  </div>
-);
+// --- TYPES ---
+type Role = {
+  id: string;
+  name: string;
+  description: string | null;
+  permissions: string[];
+  member_count: number;
+  created_at: string;
+  isSystem?: boolean;
+};
 
-// --- MOCK AVATAR (Matte Style) ---
-const MockAvatarUpload = () => (
-  <div className="flex items-center gap-4 group cursor-pointer">
-    <div className="w-16 h-16 rounded-full bg-[#1a1a1a] border border-[#333] flex items-center justify-center group-hover:border-[#555] transition-colors">
-      <span className="text-neutral-500 text-xs font-semibold">IMG</span>
-    </div>
-    <div className="flex flex-col">
-      <span className="text-sm text-neutral-300 font-medium group-hover:text-white transition-colors">Upload photo</span>
-      <span className="text-xs text-neutral-600">Max 2MB</span>
-    </div>
-  </div>
-);
+type Permission = {
+  id: string;
+  name: string;
+  category: string;
+  description: string;
+  icon: React.ReactNode;
+};
 
-// --- PAGE WIDGET (Matte Style) ---
-const PageWidget = ({ title, icon: Icon, iconColor, children }: any) => (
-  // Removed backdrop-blur, added solid background and noise-compatible borders
-  <div className="relative z-10 w-full max-w-md bg-[#111111] border border-[#222] rounded-xl flex flex-col overflow-visible shadow-[0_20px_40px_-15px_rgba(0,0,0,0.7)] hover:border-[#333] transition-colors">
-    
-    {/* Header */}
-    <div className="px-5 py-4 border-b border-[#222] flex items-center justify-between bg-[#141414] rounded-t-xl">
-      <div className="flex items-center gap-3">
-        {/* Icon wrapper for depth */}
-        <div className="p-1.5 bg-[#1a1a1a] rounded-md border border-[#2a2a2a]">
-           <Icon size={14} className="text-neutral-400" />
-        </div>
-        <h3 className="text-sm font-medium text-neutral-300 tracking-wide">{title}</h3>
-      </div>
-      <MoreHorizontal size={16} className="text-neutral-600" />
-    </div>
-    
-    {/* Content */}
-    <div className="flex-1 p-8 bg-[#111111] min-h-0 relative flex flex-col rounded-b-xl">
-      {children}
-    </div>
-  </div>
-);
-
-// --- PHONE INPUT (Matte Style) ---
-const PhoneInput = ({ value, onChange, country, setCountry }: any) => {
-  const [isOpen, setIsOpen] = useState(false);
-  const [searchTerm, setSearchTerm] = useState("");
-  const dropdownRef = useRef<HTMLDivElement>(null);
-
-  const allCountries = useMemo(() => {
-    try {
-      const regionNames = new Intl.DisplayNames(['en'], { type: 'region' });
-      return getCountries().map((code) => ({
-        code,
-        name: regionNames.of(code) || code,
-        dial_code: `+${getCountryCallingCode(code)}`
-      }));
-    } catch (e) {
-      return getCountries().map((code) => ({
-        code,
-        name: code,
-        dial_code: `+${getCountryCallingCode(code)}`
-      }));
+// --- MAIN COMPONENT ---
+export default function RoleManagementPage() {
+  // --- STATE ---
+  const [roles, setRoles] = useState<Role[]>([
+    {
+      id: "1",
+      name: "Administrator",
+      description: "Full system access with all permissions",
+      permissions: ["read", "write", "delete", "manage_users", "manage_roles", "view_analytics", "system_config", "api_access"],
+      member_count: 3,
+      created_at: "2024-01-15T10:30:00Z",
+      isSystem: true
+    },
+    {
+      id: "2",
+      name: "Moderator",
+      description: "Can moderate content and manage basic users",
+      permissions: ["read", "write", "manage_users", "view_analytics"],
+      member_count: 12,
+      created_at: "2024-02-20T14:45:00Z"
+    },
+    {
+      id: "3",
+      name: "Editor",
+      description: "Create and edit content but cannot publish",
+      permissions: ["read", "write", "view_analytics"],
+      member_count: 24,
+      created_at: "2024-03-05T09:15:00Z"
+    },
+    {
+      id: "4",
+      name: "Viewer",
+      description: "Read-only access to content",
+      permissions: ["read", "view_analytics"],
+      member_count: 156,
+      created_at: "2024-01-10T11:20:00Z"
+    },
+    {
+      id: "5",
+      name: "Content Manager",
+      description: "Manage all content including publishing",
+      permissions: ["read", "write", "delete", "view_analytics"],
+      member_count: 8,
+      created_at: "2024-02-28T16:30:00Z"
     }
-  }, []);
+  ]);
 
-  const filteredCountries = allCountries.filter(c => 
-    c.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
-    c.dial_code.includes(searchTerm)
+  const [editingRole, setEditingRole] = useState<Role | null>(null);
+  const [isCreating, setIsCreating] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [showRoleMenu, setShowRoleMenu] = useState(false);
+  const [expandedRoleId, setExpandedRoleId] = useState<string | null>(null);
+  const [actionLoading, setActionLoading] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  // Form states
+  const [roleName, setRoleName] = useState("");
+  const [roleDescription, setRoleDescription] = useState("");
+  const [selectedPermissions, setSelectedPermissions] = useState<string[]>([]);
+
+  // Mock permissions data
+  const allPermissions: Permission[] = [
+    { id: "read", name: "View Content", category: "General", description: "Can view all content", icon: <Eye size={14} /> },
+    { id: "write", name: "Create/Edit", category: "General", description: "Can create and edit content", icon: <FileText size={14} /> },
+    { id: "delete", name: "Delete Content", category: "General", description: "Can delete content", icon: <Trash2 size={14} /> },
+    { id: "manage_users", name: "Manage Users", category: "Users", description: "Can add/remove users", icon: <UserPlus size={14} /> },
+    { id: "manage_roles", name: "Manage Roles", category: "Users", description: "Can create and edit roles", icon: <Settings size={14} /> },
+    { id: "view_analytics", name: "View Analytics", category: "System", description: "Can view analytics dashboard", icon: <Database size={14} /> },
+    { id: "system_config", name: "System Config", category: "System", description: "Can modify system settings", icon: <Settings size={14} /> },
+    { id: "api_access", name: "API Access", category: "System", description: "Can access API endpoints", icon: <Copy size={14} /> }
+  ];
+
+  // Filtered roles based on search
+  const filteredRoles = roles.filter(role =>
+    role.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    (role.description?.toLowerCase() || "").includes(searchQuery.toLowerCase())
   );
 
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
-        setIsOpen(false);
-      }
-    };
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, []);
+  // Role filter options
+  const roleFilters = [
+    { name: "All Roles", isSelected: true },
+    { name: "System", isSelected: false },
+    { name: "Custom", isSelected: false }
+  ];
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const formatter = new AsYouType(country);
-    onChange(formatter.input(e.target.value));
+  // --- HANDLERS ---
+  const handleCreateRole = () => {
+    setIsCreating(true);
+    setRoleName("");
+    setRoleDescription("");
+    setSelectedPermissions([]);
+    setEditingRole(null);
+    setExpandedRoleId(null);
   };
 
+  const handleEditRole = (role: Role) => {
+    setEditingRole(role);
+    setRoleName(role.name);
+    setRoleDescription(role.description || "");
+    setSelectedPermissions([...role.permissions]);
+    setIsCreating(false);
+    setExpandedRoleId(null);
+  };
+
+  const handleCancel = () => {
+    setEditingRole(null);
+    setIsCreating(false);
+    setRoleName("");
+    setRoleDescription("");
+    setSelectedPermissions([]);
+  };
+
+  const handleSaveRole = () => {
+    if (!roleName.trim()) {
+      setError("Role name is required");
+      return;
+    }
+
+    setActionLoading("saving");
+    
+    setTimeout(() => {
+      if (editingRole) {
+        // Update existing role
+        setRoles(prev => prev.map(role =>
+          role.id === editingRole.id
+            ? {
+                ...role,
+                name: roleName,
+                description: roleDescription || null,
+                permissions: selectedPermissions
+              }
+            : role
+        ));
+      } else {
+        // Create new role
+        const newRole: Role = {
+          id: Date.now().toString(),
+          name: roleName,
+          description: roleDescription || null,
+          permissions: selectedPermissions,
+          member_count: 0,
+          created_at: new Date().toISOString()
+        };
+        setRoles(prev => [...prev, newRole]);
+      }
+      
+      setActionLoading(null);
+      handleCancel();
+    }, 500);
+  };
+
+  const handleDeleteRole = (roleId: string, roleName: string) => {
+    if (!confirm(`Are you sure you want to delete the role "${roleName}"? This action cannot be undone.`)) {
+      return;
+    }
+
+    setActionLoading(roleId);
+    
+    setTimeout(() => {
+      setRoles(prev => prev.filter(role => role.id !== roleId));
+      setActionLoading(null);
+      if (expandedRoleId === roleId) setExpandedRoleId(null);
+    }, 500);
+  };
+
+  const togglePermission = (permissionId: string) => {
+    setSelectedPermissions(prev =>
+      prev.includes(permissionId)
+        ? prev.filter(id => id !== permissionId)
+        : [...prev, permissionId]
+    );
+  };
+
+  const toggleRoleExpand = (roleId: string) => {
+    setExpandedRoleId(prev => prev === roleId ? null : roleId);
+  };
+
+  const handleRefresh = () => {
+    setActionLoading("refresh");
+    setTimeout(() => {
+      setActionLoading(null);
+    }, 1000);
+  };
+
+  // --- UI ---
   return (
-    <div className="relative" ref={dropdownRef}>
-      {/* Matte Input Logic:
-          1. Darker background (#161616)
-          2. Subtle border (#2a2a2a)
-          3. Focus: Light Grey border (neutral-600) instead of glowing purple 
-      */}
-      <div className="flex h-12 w-full bg-[#161616] border border-[#2a2a2a] rounded-lg focus-within:border-neutral-600 transition-colors overflow-visible items-stretch">
+    <div className="h-screen bg-[#0a0a0a] text-zinc-100 flex overflow-hidden selection:bg-indigo-500/30">
+      
+      {/* MAIN CONTENT */}
+      <main className="flex-1 flex flex-col h-full bg-[#09090b] relative">
         
-        <button
-          type="button"
-          onClick={() => setIsOpen(!isOpen)}
-          className="flex h-full items-center gap-2 px-3 border-r border-[#2a2a2a] hover:bg-[#1a1a1a] transition-colors bg-[#161616] min-w-[80px] rounded-l-lg"
-        >
-          <span className="text-neutral-300 text-sm font-medium">+{getCountryCallingCode(country)}</span>
-          <ChevronDown size={14} className={`text-neutral-600 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
-        </button>
-
-        <input
-          type="tel"
-          placeholder="Phone number"
-          value={value}
-          onChange={handleInputChange}
-          className="flex-1 h-full px-4 bg-transparent text-neutral-200 outline-none placeholder:text-neutral-700 rounded-r-lg"
-        />
-      </div>
-
-      {isOpen && (
-        <div className="absolute top-full left-0 mt-2 w-full max-h-60 overflow-hidden bg-[#161616] border border-[#2a2a2a] rounded-lg shadow-xl z-50 flex flex-col animate-in fade-in slide-in-from-top-2 duration-200">
-          <div className="p-2 border-b border-[#2a2a2a] sticky top-0 bg-[#161616] z-10">
-            <div className="relative">
-              <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-600" />
-              <input 
-                autoFocus type="text" placeholder="Search..." 
-                className="w-full bg-[#0a0a0a] rounded-md py-1.5 pl-9 pr-3 text-xs text-neutral-300 border border-[#2a2a2a] focus:outline-none focus:border-neutral-600 placeholder:text-neutral-700"
-                value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)}
-              />
+        {/* HEADER */}
+        <div className="flex-none h-14 mt-[55px] px-6 border-b border-white/5 flex items-center justify-between bg-[#0a0a0a]/50 backdrop-blur-sm z-10">
+          <div className="flex items-center gap-4">
+            <Shield className="w-5 h-5 text-indigo-400" />
+            <h1 className="text-xl font-bold tracking-tight">Role <span className="text-white/30 text-lg font-light">Management</span></h1>
+          </div>
+          <div className="flex items-center gap-3">
+            <div className="h-6 px-2 bg-zinc-900 border border-zinc-800 rounded text-[10px] font-mono text-zinc-500 flex items-center">
+              TOTAL: {roles.length}
             </div>
           </div>
-          <div className="overflow-y-auto max-h-48 scrollbar-thin scrollbar-thumb-neutral-800 scrollbar-track-transparent">
-            {filteredCountries.map((c) => (
-              <button
-                key={c.code} type="button"
-                className={`w-full text-left px-4 py-2.5 text-sm flex items-center justify-between transition-colors ${country === c.code ? 'bg-[#222] text-white' : 'text-neutral-400 hover:bg-[#1a1a1a] hover:text-neutral-200'}`}
-                onClick={() => { setCountry(c.code as CountryCode); setIsOpen(false); setSearchTerm(""); }}
+        </div>
+
+        {/* TOOLBAR */}
+        <div className="flex-none px-6 py-5 flex items-center justify-between">
+          <div className="flex items-center gap-3 w-full max-w-4xl">
+            {/* Search */}
+            <div className="relative flex-1 group max-w-md">
+              <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500 group-focus-within:text-zinc-300 transition-colors" />
+              <input 
+                type="text" 
+                placeholder="Search roles..." 
+                className="w-full bg-zinc-900/50 border border-zinc-800/80 rounded-lg pl-9 pr-4 py-2 text-sm text-zinc-200 focus:outline-none focus:ring-1 focus:ring-zinc-700 focus:border-zinc-700 transition-all shadow-sm" 
+                value={searchQuery}
+                onChange={e => setSearchQuery(e.target.value)}
+              />
+            </div>
+            
+            {/* Create Role Button */}
+            <button 
+              onClick={handleCreateRole}
+              className="flex items-center gap-2 px-4 py-2 bg-purple-600 hover:bg-purple-500 text-white text-xs font-semibold rounded-lg transition-all shadow-sm shadow-indigo-900/20 active:scale-95"
+            >
+              <Plus size={14} />
+              <span>Create Role</span>
+            </button>
+
+            {/* Role Filter */}
+            <div className="relative">
+              <button 
+                onClick={() => setShowRoleMenu(!showRoleMenu)} 
+                className={`flex items-center gap-2 px-3 py-2 border rounded-lg text-xs font-medium transition-all shadow-sm
+                  ${showRoleMenu 
+                    ? 'bg-zinc-800 border-zinc-700 text-white' 
+                    : 'bg-zinc-900/50 border-zinc-800 text-zinc-400 hover:text-zinc-200 hover:bg-zinc-900'}`}
               >
-                <span className="flex items-center gap-3">
-                  <span className="text-[10px] font-mono opacity-40 w-6 text-center bg-[#222] rounded px-1">{c.code}</span>
-                  <span className="truncate max-w-[140px]">{c.name}</span>
-                </span>
-                <span className="text-xs text-neutral-600">{c.dial_code}</span>
+                <Filter size={14} /> 
+                <span>Filter</span>
+                <ChevronDown size={12} />
               </button>
-            ))}
+              
+              {showRoleMenu && (
+                <div className="absolute top-full right-0 mt-2 w-48 bg-[#0C0C0E] border border-zinc-800 rounded-lg shadow-2xl z-30 p-1.5">
+                  <div className="space-y-0.5">
+                    <div className="px-2 py-1.5 text-[10px] font-bold text-zinc-500 uppercase tracking-wider">Show Roles</div>
+                    {roleFilters.map(filter => (
+                      <button
+                        key={filter.name}
+                        onClick={() => {}}
+                        className="w-full text-left flex items-center justify-between px-2 py-1.5 text-xs text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800/50 rounded-md transition-colors"
+                      >
+                        <span>{filter.name}</span>
+                        {filter.isSelected && <Check size={12} className="text-indigo-500" />}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+            
+            {/* Refresh */}
+            <button 
+              onClick={handleRefresh} 
+              className="p-2 bg-zinc-900/50 border border-zinc-800 rounded-lg text-zinc-500 hover:text-zinc-200 hover:bg-zinc-900"
+            >
+              <RefreshCw size={14} className={actionLoading === "refresh" ? "animate-spin" : ""} />
+            </button>
+          </div>
+        </div>
+
+        {/* TABLE HEADER */}
+        <div className="flex-none grid grid-cols-12 gap-4 px-6 py-2 border-b border-zinc-800/50 text-[10px] font-semibold uppercase tracking-wider text-zinc-500 select-none bg-zinc-900/20">
+          <div className="col-span-5 pl-2">Role Details</div>
+          <div className="col-span-2">Permissions</div>
+          <div className="col-span-2">Members</div>
+          <div className="col-span-3 text-right pr-2">Actions</div>
+        </div>
+
+        {/* ROLES LIST */}
+        <div className="flex-1 overflow-y-auto custom-scrollbar">
+          {filteredRoles.map(role => {
+            const isExpanded = expandedRoleId === role.id;
+            const isSystem = role.isSystem;
+            
+            return (
+              <div key={role.id}>
+                {/* ROLE ROW */}
+                <div 
+                  onClick={() => toggleRoleExpand(role.id)}
+                  className={`grid grid-cols-12 gap-4 px-6 py-3.5 border-b border-zinc-800/30 items-center transition-all cursor-pointer group
+                    ${isExpanded ? 'bg-zinc-900/30 border-zinc-800' : 'hover:bg-zinc-900/20'}`}
+                >
+                  {/* 1. Role Details */}
+                  <div className="col-span-5 flex items-center gap-3">
+                    <div className="w-8 h-8 rounded-full bg-gradient-to-br from-purple-600/20 to-pink-600/20 border border-purple-800/30 flex items-center justify-center">
+                      <Shield size={14} className="text-purple-400" />
+                    </div>
+                    <div className="flex flex-col">
+                      <div className="flex items-center gap-2">
+                        <span className={`text-sm font-medium transition-colors ${isExpanded ? 'text-indigo-400' : 'text-zinc-200 group-hover:text-white'}`}>
+                          {role.name}
+                        </span>
+                        {isSystem && (
+                          <span className="text-[10px] bg-purple-900/30 text-purple-300 px-1.5 py-0.5 rounded border border-purple-800/30">
+                            System
+                          </span>
+                        )}
+                      </div>
+                      <span className="text-xs text-zinc-500 truncate max-w-[200px]">
+                        {role.description || "No description"}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* 2. Permissions Count */}
+                  <div className="col-span-2">
+                    <span className="text-xs font-medium text-zinc-300 bg-zinc-800/50 px-2 py-1 rounded border border-zinc-800">
+                      {role.permissions.length} permissions
+                    </span>
+                  </div>
+
+                  {/* 3. Member Count */}
+                  <div className="col-span-2 flex items-center gap-2 text-xs text-zinc-500">
+                    <Users size={12} />
+                    <span>{role.member_count} members</span>
+                  </div>
+
+                  {/* 4. Actions */}
+                  <div className="col-span-3 flex items-center justify-end gap-2 text-right">
+                    <button 
+                      onClick={(e) => { e.stopPropagation(); handleEditRole(role); }}
+                      className="p-1.5 text-zinc-500 hover:text-indigo-400 hover:bg-indigo-500/10 rounded-lg transition-colors"
+                      title="Edit role"
+                    >
+                      <Edit2 size={14} />
+                    </button>
+                    {!isSystem && (
+                      <button 
+                        onClick={(e) => { e.stopPropagation(); handleDeleteRole(role.id, role.name); }}
+                        disabled={actionLoading === role.id}
+                        className="p-1.5 text-zinc-500 hover:text-rose-400 hover:bg-rose-500/10 rounded-lg transition-colors disabled:opacity-50"
+                        title="Delete role"
+                      >
+                        <Trash2 size={14} />
+                      </button>
+                    )}
+                    <button className={`p-1.5 rounded-md transition-colors ${isExpanded ? 'bg-zinc-800 text-zinc-100' : 'text-zinc-600 hover:text-zinc-300'}`}>
+                      {isExpanded ? <ChevronDown size={14} className="rotate-180" /> : <MoreHorizontal size={14} />}
+                    </button>
+                  </div>
+                </div>
+
+                {/* EXPANDED PERMISSIONS PANEL */}
+                {isExpanded && (
+                  <div className="border-b border-zinc-800 bg-[#0C0C0E] px-6 py-6 animate-in slide-in-from-top-2 duration-200 cursor-default">
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                      
+                      {/* Col 1: Role Info */}
+                      <div className="space-y-4">
+                        <h3 className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest">Role Information</h3>
+                        <div className="p-4 rounded-xl border border-zinc-800/60 bg-zinc-900/20 space-y-3">
+                          <div className="flex items-center gap-3">
+                            <Calendar size={14} className="text-zinc-500" />
+                            <span className="text-xs text-zinc-400">
+                              Created: {new Date(role.created_at).toLocaleDateString()}
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-3">
+                            <Shield size={14} className="text-zinc-500" />
+                            <span className="text-xs text-zinc-400">
+                              Type: {isSystem ? "System Role" : "Custom Role"}
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-3">
+                            <Database size={14} className="text-zinc-500" />
+                            <span className="text-xs text-zinc-400">
+                              ID: <span className="font-mono text-zinc-300">{role.id}</span>
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Col 2: Permissions List */}
+                      <div className="space-y-4">
+                        <h3 className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest">Assigned Permissions</h3>
+                        <div className="p-4 rounded-xl border border-zinc-800/60 bg-zinc-900/20 space-y-2">
+                          {role.permissions.map(permId => {
+                            const perm = allPermissions.find(p => p.id === permId);
+                            return perm ? (
+                              <div key={perm.id} className="flex items-center gap-2 text-xs text-zinc-400 p-2 hover:bg-zinc-800/30 rounded-md">
+                                <div className="text-purple-400">{perm.icon}</div>
+                                <span className="font-medium">{perm.name}</span>
+                                <span className="text-[10px] text-zinc-600 bg-zinc-800/50 px-1.5 py-0.5 rounded ml-auto">
+                                  {perm.category}
+                                </span>
+                              </div>
+                            ) : null;
+                          })}
+                        </div>
+                      </div>
+
+                      {/* Col 3: Danger Zone */}
+                      <div className="space-y-4">
+                        <h3 className="text-[10px] font-bold text-rose-900/50 uppercase tracking-widest">Danger Zone</h3>
+                        <div className="p-4 rounded-xl border border-rose-900/20 bg-rose-950/5 flex flex-col justify-between h-auto gap-3">
+                          <div className="text-xs text-zinc-500">
+                            {isSystem 
+                              ? "System roles cannot be deleted as they are essential for platform functionality."
+                              : "Deleting this role will unassign it from all users immediately."}
+                          </div>
+                          
+                          {!isSystem && (
+                            <button 
+                              onClick={() => handleDeleteRole(role.id, role.name)}
+                              disabled={actionLoading === role.id}
+                              className="w-full flex items-center justify-center gap-2 py-2 text-xs font-medium text-rose-500 bg-rose-500/10 border border-rose-500/20 rounded hover:bg-rose-500/20 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                              <Trash2 size={12} />
+                              {actionLoading === role.id ? "Processing..." : "Delete Role"}
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      </main>
+
+      {/* ROLE CREATION/EDIT MODAL */}
+      {(isCreating || editingRole) && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="bg-[#18181b] border border-zinc-800 rounded-xl shadow-2xl w-full max-w-2xl p-6 relative animate-in zoom-in-95 duration-200 max-h-[90vh] overflow-y-auto">
+            <button 
+              onClick={handleCancel} 
+              className="absolute top-4 right-4 p-1.5 text-zinc-500 hover:text-white hover:bg-zinc-800 rounded-lg transition-colors"
+            >
+              <X size={16} />
+            </button>
+            
+            <div className="flex items-center gap-3 mb-6">
+              <div className="p-2 bg-gradient-to-br from-purple-600/20 to-pink-600/20 rounded-lg border border-purple-800/30">
+                <Shield className="w-5 h-5 text-purple-400" />
+              </div>
+              <div>
+                <h2 className="text-lg font-bold text-white">
+                  {editingRole ? "Edit Role" : "Create New Role"}
+                </h2>
+                <p className="text-sm text-zinc-400">
+                  Define role permissions and access levels
+                </p>
+              </div>
+            </div>
+
+            {/* Error Display */}
+            {error && (
+              <div className="mb-4 p-3 bg-rose-900/20 border border-rose-800 rounded-lg flex items-center gap-2">
+                <AlertTriangle size={14} className="text-rose-400" />
+                <p className="text-sm text-rose-300">{error}</p>
+              </div>
+            )}
+
+            <div className="space-y-4">
+              {/* Role Name */}
+              <div>
+                <label className="block text-xs font-semibold text-zinc-400 uppercase tracking-wider mb-2">
+                  Role Name *
+                </label>
+                <input
+                  type="text"
+                  value={roleName}
+                  onChange={(e) => setRoleName(e.target.value)}
+                  placeholder="e.g., Moderator, Editor, Viewer"
+                  className="w-full bg-zinc-900/50 border border-zinc-800/80 rounded-lg px-3 py-2.5 text-sm text-zinc-200 focus:outline-none focus:ring-1 focus:ring-zinc-700 focus:border-zinc-700 transition-all"
+                />
+              </div>
+
+              {/* Description */}
+              <div>
+                <label className="block text-xs font-semibold text-zinc-400 uppercase tracking-wider mb-2">
+                  Description
+                </label>
+                <textarea
+                  value={roleDescription}
+                  onChange={(e) => setRoleDescription(e.target.value)}
+                  rows={2}
+                  placeholder="Describe what this role can do..."
+                  className="w-full bg-zinc-900/50 border border-zinc-800/80 rounded-lg px-3 py-2.5 text-sm text-zinc-200 focus:outline-none focus:ring-1 focus:ring-zinc-700 focus:border-zinc-700 transition-all resize-none"
+                />
+              </div>
+
+              {/* Permissions Selection */}
+              <div>
+                <div className="flex items-center justify-between mb-3">
+                  <label className="block text-xs font-semibold text-zinc-400 uppercase tracking-wider">
+                    Permissions
+                  </label>
+                  <span className="text-xs text-zinc-500">
+                    {selectedPermissions.length} selected
+                  </span>
+                </div>
+
+                <div className="space-y-3 max-h-[300px] overflow-y-auto pr-2">
+                  {allPermissions.map(permission => {
+                    const isSelected = selectedPermissions.includes(permission.id);
+                    return (
+                      <div
+                        key={permission.id}
+                        onClick={() => togglePermission(permission.id)}
+                        className={`p-3 border rounded-lg cursor-pointer transition-all ${
+                          isSelected
+                            ? "border-purple-600 bg-purple-900/10"
+                            : "border-zinc-800 hover:border-zinc-700"
+                        }`}
+                      >
+                        <div className="flex items-start gap-3">
+                          <div className={`mt-0.5 w-4 h-4 border rounded flex items-center justify-center ${
+                            isSelected
+                              ? "border-purple-600 bg-purple-600"
+                              : "border-zinc-600"
+                          }`}>
+                            {isSelected && <Check className="w-3 h-3 text-white" />}
+                          </div>
+                          <div className="flex-1">
+                            <div className="flex items-center gap-2 mb-1">
+                              <div className="text-purple-400">{permission.icon}</div>
+                              <span className="font-medium text-sm">
+                                {permission.name}
+                              </span>
+                              <span className="text-[10px] text-zinc-500 bg-zinc-800 px-2 py-0.5 rounded-full">
+                                {permission.category}
+                              </span>
+                            </div>
+                            <p className="text-xs text-zinc-400">
+                              {permission.description}
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Action Buttons */}
+              <div className="flex gap-3 pt-4 border-t border-zinc-800">
+                <button
+                  onClick={handleSaveRole}
+                  disabled={actionLoading === "saving"}
+                  className="flex-1 bg-purple-600 hover:bg-purple-500 text-white px-4 py-2.5 rounded-lg transition-all shadow-sm shadow-indigo-900/20 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {actionLoading === "saving" ? (
+                    <>
+                      <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                      <span>Saving...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Save size={14} />
+                      <span>{editingRole ? "Update Role" : "Create Role"}</span>
+                    </>
+                  )}
+                </button>
+                <button
+                  onClick={handleCancel}
+                  className="px-4 py-2.5 border border-zinc-700 hover:bg-zinc-800 text-zinc-300 rounded-lg transition-colors"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       )}
-    </div>
-  );
-};
 
-// --- PREVIEW PAGE ---
-export default function PreviewPage() {
-  const [name, setName] = useState("");
-  const [surname, setSurname] = useState("");
-  const [country, setCountry] = useState<CountryCode>("US");
-  const [phoneNumber, setPhoneNumber] = useState("");
-  const [loading, setLoading] = useState(false);
-
-  const handleSaveProfile = () => {
-    setLoading(true);
-    setTimeout(() => {
-      setLoading(false);
-      alert("Sample: Profile Saved!");
-    }, 1500);
-  };
-
-  return (
-    <div className="min-h-screen flex items-center justify-center p-4 font-sans relative">
-      
-      {/* Matte Background */}
-      <NoiseBackground />
-
-      <div className="relative z-10 w-full max-w-md">
-        <PageWidget title="Complete Your Profile" icon={Code} iconColor="text-neutral-400">
-          <p className="text-neutral-500 text-sm mb-8">Please fill in your information to get started.</p>
-
-          <div className="space-y-6">
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="block text-xs font-medium text-neutral-500 mb-2 ml-1">First Name</label>
-                <input
-                  type="text" placeholder="John" value={name} onChange={(e) => setName(e.target.value)}
-                  className="w-full px-4 h-12 bg-[#161616] text-neutral-200 border border-[#2a2a2a] rounded-lg focus:border-neutral-600 outline-none transition-all placeholder:text-neutral-700"
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-neutral-500 mb-2 ml-1">Last Name</label>
-                <input
-                  type="text" placeholder="Doe" value={surname} onChange={(e) => setSurname(e.target.value)}
-                  className="w-full px-4 h-12 bg-[#161616] text-neutral-200 border border-[#2a2a2a] rounded-lg focus:border-neutral-600 outline-none transition-all placeholder:text-neutral-700"
-                />
-              </div>
-            </div>
-
-            <div>
-              <label className="block text-xs font-medium text-neutral-500 mb-2 ml-1">
-                Phone Number <span className="text-red-900">*</span>
-              </label>
-              <PhoneInput value={phoneNumber} onChange={setPhoneNumber} country={country} setCountry={setCountry} />
-              {phoneNumber && !isValidPhoneNumber(phoneNumber, country) && (
-                <p className="text-red-900 text-[10px] mt-2 ml-1 font-medium">Invalid phone number format</p>
-              )}
-            </div>
-
-            <div>
-              <label className="block text-xs font-medium text-neutral-500 mb-2 ml-1">Profile Picture</label>
-              <div className="border border-[#2a2a2a] rounded-lg p-4 bg-[#161616]">
-                <MockAvatarUpload />
-              </div>
-            </div>
-          </div>
-
-          <button
-            onClick={handleSaveProfile}
-            disabled={loading}
-            // Button: Deep Matte Purple (Desaturated) or White for contrast. 
-            // Using a "Concrete" White for that high-end matte look.
-            className="w-full mt-8 bg-[#e5e5e5] hover:bg-white text-black py-3 px-4 rounded-lg font-semibold text-sm disabled:opacity-50 transition-all shadow-lg"
-          >
-            {loading ? "Saving..." : "Complete Profile"}
-          </button>
-
-          <div className="mt-8 text-center border-t border-[#222] pt-6">
-            <p className="text-neutral-600 text-xs">By continuing, you agree to our Terms of Service.</p>
-          </div>
-        </PageWidget>
-      </div>
+      {/* Global Styles for Scrollbar */}
+      <style jsx global>{`
+        .custom-scrollbar::-webkit-scrollbar { width: 6px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #27272a; border-radius: 4px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #3f3f46; }
+      `}</style>
     </div>
   );
 }

@@ -7,7 +7,7 @@ import Menu from "../../components/menu";
 import ProjectCodeGeneration from "./components/projectCodeGeneration"; 
 import React from "react"; 
 import { PhoneNumberDisplay } from "../../settings/collaborators/components/identifyPhoneNumberProvenience";
-
+import RoleManagementModal from "./components/manageRoles"; 
 import { 
   Search, 
   RefreshCw, Filter, ChevronDown, 
@@ -21,7 +21,8 @@ import {
   Phone,
   Plus,
   Trash2,
-  X
+  X,
+  Settings
 } from "lucide-react";
 
 // --- TYPES ---
@@ -116,6 +117,9 @@ export default function ProjectManagementPage() {
   const [isInviteOpen, setIsInviteOpen] = useState(false);
   const [inviteEmail, setInviteEmail] = useState("");
   const [inviteRole, setInviteRole] = useState(""); // Will default to first available role
+
+  // Role Management Modal State
+  const [isRoleManagementOpen, setIsRoleManagementOpen] = useState(false);
 
   // --- DATA FETCHING HELPERS ---
 
@@ -397,6 +401,49 @@ export default function ProjectManagementPage() {
       setActionLoading(null);
   };
 
+  const handleRolesUpdated = async (updatedRoles: Record<string, string[]>) => {
+    // Update the project's metadata with new roles
+    const { error } = await supabase
+      .from('projects')
+      .update({
+        metadata: {
+          ...project?.metadata,
+          roles: updatedRoles
+        }
+      })
+      .eq('id', projectId);
+
+    if (error) {
+      console.error('Failed to update project roles:', error);
+      alert('Failed to update project roles');
+    } else {
+      // Update local state
+      setAvailableRoles(updatedRoles);
+      
+      // Update the project object with new metadata
+      if (project) {
+        setProject({
+          ...project,
+          metadata: {
+            ...project.metadata,
+            roles: updatedRoles
+          }
+        });
+      }
+      
+      // Refresh members to reflect role changes
+      const members = await fetchAllMemberData(projectId, updatedRoles);
+      setAllMembers(members);
+      
+      // Update role filters based on new roles
+      const uniqueRoles = [...new Set(members
+        .filter(m => m.role && m.role !== 'No Role Assigned')
+        .map(m => m.role)
+      )];
+      const updatedFilters: RoleFilter[] = uniqueRoles.map(role => ({ name: role, isSelected: true }));
+      setRoleFilters(updatedFilters);
+    }
+  };
 
   // --- UI CONSTANTS ---
   const currentUserId = user?.id || "";
@@ -412,10 +459,10 @@ export default function ProjectManagementPage() {
   const handleRefresh = async () => {
     const members = await fetchAllMemberData(projectId, availableRoles);
     setAllMembers(members);
+    location.reload();
   }
 
-
- if (loading) {
+  if (loading) {
     return (
       <div role="status" className="flex justify-center items-center h-screen bg-[#0a0a0a]">
         <svg
@@ -453,8 +500,12 @@ export default function ProjectManagementPage() {
             <h1 className="text-xl font-bold tracking-tight">Team <span className="text-white/30 text-lg font-light">Management</span></h1>
           </div>
           <div className="flex items-center gap-3">
-             <div className="h-6 px-2 bg-zinc-900 border border-zinc-800 rounded text-[10px] font-mono text-zinc-500 flex items-center">
-                TOTAL: {allMembers.length}
+             {/* CHANGED: Show FILTERED count instead of TOTAL count */}
+             <div className="h-6 px-2 bg-zinc-900 border border-zinc-800 rounded text-[12px] font-mono text-zinc-500 flex items-center gap-2">
+                <span>SHOWING:</span>
+                <span className="text-zinc-300">{filteredMembers.length}</span>
+                <span className="text-zinc-600">/</span>
+                <span className="text-zinc-500">{allMembers.length}</span>
              </div>
           </div>
         </div>
@@ -481,6 +532,15 @@ export default function ProjectManagementPage() {
                 >
                     <Plus size={14} />
                     <span>Invite Collaborator</span>
+                </button>
+                
+                {/* Manage Roles Button */}
+                <button 
+                    onClick={() => setIsRoleManagementOpen(true)}
+                    className="flex items-center gap-2 px-4 py-2 bg-white hover:bg-zinc-300 text-[#0a0a0a] text-xs font-semibold rounded-lg transition-all shadow-sm shadow-indigo-900/20 active:scale-95"
+                >
+                    <Settings size={14} />
+                    <span>Manage Roles</span>
                 </button>
 
                 {/* Role Filter */}
@@ -521,7 +581,7 @@ export default function ProjectManagementPage() {
                     onClick={handleRefresh} 
                     className="p-2 bg-zinc-900/50 border border-zinc-800 rounded-lg text-zinc-500 hover:text-zinc-200 hover:bg-zinc-900"
                 >
-                    <RefreshCw size={14} className={refreshing ? "animate-spin" : ""} />
+                    <RefreshCw size={14} className={refreshing ? "animate-spin" : ""}  />
                 </button>
             </div>
         </div>
@@ -536,149 +596,173 @@ export default function ProjectManagementPage() {
 
         {/* LIST */}
         <div className="flex-1 overflow-y-auto custom-scrollbar">
-            {filteredMembers.map(member => {
-                const isExpanded = expandedUserId === member.user_id;
-                const isMe = member.user_id === currentUserId;
-                
-                return (
-                <React.Fragment key={member.user_id}>
-                    <div 
-                        onClick={() => handleMemberClick(member.user_id)}
-                        className={`grid grid-cols-12 gap-4 px-6 py-3.5 border-b border-zinc-800/30 items-center transition-all cursor-pointer group
-                            ${isExpanded ? 'bg-zinc-900/30 border-zinc-800' : 'hover:bg-zinc-900/20'}`}
-                    >
-                        {/* 1. Identity */}
-                        <div className="col-span-5 flex items-center gap-3">
-                            <CreatorPfp
-                                userId={member.user_id}
-                                currentUserId={currentUserId}
-                                currentUserPfp={currentUserPfp}
-                                currentUserName={currentUserName}
-                                pfpUrl={member.avatar_url} 
-                                name={member.full_name}
-                                size="w-8 h-8"
-                                showNameOnHover={false}
-                            />
-                            <div className="flex flex-col">
-                                <span className={`text-sm font-medium transition-colors ${isExpanded ? 'text-indigo-400' : 'text-zinc-200 group-hover:text-white'}`}>
-                                    {member.full_name} {isMe && <span className="text-zinc-600 text-[10px] ml-2">(You)</span>}
+            {filteredMembers.length === 0 ? (
+                <div className="flex flex-col items-center justify-center h-64 text-center px-6">
+                    <div className="p-4 bg-zinc-900/30 rounded-full border border-zinc-800 mb-4">
+                        <UsersIcon size={24} className="text-zinc-600" />
+                    </div>
+                    <h3 className="text-sm font-medium text-zinc-300 mb-2">No members found</h3>
+                    <p className="text-xs text-zinc-500 max-w-sm">
+                        {searchQuery ? `No members match "${searchQuery}"` : "No members match the selected filters"}
+                    </p>
+                    {(searchQuery || roleFilters.some(f => !f.isSelected)) && (
+                        <button 
+                            onClick={() => {
+                                setSearchQuery("");
+                                setRoleFilters(prev => prev.map(f => ({ ...f, isSelected: true })));
+                            }}
+                            className="mt-4 px-3 py-1.5 text-xs text-indigo-400 hover:text-indigo-300 hover:bg-indigo-500/10 rounded-lg transition-colors"
+                        >
+                            Clear filters
+                        </button>
+                    )}
+                </div>
+            ) : (
+                filteredMembers.map(member => {
+                    const isExpanded = expandedUserId === member.user_id;
+                    const isMe = member.user_id === currentUserId;
+                    
+                    return (
+                    <React.Fragment key={member.user_id}>
+                        <div 
+                            onClick={() => handleMemberClick(member.user_id)}
+                            className={`grid grid-cols-12 gap-4 px-6 py-3.5 border-b border-zinc-800/30 items-center transition-all cursor-pointer group
+                                ${isExpanded ? 'bg-zinc-900/30 border-zinc-800' : 'hover:bg-zinc-900/20'}`}
+                        >
+                            {/* 1. Identity */}
+                            <div className="col-span-5 flex items-center gap-3">
+                                <CreatorPfp
+                                    userId={member.user_id}
+                                    currentUserId={currentUserId}
+                                    currentUserPfp={currentUserPfp}
+                                    currentUserName={currentUserName}
+                                    pfpUrl={member.avatar_url} 
+                                    name={member.full_name}
+                                    size="w-8 h-8"
+                                    showNameOnHover={false}
+                                />
+                                <div className="flex flex-col">
+                                    <span className={`text-sm font-medium transition-colors ${isExpanded ? 'text-indigo-400' : 'text-zinc-200 group-hover:text-white'}`}>
+                                        {member.full_name} {isMe && <span className="text-zinc-600 text-[10px] ml-2">(You)</span>}
+                                    </span>
+                                    <span className="text-xs text-zinc-500 font-mono tracking-tight truncate max-w-[200px]">
+                                        {member.email}
+                                    </span>
+                                </div>
+                            </div>
+
+                            {/* 2. Role */}
+                            <div className="col-span-2">
+                                <span className="text-xs font-medium text-zinc-300 capitalize bg-zinc-800/50 px-2 py-1 rounded border border-zinc-800">
+                                    {member.role}
                                 </span>
-                                <span className="text-xs text-zinc-500 font-mono tracking-tight truncate max-w-[200px]">
-                                    {member.email}
-                                </span>
+                            </div>
+
+                            {/* 3. Status/Date */}
+                            <div className="col-span-3 text-xs text-zinc-500 flex items-center gap-2">
+                                <div className="w-1.5 h-1.5 rounded-full bg-emerald-500/50 shadow-[0_0_8px_rgba(16,185,129,0.4)]"></div>
+                                <span>Active since {new Date(member.joined_at).toLocaleDateString()}</span>
+                            </div>
+
+                            {/* 4. Action Trigger */}
+                            <div className="col-span-2 flex items-center justify-end gap-3 text-right">
+                                <button className={`p-1.5 rounded-md transition-colors ${isExpanded ? 'bg-zinc-800 text-zinc-100' : 'text-zinc-600 hover:text-zinc-300'}`}>
+                                    {isExpanded ? <ChevronUp size={14} /> : <MoreHorizontal size={14} />}
+                                </button>
                             </div>
                         </div>
 
-                        {/* 2. Role */}
-                        <div className="col-span-2">
-                             <span className="text-xs font-medium text-zinc-300 capitalize bg-zinc-800/50 px-2 py-1 rounded border border-zinc-800">
-                                {member.role}
-                             </span>
-                        </div>
-
-                        {/* 3. Status/Date */}
-                        <div className="col-span-3 text-xs text-zinc-500 flex items-center gap-2">
-                            <div className="w-1.5 h-1.5 rounded-full bg-emerald-500/50 shadow-[0_0_8px_rgba(16,185,129,0.4)]"></div>
-                            <span>Active since {new Date(member.joined_at).toLocaleDateString()}</span>
-                        </div>
-
-                        {/* 4. Action Trigger */}
-                        <div className="col-span-2 flex items-center justify-end gap-3 text-right">
-                             <button className={`p-1.5 rounded-md transition-colors ${isExpanded ? 'bg-zinc-800 text-zinc-100' : 'text-zinc-600 hover:text-zinc-300'}`}>
-                                {isExpanded ? <ChevronUp size={14} /> : <MoreHorizontal size={14} />}
-                             </button>
-                        </div>
-                    </div>
-
-                    {/* EXPANDED MANAGEMENT PANEL */}
-                    {isExpanded && (
-                        <div className="border-b border-zinc-800 bg-[#0C0C0E] px-6 py-6 animate-in slide-in-from-top-2 duration-200 cursor-default">
-                             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                                
-                                {/* Col 1: Read Only Info */}
-                                <div className="space-y-4">
-                                    <h3 className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest">Contact Info</h3>
-                                    <div className="p-4 rounded-xl border border-zinc-800/60 bg-zinc-900/20 space-y-3">
-                                        <div className="flex items-center gap-3">
-                                            <Mail size={14} className="text-zinc-500" />
-                                            <span className="text-xs text-zinc-400 font-mono">{member.email}</span>
+                        {/* EXPANDED MANAGEMENT PANEL */}
+                        {isExpanded && (
+                            <div className="border-b border-zinc-800 bg-[#0C0C0E] px-6 py-6 animate-in slide-in-from-top-2 duration-200 cursor-default">
+                                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                                    
+                                    {/* Col 1: Read Only Info */}
+                                    <div className="space-y-4">
+                                        <h3 className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest">Contact Info</h3>
+                                        <div className="p-4 rounded-xl border border-zinc-800/60 bg-zinc-900/20 space-y-3">
+                                            <div className="flex items-center gap-3">
+                                                <Mail size={14} className="text-zinc-500" />
+                                                <span className="text-xs text-zinc-400 font-mono">{member.email}</span>
+                                            </div>
+                                            <div className="text-sm text-zinc-400 flex items-center gap-2 font-mono" title="Phone Number">
+                                                <Phone size={10} /> <PhoneNumberDisplay phoneNumber={member.phone_number}/>
+                                            </div>
+                                            <div className="flex items-center gap-3">
+                                                <UserIcon size={14} className="text-zinc-400" />
+                                                <span className="text-xs text-zinc-400 font-mono truncate w-full" title={member.user_id}>
+                                                    ID: {member.user_id}
+                                                </span>
+                                            </div>
                                         </div>
-                                        <div className="text-sm text-zinc-400 flex items-center gap-2 font-mono" title="Phone Number">
-                                                    <Phone size={10} /> <PhoneNumberDisplay phoneNumber={member.phone_number}/>
+                                    </div>
+
+                                    {/* Col 2: Role Management */}
+                                    <div className="space-y-4">
+                                        <h3 className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest">Access Control</h3>
+                                        <div className="p-4 rounded-xl border border-zinc-800/60 bg-zinc-900/20 flex flex-col gap-4">
+                                            
+                                            <div>
+                                                <label className="text-xs text-zinc-400 block mb-2">Assigned Role</label>
+                                                <div className="relative">
+                                                    <select 
+                                                        value={member.role} 
+                                                        onChange={(e) => handleUpdateRole(member.user_id, e.target.value)}
+                                                        disabled={isMe || actionLoading === member.user_id}
+                                                        className="w-full appearance-none bg-zinc-950 border border-zinc-800 text-zinc-200 text-sm rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none disabled:opacity-50 capitalize"
+                                                    >
+                                                        {Object.keys(availableRoles).map(r => (
+                                                            <option key={r} value={r}>{r}</option>
+                                                        ))}
+                                                    </select>
+                                                    <ChevronDown size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-500 pointer-events-none"/>
                                                 </div>
-                                        <div className="flex items-center gap-3">
-                                            <UserIcon size={14} className="text-zinc-400" />
-                                            <span className="text-xs text-zinc-400 font-mono truncate w-full" title={member.user_id}>
-                                                ID: {member.user_id}
-                                            </span>
-                                        </div>
-                                    </div>
-                                </div>
+                                                {actionLoading === member.user_id && <span className="text-[10px] text-indigo-400 mt-1 block">Updating...</span>}
+                                            </div>
 
-                                {/* Col 2: Role Management */}
-                                <div className="space-y-4">
-                                    <h3 className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest">Access Control</h3>
-                                    <div className="p-4 rounded-xl border border-zinc-800/60 bg-zinc-900/20 flex flex-col gap-4">
-                                        
-                                        <div>
-                                            <label className="text-xs text-zinc-400 block mb-2">Assigned Role</label>
-                                            <div className="relative">
-                                                <select 
-                                                    value={member.role} 
-                                                    onChange={(e) => handleUpdateRole(member.user_id, e.target.value)}
-                                                    disabled={isMe || actionLoading === member.user_id}
-                                                    className="w-full appearance-none bg-zinc-950 border border-zinc-800 text-zinc-200 text-sm rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none disabled:opacity-50 capitalize"
-                                                >
-                                                    {Object.keys(availableRoles).map(r => (
-                                                        <option key={r} value={r}>{r}</option>
+                                            <div>
+                                                <div className="text-[10px] text-zinc-500 mb-2 uppercase tracking-wider">Capabilities</div>
+                                                <div className="flex flex-wrap gap-1.5">
+                                                    {member.permissions.map((perm, i) => (
+                                                        <span key={i} className="px-2 py-1 rounded bg-zinc-800/40 border border-zinc-800 text-[10px] text-zinc-400 font-mono">
+                                                            {perm}
+                                                        </span>
                                                     ))}
-                                                </select>
-                                                <ChevronDown size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-500 pointer-events-none"/>
-                                            </div>
-                                            {actionLoading === member.user_id && <span className="text-[10px] text-indigo-400 mt-1 block">Updating...</span>}
-                                        </div>
-
-                                        <div>
-                                            <div className="text-[10px] text-zinc-500 mb-2 uppercase tracking-wider">Capabilities</div>
-                                            <div className="flex flex-wrap gap-1.5">
-                                                {member.permissions.map((perm, i) => (
-                                                    <span key={i} className="px-2 py-1 rounded bg-zinc-800/40 border border-zinc-800 text-[10px] text-zinc-400 font-mono">
-                                                        {perm}
-                                                    </span>
-                                                ))}
+                                                </div>
                                             </div>
                                         </div>
                                     </div>
-                                </div>
 
-                                {/* Col 3: Danger Zone */}
-                                <div className="space-y-4">
-                                     <h3 className="text-[10px] font-bold text-rose-900/50 uppercase tracking-widest">Danger Zone</h3>
-                                     <div className="p-4 rounded-xl border border-rose-900/20 bg-rose-950/5 flex flex-col justify-between h-auto gap-3">
-                                         <div className="text-xs text-zinc-500">
-                                            Removing this user will revoke all access to the project immediately.
-                                         </div>
-                                         
-                                         <button 
-                                            onClick={(e) => { e.stopPropagation(); handleRemoveMember(member.user_id); }}
-                                            disabled={isMe || actionLoading === member.user_id}
-                                            className="w-full flex items-center justify-center gap-2 py-2 text-xs font-medium text-rose-500 bg-rose-500/10 border border-rose-500/20 rounded hover:bg-rose-500/20 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                                        >
-                                            <Trash2 size={12} />
-                                            {actionLoading === member.user_id ? "Processing..." : "Remove from Project"}
-                                         </button>
-                                     </div>
+                                    {/* Col 3: Danger Zone */}
+                                    <div className="space-y-4">
+                                        <h3 className="text-[10px] font-bold text-rose-900/50 uppercase tracking-widest">Danger Zone</h3>
+                                        <div className="p-4 rounded-xl border border-rose-900/20 bg-rose-950/5 flex flex-col justify-between h-auto gap-3">
+                                            <div className="text-xs text-zinc-500">
+                                                Removing this user will revoke all access to the project immediately.
+                                            </div>
+                                            
+                                            <button 
+                                                onClick={(e) => { e.stopPropagation(); handleRemoveMember(member.user_id); }}
+                                                disabled={isMe || actionLoading === member.user_id}
+                                                className="w-full flex items-center justify-center gap-2 py-2 text-xs font-medium text-rose-500 bg-rose-500/10 border border-rose-500/20 rounded hover:bg-rose-500/20 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                                            >
+                                                <Trash2 size={12} />
+                                                {actionLoading === member.user_id ? "Processing..." : "Remove from Project"}
+                                            </button>
+                                        </div>
+                                    </div>
                                 </div>
-                             </div>
-                        </div>
-                    )}
-                </React.Fragment>
-            )})}
+                            </div>
+                        )}
+                    </React.Fragment>
+                )})
+            )}
+            
         </div>
       </main>
 
       {/* INVITE MODAL OVERLAY */}
- {isInviteOpen && (
+      {isInviteOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm animate-in fade-in duration-200">
             <div className="bg-[#18181b] border border-zinc-800 rounded-xl shadow-2xl w-full max-w-md p-6 relative animate-in zoom-in-95 duration-200">
                 <button onClick={() => setIsInviteOpen(false)} className="absolute top-4 right-4 text-zinc-500 hover:text-white">
@@ -689,18 +773,19 @@ export default function ProjectManagementPage() {
 
                 {/* 1. INVITE CODE COMPONENT */}
                 <ProjectCodeGeneration projectId={projectId} />
-
-                {/* Separator */}
-
-
-                {/* 2. EMAIL INVITE FORM */}
-
-
-
             </div>
         </div>
       )}
-      
+
+      {/* ROLE MANAGEMENT MODAL OVERLAY */}
+      <RoleManagementModal
+        projectId={projectId}
+        availableRoles={availableRoles}
+        isOpen={isRoleManagementOpen}
+        onClose={() => setIsRoleManagementOpen(false)}
+        onRolesUpdated={handleRolesUpdated}
+      />
+
       {/* Global Styles for Scrollbar */}
       <style jsx global>{`
         .custom-scrollbar::-webkit-scrollbar { width: 6px; }
