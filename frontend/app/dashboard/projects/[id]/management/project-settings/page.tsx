@@ -385,7 +385,7 @@ export default function ProjectSettingsPage() {
             {/* SIDEBAR */}
             <Menu project={project} user={user} />
 
-            <main className="flex-1 flex flex-col h-full ml-64 relative bg-[#0a0a0a]">
+            <main className="flex-1 flex flex-col h-full ml-64 relative bg-[#0e0e10]">
                 {/* HEADER */}
                 <div className="flex-none h-14 mt-[55px] px-6 border-b border-white/5 flex items-center justify-between bg-[#0a0a0a]/50 backdrop-blur-sm z-10">
                     <div className="flex items-center gap-4">
@@ -495,7 +495,7 @@ export default function ProjectSettingsPage() {
                                                 {/* Project Name */}
                                                 <div className="group">
                                                     <label className="block text-xs font-medium text-zinc-400 mb-2 uppercase tracking-wide">Project Name</label>
-                                                    <div className="flex items-center bg-[#0e0e10] border border-white/10 rounded-lg px-3 py-2.5 group-hover:border-white/20 transition-colors">
+                                                    <div className="flex items-center bg-[#0a0a0a] border border-white/10 rounded-lg px-3 py-2.5 group-hover:border-white/20 transition-colors">
                                                         <UserIcon size={16} className="text-zinc-500 mr-2 flex-shrink-0" />
                                                         <input 
                                                             type="text" 
@@ -511,7 +511,7 @@ export default function ProjectSettingsPage() {
                                                 {/* Description */}
                                                 <div className="group">
                                                     <label className="block text-xs font-medium text-zinc-400 mb-2 uppercase tracking-wide">Project Description</label>
-                                                    <div className="bg-[#0e0e10] border border-white/10 rounded-lg px-3 py-2.5 group-hover:border-white/20 transition-colors">
+                                                    <div className="bg-[#0a0a0a] border border-white/10 rounded-lg px-3 py-2.5 group-hover:border-white/20 transition-colors">
                                                         <textarea 
                                                             value={description}
                                                             onChange={(e) => setDescription(e.target.value)}
@@ -523,9 +523,9 @@ export default function ProjectSettingsPage() {
                                                 </div>
 
                                                 {/* Max Collaborators */}
-                                                <div className="group">
+                                                {/* <div className="group">
                                                     <label className="block text-xs font-medium text-zinc-400 mb-2 uppercase tracking-wide">Maximum Collaborators</label>
-                                                    <div className="flex items-center bg-[#0e0e10] border border-white/10 rounded-lg px-3 py-2.5 group-hover:border-white/20 transition-colors">
+                                                    <div className="flex items-center bg-[#0a0a0a] border border-white/10 rounded-lg px-3 py-2.5 group-hover:border-white/20 transition-colors">
                                                         <Users size={16} className="text-zinc-500 mr-2 flex-shrink-0" />
                                                         <input 
                                                             type="number" 
@@ -536,13 +536,13 @@ export default function ProjectSettingsPage() {
                                                             min="0"
                                                         />
                                                     </div>
-                                                </div>
+                                                </div> */}
 
                                                 {/* Project ID */}
                                                 <div className="group">
                                                     <label className="block text-xs font-medium text-zinc-400 mb-2 uppercase tracking-wide">Project UUID</label>
                                                     <div className="flex items-center gap-2">
-                                                        <div className="flex-1 flex items-center bg-[#0e0e10] border border-white/10 rounded-lg px-3 py-2.5 font-mono text-xs text-zinc-500 select-all group-hover:border-white/20 transition-colors">
+                                                        <div className="flex-1 flex items-center bg-[#0a0a0a] border border-white/10 rounded-lg px-3 py-2.5 font-mono text-xs text-zinc-500 select-all group-hover:border-white/20 transition-colors">
                                                             {projectId}
                                                         </div>
                                                         <button 
@@ -583,7 +583,7 @@ export default function ProjectSettingsPage() {
         className={`
             relative group cursor-pointer overflow-hidden rounded-full border border-dashed 
             ${logoPreview ? 'border-white/10' : 'border-white/10 hover:border-zinc-400'}
-            transition-all duration-200 bg-[#0e0e10]
+            transition-all duration-200 bg-[#0a0a0a]
             ${isReadOnly ? 'cursor-not-allowed opacity-60' : ''}
             aspect-square w-48 h-48 mx-auto
         `}
@@ -657,7 +657,7 @@ export default function ProjectSettingsPage() {
                     className={`
                         relative group cursor-pointer overflow-hidden rounded-lg border border-dashed 
                         ${bannerPreview ? 'border-white/10' : 'border-white/10 hover:border-zinc-400'}
-                        transition-all duration-200 bg-[#0e0e10]
+                        transition-all duration-200 bg-[#0a0a0a]
                         ${isReadOnly ? 'cursor-not-allowed opacity-60' : ''}
                         aspect-[3/1] w-full
                     `}
@@ -732,7 +732,7 @@ export default function ProjectSettingsPage() {
                                                             <label className="block text-xs font-medium text-zinc-400 mb-2 uppercase tracking-wide">
                                                                 {key.replace('-link', '').replace(/_/g, ' ').toUpperCase()}
                                                             </label>
-                                                            <div className="flex items-center bg-[#0e0e10] border border-white/10 rounded-lg px-3 py-2.5 group-hover:border-white/20 transition-colors">
+                                                            <div className="flex items-center bg-[#0a0a0a] border border-white/10 rounded-lg px-3 py-2.5 group-hover:border-white/20 transition-colors">
                                                                 <ExternalLink size={16} className="text-zinc-500 mr-2 flex-shrink-0" />
                                                                 <input 
                                                                     type="text" 
@@ -746,7 +746,7 @@ export default function ProjectSettingsPage() {
                                                         </div>
                                                     ))
                                                 ) : (
-                                                    <div className="text-center py-12 border border-dashed border-white/10 rounded-lg bg-[#0e0e10]">
+                                                    <div className="text-center py-12 border border-dashed border-white/10 rounded-lg bg-[#0a0a0a]">
                                                         <Globe className="w-12 h-12 text-zinc-500 mx-auto mb-4" />
                                                         <p className="text-zinc-400">No external links configured</p>
                                                         <p className="text-sm text-zinc-500 mt-2">
@@ -770,7 +770,7 @@ export default function ProjectSettingsPage() {
                                                 {/* Repository URL */}
                                                 <div className="group">
                                                     <label className="block text-xs font-medium text-zinc-400 mb-2 uppercase tracking-wide">Repository URL</label>
-                                                    <div className="flex items-center bg-[#0e0e10] border border-white/10 rounded-lg px-3 py-2.5 group-hover:border-white/20 transition-colors">
+                                                    <div className="flex items-center bg-[#0a0a0a] border border-white/10 rounded-lg px-3 py-2.5 group-hover:border-white/20 transition-colors">
                                                         <Github size={16} className="text-zinc-500 mr-2 flex-shrink-0" />
                                                         <input 
                                                             type="text" 
@@ -793,7 +793,7 @@ export default function ProjectSettingsPage() {
                                                 {/* Personal Access Token */}
                                                 <div className="group">
                                                     <label className="block text-xs font-medium text-zinc-400 mb-2 uppercase tracking-wide">GitHub Personal Access Token</label>
-                                                    <div className="flex items-center bg-[#0e0e10] border border-white/10 rounded-lg px-3 py-2.5 group-hover:border-white/20 transition-colors">
+                                                    <div className="flex items-center bg-[#0a0a0a] border border-white/10 rounded-lg px-3 py-2.5 group-hover:border-white/20 transition-colors">
                                                         <Key size={16} className="text-zinc-500 mr-2 flex-shrink-0" />
                                                         <input 
                                                             type={showToken ? "text" : "password"}
@@ -853,7 +853,7 @@ export default function ProjectSettingsPage() {
                                                         </div>
                                                     </div>
                                                     
-                                                    <div className="flex items-center justify-between p-4 bg-[#0e0e10] rounded-lg border border-white/5">
+                                                    <div className="flex items-center justify-between p-4 bg-[#0a0a0a] rounded-lg border border-white/5">
                                                         <div>
                                                             <h4 className="font-medium text-zinc-100 mb-1">Project: {project?.name}</h4>
                                                             <p className="text-xs text-zinc-500">ID: {projectId}</p>

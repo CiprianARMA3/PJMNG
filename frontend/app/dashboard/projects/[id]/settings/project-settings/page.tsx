@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { createClient } from "@/utils/supabase/client";
 import { useParams, useRouter } from "next/navigation";
 import Menu from "../../components/menu"; 
+import { PhoneNumberDisplay } from "../collaborators/components/identifyPhoneNumberProvenience";
 import { 
   User, 
   LogOut, 
@@ -23,7 +24,8 @@ import {
   GitFork, 
   Map, 
   Database, 
-  DollarSign, 
+  DollarSign,
+  Phone, 
 } from "lucide-react";
 
 // --- TYPES ---
@@ -85,6 +87,7 @@ export default function UserSettingsPage() {
   // Tabs
   const [activeTab, setActiveTab] = useState<'profile' | 'account'>('profile');
 
+  
   // --- DATA FETCHING ---
   useEffect(() => {
     async function load() {
@@ -96,6 +99,7 @@ export default function UserSettingsPage() {
       
       const finalUser = {
         ...authUser,
+        phone_number: profile?.phone_number || authUser.phone || "Not provided",
         user_metadata: {
           ...authUser.user_metadata,
           full_name: profile?.name 
@@ -291,7 +295,7 @@ export default function UserSettingsPage() {
       {/* SIDEBAR */}
       <Menu project={project} user={user} />
 
-      <main className="flex-1 flex flex-col h-full ml-64 relative bg-[#0a0a0a]">
+      <main className="flex-1 flex flex-col h-full ml-64 relative bg-[#0e0e10]">
         
         {/* HEADER */}
         <div className="flex-none h-14 mt-[55px] px-6 border-b border-white/5 flex items-center justify-between bg-[#0a0a0a]/50 backdrop-blur-sm z-10">
@@ -364,12 +368,12 @@ export default function UserSettingsPage() {
                                             {/* Display Name */}
                                             <div className="group">
                                                 <label className="block text-xs font-medium text-zinc-400 mb-2 uppercase tracking-wide">Display Name</label>
-                                                <div className="flex items-center bg-[#0e0e10] border border-white/10 rounded-lg px-3 py-2.5 group-hover:border-white/20 transition-colors">
+                                                <div className="flex items-center bg-[#0a0a0a] border border-white/10 rounded-lg px-3 py-2.5 group-hover:border-white/20 transition-colors">
                                                     <input 
                                                         type="text" 
                                                         value={user?.user_metadata?.full_name} 
                                                         disabled
-                                                        className="w-full bg-transparent text-sm text-zinc-300 disabled:cursor-not-allowed focus:outline-none"
+                                                        className="w-full bg-transparent text-sm text-zinc-400 disabled:cursor-not-allowed focus:outline-none"
                                                     />
                                                 </div>
                                             </div>
@@ -377,21 +381,32 @@ export default function UserSettingsPage() {
                                             {/* Email Address */}
                                             <div className="group">
                                                 <label className="block text-xs font-medium text-zinc-400 mb-2 uppercase tracking-wide">Email Address</label>
-                                                <div className="flex items-center bg-[#0e0e10] border border-white/10 rounded-lg px-3 py-2.5 group-hover:border-white/20 transition-colors">
+                                                <div className="flex items-center bg-[#0a0a0a] border border-white/10 rounded-lg px-3 py-2.5 group-hover:border-white/20 transition-colors">
                                                     <input 
                                                         type="text" 
                                                         value={user?.email} 
                                                         disabled
-                                                        className="w-full bg-transparent text-sm text-zinc-300 disabled:cursor-not-allowed focus:outline-none"
+                                                        className="w-full bg-transparent text-sm text-zinc-400 disabled:cursor-not-allowed focus:outline-none"
                                                     />
                                                 </div>
+                                                
+                                            </div>
+                                            <div className="group">
+                                            <label className="block text-xs font-medium text-zinc-400 mb-2 uppercase tracking-wide flex items-center gap-2">
+                                                <Phone size={14} />
+                                                Phone Number
+                                            </label>
+                                            <div className="flex items-center bg-[#0a0a0a] border border-white/10 rounded-lg px-3 py-2.5 group-hover:border-white/20 transition-colors">
+                                                <PhoneNumberDisplay phoneNumber={user?.phone_number} />
+                                            </div>
+                                            <p className="mt-1 text-[10px] text-zinc-600">Phone number associated with your account</p>
                                             </div>
 
                                             {/* User UUID */}
                                             <div className="group">
                                                 <label className="block text-xs font-medium text-zinc-400 mb-2 uppercase tracking-wide">User UUID</label>
                                                 <div className="flex items-center gap-2">
-                                                    <div className="flex-1 flex items-center bg-[#0e0e10] border border-white/10 rounded-lg px-3 py-2.5 font-mono text-xs text-zinc-500 select-all group-hover:border-white/20 transition-colors">
+                                                    <div className="flex-1 flex items-center bg-[#0a0a0a] border border-white/10 rounded-lg px-3 py-2.5 font-mono text-xs text-zinc-500 select-all group-hover:border-white/20 transition-colors">
                                                         {user?.id}
                                                     </div>
                                                     <button 
@@ -407,7 +422,7 @@ export default function UserSettingsPage() {
                                             <div className="group">
                                                 <label className="block text-xs font-medium text-zinc-400 mb-2 uppercase tracking-wide">Project UUID</label>
                                                 <div className="flex items-center gap-2">
-                                                    <div className="flex-1 flex items-center bg-[#0e0e10] border border-white/10 rounded-lg px-3 py-2.5 font-mono text-xs text-zinc-500 select-all group-hover:border-white/20 transition-colors">
+                                                    <div className="flex-1 flex items-center bg-[#0a0a0a] border border-white/10 rounded-lg px-3 py-2.5 font-mono text-xs text-zinc-500 select-all group-hover:border-white/20 transition-colors">
                                                         {projectId}
                                                     </div>
                                                     <button 
@@ -445,7 +460,7 @@ export default function UserSettingsPage() {
                                             {/* Role Box */}
                                             <div className="group md:col-span-1">
                                                 <label className="block text-xs font-medium text-zinc-400 mb-2 uppercase tracking-wide">Project Role</label>
-                                                <div className="flex items-center bg-[#0e0e10] border border-white/10 rounded-lg px-3 py-2.5 transition-colors h-11">
+                                                <div className="flex items-center bg-[#0a0a0a] border border-white/10 rounded-lg px-3 py-2.5 transition-colors h-11">
                                                     <Settings size={16} className="text-zinc-500 mr-2 flex-shrink-0" />
                                                     <span className="w-full text-sm font-semibold text-white disabled:cursor-not-allowed truncate">
                                                         {userRole.charAt(0).toUpperCase() + userRole.slice(1)}
@@ -456,7 +471,7 @@ export default function UserSettingsPage() {
                                             {/* Permissions List */}
                                             <div className="group md:col-span-2">
                                                 <label className="block text-xs font-medium text-zinc-400 mb-2 uppercase tracking-wide">Permissions Granted</label>
-                                                <div className="bg-[#0e0e10] border border-white/10 rounded-lg p-3 space-y-2">
+                                                <div className="bg-[#0a0a0a] border border-white/10 rounded-lg p-3 space-y-2">
                                                     {userPermissions.length > 0 ? (
                                                         userPermissions.map((permission, index) => (
                                                             <div key={index} className="flex items-center text-sm text-zinc-300">

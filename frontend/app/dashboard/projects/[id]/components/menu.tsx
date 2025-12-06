@@ -251,6 +251,7 @@ export default function Menu({ project, user }: MenuProps) {
         
         {/* Sidebar Header */}
         <div className="h-14 flex items-center px-4 border-b border-white/[0.08]">
+        <a href={`/dashboard/projects/${project.id}`}>
           <div className="flex items-center gap-3 w-full p-1.5 hover:bg-white/5 rounded-lg cursor-pointer transition-colors group">
             {/* PURPLE GRADIENT ICON */}
             {project.metadata?.["project-icon"] && (
@@ -264,6 +265,7 @@ export default function Menu({ project, user }: MenuProps) {
                <h2 className="text-sm font-medium text-zinc-100 truncate group-hover:text-white transition-colors">{project.name}</h2>
             </div>
           </div>
+          </a>
         </div>
 
         {/* Navigation */}
