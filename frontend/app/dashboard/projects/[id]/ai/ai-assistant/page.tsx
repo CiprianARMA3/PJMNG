@@ -4,6 +4,9 @@ import { useEffect, useState, useRef } from "react";
 import { createClient } from "@/utils/supabase/client";
 import Menu from "../../components/menu";
 import { ChatInput } from "./ChatInput"; 
+import { useProjectPermissions } from "@/hooks/useProjectPermissions";
+import { PAGE_REQUIREMENTS } from "@/utils/permissions";
+
 import { generateAiResponse, createChatGroup, deleteChatGroup, updateChatGroup, deleteChat, renameChat, updateGroupTags } from "./actions";
 import {
   Sparkles,

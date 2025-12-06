@@ -4,6 +4,8 @@ import { useEffect, useState, useMemo } from "react";
 import { createClient } from "@/utils/supabase/client";
 import { useParams, useRouter } from "next/navigation";
 import Menu from "../../components/menu"; 
+import { useProjectPermissions } from "@/hooks/useProjectPermissions";
+
 import { 
   Calendar as CalendarIcon, Table as TableIcon, 
   Plus, X, ChevronLeft, ChevronRight,

@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { createClient } from "@/utils/supabase/client";
 import { useRouter, useParams } from "next/navigation";
 import Link from "next/link";
+import { useProjectPermissions } from "@/hooks/useProjectPermissions";
 
 // Components
 import Menu from "./components/menu";

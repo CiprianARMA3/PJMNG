@@ -6,6 +6,7 @@ import { useParams, useRouter } from "next/navigation";
 import Menu from "../../components/menu";
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism';
+import { useProjectPermissions } from "@/hooks/useProjectPermissions";
 
 import { 
   Search, Plus, X, 

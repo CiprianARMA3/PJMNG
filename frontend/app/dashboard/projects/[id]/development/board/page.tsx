@@ -4,6 +4,8 @@ import { useEffect, useState } from "react";
 import { createClient } from "@/utils/supabase/client";
 import Menu from "../../components/menu";
 import Image from 'next/image';
+import { useProjectPermissions } from "@/hooks/useProjectPermissions";
+import { useRouter, useParams } from "next/navigation";
 import { 
   Check, 
   MoreHorizontal, 

@@ -6,6 +6,8 @@ import { useRouter, useParams } from "next/navigation";
 import Link from "next/link";
 import React from "react";
 import Menu from "../../components/menu";
+import { useProjectPermissions } from "@/hooks/useProjectPermissions";
+
 import {
     ArrowLeft,
     Save,

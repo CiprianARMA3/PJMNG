@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { createClient } from "@/utils/supabase/client";
 import { useParams, useRouter } from "next/navigation";
 import Menu from "../../components/menu"; 
+
 import { 
   ChevronLeft, ChevronRight, X, 
   Calendar as CalendarIcon, Maximize2, 

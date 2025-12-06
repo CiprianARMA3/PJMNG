@@ -8,6 +8,10 @@ import ProjectCodeGeneration from "./components/projectCodeGeneration";
 import React from "react"; 
 import { PhoneNumberDisplay } from "../../settings/collaborators/components/identifyPhoneNumberProvenience";
 import RoleManagementModal from "./components/manageRoles"; 
+import { useProjectPermissions } from "@/hooks/useProjectPermissions";
+
+
+
 import { 
   Search, 
   RefreshCw, Filter, ChevronDown, 
@@ -91,10 +95,20 @@ const CreatorPfp: React.FC<CreatorPfpProps> = ({
 
 // --- MAIN COMPONENT: ProjectManagementPage ---
 export default function ProjectManagementPage() {
+    
   const supabase = createClient();
   const params = useParams();
   const router = useRouter();
   const projectId = params.id as string;
+  
+
+  const { checkAccess, loading: authLoading } = useProjectPermissions(projectId);
+
+  if (!authLoading && !checkAccess('manage-team')) {
+    router.push(`/dashboard/projects/${projectId}`);
+    return null;
+  }
+  if (authLoading) return null; 
   
   // --- STATE ---
   const [user, setUser] = useState<any>(null);

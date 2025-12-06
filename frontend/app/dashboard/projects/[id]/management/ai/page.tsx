@@ -5,6 +5,8 @@ import { createClient } from "@/utils/supabase/client";
 import { useParams, useRouter } from "next/navigation";
 import Menu from "../../components/menu"; 
 import React from "react";
+import { useProjectPermissions } from "@/hooks/useProjectPermissions";
+
 import { 
   BarChart, Bar, XAxis, YAxis, Tooltip as RechartsTooltip, 
   ResponsiveContainer, CartesianGrid, ReferenceLine

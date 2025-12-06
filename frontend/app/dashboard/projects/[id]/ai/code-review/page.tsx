@@ -4,6 +4,8 @@ import { useEffect, useState, useRef } from "react";
 import { createClient } from "@/utils/supabase/client";
 import Menu from "../../components/menu";
 import { ChatInput } from "./ChatInput"; // Ensure this matches your file path
+import { useProjectPermissions } from "@/hooks/useProjectPermissions";
+import { useRouter, useParams } from "next/navigation";
 import { 
   generateAiResponse, 
   createChatGroup, 

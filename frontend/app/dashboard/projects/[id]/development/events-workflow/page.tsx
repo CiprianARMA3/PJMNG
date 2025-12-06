@@ -3,6 +3,8 @@
 import { useEffect, useState, useMemo } from "react";
 import { createClient } from "@/utils/supabase/client";
 import { useParams, useRouter } from "next/navigation";
+import { useProjectPermissions } from "@/hooks/useProjectPermissions";
+
 import Menu from "../../components/menu"; 
 import { 
   Calendar as CalendarIcon, Table as TableIcon, 

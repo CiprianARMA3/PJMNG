@@ -4,6 +4,8 @@ import React, { useEffect, useState, useRef, useMemo } from "react";
 import { createClient } from "@/utils/supabase/client";
 import Menu from "../../components/menu";
 import { generateAiResponse, createChatGroup, deleteChatGroup, updateChatGroup, deleteChat, renameChat, updateGroupTags } from "./actions-sql";
+import { useProjectPermissions } from "@/hooks/useProjectPermissions";
+import { useRouter, useParams } from "next/navigation";
 import {
   Sparkles,
   Bot,

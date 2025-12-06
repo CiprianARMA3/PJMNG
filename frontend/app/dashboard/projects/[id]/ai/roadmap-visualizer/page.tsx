@@ -6,6 +6,8 @@ import Menu from "../../components/menu";
 import { createPortal } from "react-dom"; 
 import { generateAiResponse, createChatGroup, deleteChatGroup, updateChatGroup, deleteChat, renameChat, updateGroupTags } from "./actions-roadmapvisualizer";
 import { ChatInput } from "./ChatInput"; // Ensure this path matches where you saved the file above
+import { useProjectPermissions } from "@/hooks/useProjectPermissions";
+import { useRouter, useParams } from "next/navigation";
 import {
     ReactFlow,
     Background,
