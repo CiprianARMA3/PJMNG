@@ -311,6 +311,82 @@ export default function ProjectManagementPage() {
 
   // --- ACTIONS ---
 
+  const handleAddPermission = async (userId: string, permissionToAdd: string) => {
+    if (!projectId || !userId) return;
+    setActionLoading(userId);
+    
+    try {
+        const member = allMembers.find(m => m.user_id === userId);
+        if (!member) return;
+        
+        const updatedPermissions = [...member.permissions, permissionToAdd];
+        const newRoleInfo = { 
+            role: member.role, 
+            permissions: updatedPermissions,
+            custom_permissions: true // Mark as custom
+        };
+        
+        const { error } = await supabase
+            .from('project_users')
+            .update({ role_info: JSON.stringify(newRoleInfo) })
+            .eq('project_id', projectId)
+            .eq('user_id', userId);
+            
+        if (error) {
+            alert("Failed to add permission: " + error.message);
+        } else {
+            // Optimistic update
+            setAllMembers(prev => prev.map(m => 
+                m.user_id === userId 
+                ? { ...m, permissions: updatedPermissions } 
+                : m
+            ));
+        }
+    } catch (err) {
+        console.error("Error adding permission:", err);
+    } finally {
+        setActionLoading(null);
+    }
+};
+
+const handleRemovePermission = async (userId: string, permissionToRemove: string) => {
+    if (!projectId || !userId) return;
+    setActionLoading(userId);
+    
+    try {
+        const member = allMembers.find(m => m.user_id === userId);
+        if (!member) return;
+        
+        const updatedPermissions = member.permissions.filter(p => p !== permissionToRemove);
+        const newRoleInfo = { 
+            role: member.role, 
+            permissions: updatedPermissions,
+            custom_permissions: updatedPermissions.length > 0 // Mark as custom if any permissions remain
+        };
+        
+        const { error } = await supabase
+            .from('project_users')
+            .update({ role_info: JSON.stringify(newRoleInfo) })
+            .eq('project_id', projectId)
+            .eq('user_id', userId);
+            
+        if (error) {
+            alert("Failed to remove permission: " + error.message);
+        } else {
+            // Optimistic update
+            setAllMembers(prev => prev.map(m => 
+                m.user_id === userId 
+                ? { ...m, permissions: updatedPermissions } 
+                : m
+            ));
+        }
+    } catch (err) {
+        console.error("Error removing permission:", err);
+    } finally {
+        setActionLoading(null);
+    }
+};
+
   const handleUpdateRole = async (targetUserId: string, newRole: string) => {
       if(!projectId) return;
       setActionLoading(targetUserId);
@@ -697,41 +773,92 @@ export default function ProjectManagementPage() {
                                         </div>
                                     </div>
 
-                                    {/* Col 2: Role Management */}
-                                    <div className="space-y-4">
-                                        <h3 className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest">Access Control</h3>
-                                        <div className="p-4 rounded-xl border border-zinc-800/60 bg-zinc-900/20 flex flex-col gap-4">
-                                            
-                                            <div>
-                                                <label className="text-xs text-zinc-400 block mb-2">Assigned Role</label>
-                                                <div className="relative">
-                                                    <select 
-                                                        value={member.role} 
-                                                        onChange={(e) => handleUpdateRole(member.user_id, e.target.value)}
-                                                        disabled={isMe || actionLoading === member.user_id}
-                                                        className="w-full appearance-none bg-zinc-950 border border-zinc-800 text-zinc-200 text-sm rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none disabled:opacity-50 capitalize"
-                                                    >
-                                                        {Object.keys(availableRoles).map(r => (
-                                                            <option key={r} value={r}>{r}</option>
-                                                        ))}
-                                                    </select>
-                                                    <ChevronDown size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-500 pointer-events-none"/>
-                                                </div>
-                                                {actionLoading === member.user_id && <span className="text-[10px] text-indigo-400 mt-1 block">Updating...</span>}
-                                            </div>
+{/* Col 2: Role Management */}
+<div className="space-y-4">
+    <h3 className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest">Access Control</h3>
+    <div className="p-4 rounded-xl border border-zinc-800/60 bg-zinc-900/20 flex flex-col gap-4">
+        
+        <div>
+            <label className="text-xs text-zinc-400 block mb-2">Assigned Role</label>
+            <div className="relative">
+                <select 
+                    value={member.role} 
+                    onChange={(e) => handleUpdateRole(member.user_id, e.target.value)}
+                    disabled={isMe || actionLoading === member.user_id}
+                    className="w-full appearance-none bg-zinc-950 border border-zinc-800 text-zinc-200 text-sm rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none disabled:opacity-50 capitalize"
+                >
+                    {Object.keys(availableRoles).map(r => (
+                        <option key={r} value={r}>{r}</option>
+                    ))}
+                </select>
+                <ChevronDown size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-500 pointer-events-none"/>
+            </div>
+            {actionLoading === member.user_id && <span className="text-[10px] text-indigo-400 mt-1 block">Updating...</span>}
+        </div>
 
-                                            <div>
-                                                <div className="text-[10px] text-zinc-500 mb-2 uppercase tracking-wider">Capabilities</div>
-                                                <div className="flex flex-wrap gap-1.5">
-                                                    {member.permissions.map((perm, i) => (
-                                                        <span key={i} className="px-2 py-1 rounded bg-zinc-800/40 border border-zinc-800 text-[10px] text-zinc-400 font-mono">
-                                                            {perm}
-                                                        </span>
-                                                    ))}
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
+        <div>
+            <div className="flex items-center justify-between mb-2">
+                <div className="text-[10px] text-zinc-500 uppercase tracking-wider">Custom Permissions</div>
+                <div className="text-[10px] text-zinc-600">
+                    {member.permissions.length} of {Object.values(availableRoles).flat().length} enabled
+                </div>
+            </div>
+<div className="flex flex-wrap gap-1.5">
+    {member.permissions.map((perm, i) => (
+        <div key={i} className="relative group">
+            <span className="px-2 py-1 rounded bg-zinc-800/40 border border-zinc-800 text-[10px] text-zinc-400 font-mono flex items-center gap-1 hover:bg-zinc-800/60 transition-colors">
+                {perm}
+                {!isMe && (
+                    <button 
+                        onClick={() => handleRemovePermission(member.user_id, perm)}
+                        className="ml-1 p-0.5 rounded hover:bg-rose-500/20 text-zinc-500 hover:text-rose-400 transition-colors"
+                        title="Remove permission"
+                    >
+                        <X size={8} />
+                    </button>
+                )}
+            </span>
+        </div>
+    ))}
+</div>
+            
+{/* Add Permission Section */}
+{!isMe && (
+    <div className="mt-3 pt-3 border-t border-zinc-800/50">
+        <div className="flex items-center justify-between mb-2">
+            <div className="text-[10px] text-zinc-500 uppercase tracking-wider">Add Permission</div>
+            <div className="text-[10px] text-zinc-600">
+                {Object.values(availableRoles).flat().filter(perm => !member.permissions.includes(perm) && perm !== "all" && perm !== "no_permission_defined").length} available
+            </div>
+        </div>
+        <div className="flex flex-wrap gap-1.5 max-h-32 overflow-y-auto p-1 custom-scrollbar">
+            {Object.values(availableRoles)
+                .flat()
+                .filter(perm => 
+                    !member.permissions.includes(perm) && 
+                    perm !== "all" && 
+                    perm !== "no_permission_defined" &&
+                    perm.trim() !== ""
+                )
+                .filter((perm, index, self) => self.indexOf(perm) === index) // Remove duplicates
+                .sort() // Alphabetical order
+                .map((perm, i) => (
+                    <button
+                        key={i}
+                        onClick={() => handleAddPermission(member.user_id, perm)}
+                        className="px-2 py-1 rounded bg-zinc-950 border border-zinc-700 hover:border-indigo-500/50 hover:bg-indigo-500/10 text-[10px] text-zinc-500 hover:text-indigo-400 font-mono transition-all flex items-center gap-1 group"
+                        title={`Add ${perm} permission`}
+                    >
+                        <Plus size={8} className="opacity-0 group-hover:opacity-100 transition-opacity" />
+                        {perm}
+                    </button>
+                ))}
+        </div>
+    </div>
+)}
+        </div>
+    </div>
+</div>
 
                                     {/* Col 3: Danger Zone */}
                                     <div className="space-y-4">
