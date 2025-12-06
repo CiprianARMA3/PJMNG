@@ -67,11 +67,7 @@ export default function ProjectSettingsPage() {
     const params = useParams();
     const projectId = (Array.isArray(params.id) ? params.id[0] : params.id) || "";
     const { checkAccess, loading: authLoading } = useProjectPermissions(projectId);
-    if (!authLoading && !checkAccess('manager-project-settings')) {
-    router.push(`/dashboard/projects/${projectId}`);
-    return null;
-  }
-  if (authLoading) return null;
+
     // Refs
     const logoInputRef = useRef<HTMLInputElement>(null);
     const bannerInputRef = useRef<HTMLInputElement>(null);
@@ -161,6 +157,11 @@ export default function ProjectSettingsPage() {
                 router.push("/dashboard");
                 return;
             }
+
+                if (!authLoading && !checkAccess('manager-project-settings')) {
+    router.push(`/dashboard/projects/${projectId}`);
+    return null;
+  }
 
             // Check if read-only (collaborator but not admin)
             const isReadOnlyCheck = !isCreatorCheck && collaborator?.role !== 'admin';

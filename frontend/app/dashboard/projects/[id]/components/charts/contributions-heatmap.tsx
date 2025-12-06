@@ -1,15 +1,16 @@
 "use client";
 
+import { useEffect, useState } from 'react';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import { createClient } from '@/utils/supabase/client';
+import { useParams } from 'next/navigation';
 
-const data = [
-  { month: 'Jan', development: 65, marketing: 45, design: 75 },
-  { month: 'Feb', development: 78, marketing: 52, design: 68 },
-  { month: 'Mar', development: 82, marketing: 61, design: 80 },
-  { month: 'Apr', development: 45, marketing: 75, design: 55 },
-  { month: 'May', development: 88, marketing: 58, design: 72 },
-  { month: 'Jun', development: 72, marketing: 65, design: 85 },
-];
+type ActivityData = {
+  month: string;
+  concepts: number;
+  issues: number;
+  dateVal: number; // Used for sorting
+};
 
 const CustomTooltip = ({ active, payload, label }: any) => {
   if (active && payload && payload.length) {
@@ -32,19 +33,157 @@ const CustomTooltip = ({ active, payload, label }: any) => {
 };
 
 export function AreaChartComponent() {
+  const supabase = createClient();
+  const params = useParams();
+  const projectId = params.id as string;
+  
+  const [data, setData] = useState<ActivityData[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchActivity = async () => {
+      if (!projectId) return;
+
+      try {
+        // Fetch Concepts and Issues exactly like the Calendar page
+        const [conceptsRes, issuesRes] = await Promise.all([
+          supabase
+            .from("concepts")
+            .select("created_at")
+            .eq("project_id", projectId),
+          supabase
+            .from("issues")
+            .select("created_at")
+            .eq("project_id", projectId)
+        ]);
+
+        const rawData: Record<string, { concepts: number; issues: number; dateVal: number }> = {};
+        
+        // Helper to init or update month bucket
+        const processDate = (dateStr: string, type: 'concepts' | 'issues') => {
+            const date = new Date(dateStr);
+            const key = date.toLocaleString('default', { month: 'short' }); // e.g., "Jan"
+            // We use a sort key like 202301 for sorting, but here we'll just imply current year focus or handle sorting by month index
+            // For simplicity in a yearly view, let's assume we want to show the last 6-12 months or just aggregate by month name if data is sparse.
+            // Let's create a simpler bucket based on Month Index (0-11) to sort correctly.
+            
+            // Note: If you have data spanning multiple years, you might want "Jan 24", "Feb 24". 
+            // For this UI, we will stick to Month names and assume relatively recent data.
+            
+            if (!rawData[key]) {
+                rawData[key] = { concepts: 0, issues: 0, dateVal: date.getMonth() };
+            }
+            rawData[key][type]++;
+        };
+
+        conceptsRes.data?.forEach(c => processDate(c.created_at, 'concepts'));
+        issuesRes.data?.forEach(i => processDate(i.created_at, 'issues'));
+
+        // Fill in missing months for a complete look (optional, but looks better)
+        // Let's generate the last 6 months dynamically to ensure the chart is always full
+        const today = new Date();
+        for (let i = 5; i >= 0; i--) {
+            const d = new Date(today.getFullYear(), today.getMonth() - i, 1);
+            const key = d.toLocaleString('default', { month: 'short' });
+            if (!rawData[key]) {
+                rawData[key] = { concepts: 0, issues: 0, dateVal: d.getMonth() };
+            }
+        }
+
+        // Convert to array and sort by dateVal (Month Index)
+        // Note: This simple sort works for within-one-year. If crossing years (Dec -> Jan), logic needs 'year' in dateVal.
+        // Let's make dateVal an absolute timestamp for perfect sorting.
+        
+        // RE-PROCESS with timestamp for sorting safety
+        const timeMap: Record<string, ActivityData> = {};
+        
+        const addToMap = (dateStr: string, type: 'concepts' | 'issues') => {
+             const d = new Date(dateStr);
+             const key = d.toLocaleString('default', { month: 'short' });
+             
+             // We map by "Month Year" strictly to handle ordering, but display "Month"
+             // Actually, the UI usually shows just "Jan", "Feb". 
+             // Let's just group by Month name for the visual "Project Activity" style
+             
+             if (!timeMap[key]) {
+                 timeMap[key] = { month: key, concepts: 0, issues: 0, dateVal: d.getMonth() };
+             }
+             timeMap[key][type]++;
+        };
+
+        conceptsRes.data?.forEach(c => addToMap(c.created_at, 'concepts'));
+        issuesRes.data?.forEach(i => addToMap(i.created_at, 'issues'));
+
+        // Ensure we have at least the last 6 months displayed
+        for (let i = 5; i >= 0; i--) {
+            const d = new Date(today.getFullYear(), today.getMonth() - i, 1);
+            const key = d.toLocaleString('default', { month: 'short' });
+            if (!timeMap[key]) {
+                 timeMap[key] = { month: key, concepts: 0, issues: 0, dateVal: d.getMonth() }; 
+                 // Adjust dateVal logic if crossing years logic is strictly needed, 
+                 // but simple getMonth() sort usually suffices for simple dashboards unless highly historical.
+                 // To fix the Year crossing sort bug (Dec=11, Jan=0 -> Jan comes before Dec), we need Year context.
+                 
+                 // Better Logic:
+                 // Use "YYYY-MM" as key, then format display.
+            }
+        }
+
+        // Let's do a clean "Last 6 Months" generation
+        const finalData: ActivityData[] = [];
+        for (let i = 5; i >= 0; i--) {
+             const d = new Date(today.getFullYear(), today.getMonth() - i, 1);
+             const monthName = d.toLocaleString('default', { month: 'short' });
+             
+             // Count data for this specific month/year
+             const conceptsCount = conceptsRes.data?.filter(c => {
+                 const cd = new Date(c.created_at);
+                 return cd.getMonth() === d.getMonth() && cd.getFullYear() === d.getFullYear();
+             }).length || 0;
+             
+             const issuesCount = issuesRes.data?.filter(i => {
+                 const id = new Date(i.created_at);
+                 return id.getMonth() === d.getMonth() && id.getFullYear() === d.getFullYear();
+             }).length || 0;
+
+             finalData.push({
+                 month: monthName,
+                 concepts: conceptsCount,
+                 issues: issuesCount,
+                 dateVal: d.getTime()
+             });
+        }
+
+        setData(finalData);
+
+      } catch (err) {
+        console.error("Error fetching activity:", err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchActivity();
+  }, [projectId]);
+
+  if (loading) {
+     return (
+        <div className="bg-[#0a0a0a] rounded-xl p-6 h-full min-h-[400px] flex flex-col items-center justify-center animate-pulse">
+            <div className="w-full h-full bg-white/5 rounded-lg"></div>
+        </div>
+     );
+  }
+
   return (
     <div className="bg-[#0a0a0a] rounded-xl p-6 h-full min-h-[400px] flex flex-col">
       <div className="flex items-center justify-between mb-6">
-        <h3 className="text-white font-semibold text-lg">Workflow Activity</h3>
+        <h3 className="text-white font-semibold text-lg">Project Activity</h3>
         <div className="flex gap-2">
            <div className="flex items-center gap-1.5 text-xs text-white/50">
-              <div className="w-2 h-2 rounded-full bg-blue-500" /> Dev
+              <div className="w-2 h-2 rounded-full bg-blue-500" /> Issues
            </div>
            <div className="flex items-center gap-1.5 text-xs text-white/50">
-              <div className="w-2 h-2 rounded-full bg-purple-500" /> Mkt
-           </div>
-           <div className="flex items-center gap-1.5 text-xs text-white/50">
-              <div className="w-2 h-2 rounded-full bg-emerald-500" /> Dsn
+              <div className="w-2 h-2 rounded-full bg-purple-500" /> Concepts
            </div>
         </div>
       </div>
@@ -53,17 +192,13 @@ export function AreaChartComponent() {
         <ResponsiveContainer width="100%" height="100%">
           <AreaChart data={data} margin={{ top: 10, right: 0, left: -20, bottom: 0 }}>
             <defs>
-              <linearGradient id="colorDev" x1="0" y1="0" x2="0" y2="1">
+              <linearGradient id="colorIssues" x1="0" y1="0" x2="0" y2="1">
                 <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.3}/>
                 <stop offset="95%" stopColor="#3b82f6" stopOpacity={0}/>
               </linearGradient>
-              <linearGradient id="colorMarketing" x1="0" y1="0" x2="0" y2="1">
+              <linearGradient id="colorConcepts" x1="0" y1="0" x2="0" y2="1">
                 <stop offset="5%" stopColor="#8b5cf6" stopOpacity={0.3}/>
                 <stop offset="95%" stopColor="#8b5cf6" stopOpacity={0}/>
-              </linearGradient>
-              <linearGradient id="colorDesign" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="5%" stopColor="#10b981" stopOpacity={0.3}/>
-                <stop offset="95%" stopColor="#10b981" stopOpacity={0}/>
               </linearGradient>
             </defs>
             <CartesianGrid strokeDasharray="3 3" stroke="#ffffff08" vertical={false} />
@@ -71,9 +206,26 @@ export function AreaChartComponent() {
             <YAxis stroke="#ffffff00" tick={{ fill: '#737373', fontSize: 12 }} />
             <Tooltip content={<CustomTooltip />} cursor={{ stroke: '#ffffff10' }} />
             
-            <Area type="monotone" dataKey="development" stroke="#3b82f6" strokeWidth={2} fillOpacity={1} fill="url(#colorDev)" activeDot={{ r: 4, strokeWidth: 0 }} />
-            <Area type="monotone" dataKey="marketing" stroke="#8b5cf6" strokeWidth={2} fillOpacity={1} fill="url(#colorMarketing)" activeDot={{ r: 4, strokeWidth: 0 }} />
-            <Area type="monotone" dataKey="design" stroke="#10b981" strokeWidth={2} fillOpacity={1} fill="url(#colorDesign)" activeDot={{ r: 4, strokeWidth: 0 }} />
+            <Area 
+                type="monotone" 
+                dataKey="issues" 
+                stroke="#3b82f6" 
+                strokeWidth={2} 
+                fillOpacity={1} 
+                fill="url(#colorIssues)" 
+                activeDot={{ r: 4, strokeWidth: 0 }} 
+                name="Issues"
+            />
+            <Area 
+                type="monotone" 
+                dataKey="concepts" 
+                stroke="#8b5cf6" 
+                strokeWidth={2} 
+                fillOpacity={1} 
+                fill="url(#colorConcepts)" 
+                activeDot={{ r: 4, strokeWidth: 0 }} 
+                name="Concepts"
+            />
           </AreaChart>
         </ResponsiveContainer>
       </div>

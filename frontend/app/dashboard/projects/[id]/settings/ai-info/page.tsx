@@ -91,11 +91,7 @@ export default function AIUsagePage() {
 
   const { checkAccess, loading: authLoading } = useProjectPermissions(projectId);
 
-  if (!authLoading && !checkAccess('ai-monitor')) {
-    router.push(`/dashboard/projects/${projectId}`);
-    return null;
-  }
-  if (authLoading) return null;
+
 
   // --- STATE ---
   const [user, setUser] = useState<any>(null);
@@ -257,6 +253,10 @@ export default function AIUsagePage() {
                 avatar_url: userProfile?.metadata?.avatar_url
             }
         });
+          if (!authLoading && !checkAccess('ai-monitor')) {
+    router.push(`/dashboard/projects/${projectId}`);
+    return null;
+  }
 
         const { data: projectData } = await supabase.from("projects").select("id, name, metadata").eq("id", projectId).single();
         if (projectData) {

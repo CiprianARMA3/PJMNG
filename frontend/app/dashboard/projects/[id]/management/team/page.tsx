@@ -10,8 +10,6 @@ import { PhoneNumberDisplay } from "../../settings/collaborators/components/iden
 import RoleManagementModal from "./components/manageRoles"; 
 import { useProjectPermissions } from "@/hooks/useProjectPermissions";
 
-
-
 import { 
   Search, 
   RefreshCw, Filter, ChevronDown, 
@@ -101,16 +99,10 @@ export default function ProjectManagementPage() {
   const router = useRouter();
   const projectId = params.id as string;
   
-
+  // 1. CALL CUSTOM HOOKS
   const { checkAccess, loading: authLoading } = useProjectPermissions(projectId);
 
-  if (!authLoading && !checkAccess('manage-team')) {
-    router.push(`/dashboard/projects/${projectId}`);
-    return null;
-  }
-  if (authLoading) return null; 
-  
-  // --- STATE ---
+  // 2. DECLARE ALL STATE (Must be before any return)
   const [user, setUser] = useState<any>(null);
   const [project, setProject] = useState<any>(null);
   const [availableRoles, setAvailableRoles] = useState<Record<string, string[]>>(DEFAULT_ROLES);
@@ -134,6 +126,13 @@ export default function ProjectManagementPage() {
 
   // Role Management Modal State
   const [isRoleManagementOpen, setIsRoleManagementOpen] = useState(false);
+
+  // 3. DECLARE EFFECTS FOR REDIRECTS (Side effects)
+  useEffect(() => {
+    if (!authLoading && !checkAccess('manage-team')) {
+        router.push(`/dashboard/projects/${projectId}`);
+    }
+  }, [authLoading, checkAccess, projectId, router]);
 
   // --- DATA FETCHING HELPERS ---
 
@@ -165,7 +164,6 @@ export default function ProjectManagementPage() {
 
   /**
    * Fetch Members and merge with User Details
-   * FIX: Added default value for roleDefinitions to fix TS Error
    */
   async function fetchAllMemberData(id: string, roleDefinitions: Record<string, string[]> = DEFAULT_ROLES): Promise<MemberData[]> {
     setRefreshing(true);
@@ -322,6 +320,11 @@ export default function ProjectManagementPage() {
 
     setFilteredMembers(filtered.sort((a, b) => a.full_name.localeCompare(b.full_name)));
   }, [allMembers, searchQuery, roleFilters, loading]);
+
+  // 4. CONDITIONAL RETURNS (Only safe AFTER all hooks)
+  if (authLoading || !checkAccess('manage-team')) {
+    return null; // or return a loading spinner if you prefer
+  }
 
   // --- ACTIONS ---
 

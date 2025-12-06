@@ -88,11 +88,7 @@ export default function ProjectMembersPage() {
 
   const { checkAccess, loading: authLoading } = useProjectPermissions(projectId);
 
-  if (!authLoading && !checkAccess('collaborators')) {
-    router.push(`/dashboard/projects/${projectId}`);
-    return null;
-  }
-  if (authLoading) return null;
+
   
   // --- MEMBER SPECIFIC STATE ---
   const [user, setUser] = useState<any>(null);
@@ -190,7 +186,10 @@ export default function ProjectMembersPage() {
     const init = async () => {
         const id = projectId;
         if (!id) return;
-
+          if (!authLoading && !checkAccess('collaborators')) {
+    router.push(`/dashboard/projects/${projectId}`);
+    return null;
+  }
         // 1. Auth Check
         const { data: { user: authUser }, error: authError } = await supabase.auth.getUser();
         if (authError || !authUser) { 

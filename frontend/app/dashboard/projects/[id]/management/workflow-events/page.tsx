@@ -59,11 +59,7 @@ export default function CalendarPage() {
   const projectId = params.id as string;
   const { checkAccess, loading: authLoading } = useProjectPermissions(projectId);
 
-  if (!authLoading && !checkAccess('manager-workflow-events')) {
-    router.push(`/dashboard/projects/${projectId}`);
-    return null;
-  }
-  if (authLoading) return null;
+
 
   // --- STATE ---
   const [user, setUser] = useState<any>(null);
@@ -146,6 +142,10 @@ export default function CalendarPage() {
 
   const fetchData = async (currentUserId?: string) => {
     setLoading(true);
+      if (!authLoading && !checkAccess('manager-workflow-events')) {
+    router.push(`/dashboard/projects/${projectId}`);
+    return null;
+  }
     
     // Fetch Tasks
     const { data: tasksData } = await supabase

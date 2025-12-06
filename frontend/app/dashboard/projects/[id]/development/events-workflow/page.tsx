@@ -58,11 +58,7 @@ export default function CalendarPage() {
 
   const { checkAccess, loading: authLoading } = useProjectPermissions(projectId);
 
-  if (!authLoading && !checkAccess('events-workflow')) {
-    router.push(`/dashboard/projects/${projectId}`);
-    return null;
-  }
-  if (authLoading) return null;
+
 
   // --- STATE ---
   const [user, setUser] = useState<any>(null);
@@ -112,8 +108,14 @@ useEffect(() => {
           avatar_url: userProfile?.metadata?.avatar_url || authUser.user_metadata?.avatar_url
         }
       };
+
       
       setUser(finalUser);
+
+        if (!authLoading && !checkAccess('events-workflow')) {
+    router.push(`/dashboard/projects/${projectId}`);
+    return null;
+  }
 
       // 4. Fetch Project Data
       const { data: proj } = await supabase

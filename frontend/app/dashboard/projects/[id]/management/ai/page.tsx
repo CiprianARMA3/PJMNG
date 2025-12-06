@@ -97,11 +97,7 @@ export default function AIUsagePage() {
 
   const { checkAccess, loading: authLoading } = useProjectPermissions(projectId);
 
-  if (!authLoading && !checkAccess('manage-ai-assistant')) {
-    router.push(`/dashboard/projects/${projectId}`);
-    return null;
-  }
-  if (authLoading) return null;
+
 
   // --- STATE ---
   const [user, setUser] = useState<any>(null);
@@ -290,6 +286,10 @@ export default function AIUsagePage() {
              const iconUrl = projectData.metadata?.project_icon_url || projectData.metadata?.logo_url || null; 
              setProject({ ...projectData, icon_url: iconUrl });
         }
+          if (!authLoading && !checkAccess('manage-ai-assistant')) {
+    router.push(`/dashboard/projects/${projectId}`);
+    return null;
+  }
 
         await fetchData(); // Wait for data to prevent flash of empty state
         setLoading(false);

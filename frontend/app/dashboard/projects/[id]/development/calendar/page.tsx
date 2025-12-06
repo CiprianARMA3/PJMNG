@@ -48,11 +48,7 @@ export default function ConceptCalendarPage() {
 
   const { checkAccess, loading: authLoading } = useProjectPermissions(projectId);
 
-  if (!authLoading && !checkAccess('activity-overview')) {
-    router.push(`/dashboard/projects/${projectId}`);
-    return null;
-  }
-  if (authLoading) return null;
+
 
   // --- STATE ---
   const [user, setUser] = useState<any>(null);
@@ -81,6 +77,11 @@ useEffect(() => {
           router.push("/auth/login"); 
           return; 
         }
+
+          if (!authLoading && !checkAccess('activity-overview')) {
+    router.push(`/dashboard/projects/${projectId}`);
+    return null;
+  }
 
         // 2. Fetch User Profile (To fix Menu Name/Avatar)
         const { data: userProfile } = await supabase

@@ -195,11 +195,7 @@ export default function IssuesPage() {
 
   const { checkAccess, loading: authLoading } = useProjectPermissions(projectId);
 
-  if (!authLoading && !checkAccess('tasks')) {
-    router.push(`/dashboard/projects/${projectId}`);
-    return null;
-  }
-  if (authLoading) return null;
+
 
   // --- STATE ---
   const [user, setUser] = useState<any>(null);
@@ -252,6 +248,10 @@ useEffect(() => {
         router.push("/auth/login"); 
         return; 
       }
+        if (!authLoading && !checkAccess('tasks')) {
+    router.push(`/dashboard/projects/${projectId}`);
+    return null;
+  }
 
       // 2. Fetch User Profile (To get correct Name/Avatar)
       const { data: userProfile } = await supabase

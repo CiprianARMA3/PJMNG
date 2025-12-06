@@ -38,7 +38,6 @@ export const PAGE_REQUIREMENTS: Record<string, ProjectPermission> = {
     '/ai/roadmap-visualizer': 'ai-roadmap-visualizer',
 
     // Settings
-    '/settings/project-settings': 'project-settings',
     '/settings/collaborators': 'collaborators',
     '/settings/ai-info': 'ai-monitor',
 

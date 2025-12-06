@@ -490,11 +490,7 @@ export default function AiAssistantPage({ params }: PageProps) {
 
     const { checkAccess, loading: authLoading } = useProjectPermissions(projectId);
   
-    if (!authLoading && !checkAccess('ai-roadmap-visualizer')) {
-      router.push(`/dashboard/projects/${projectId}`);
-      return null;
-    }
-    if (authLoading) return null;
+
 
   // Data
   const [tokenBalances, setTokenBalances] = useState<Record<string, number>>({});
@@ -567,6 +563,11 @@ async function fetchProfiles(userIds: string[]) {
     async function load() {
       const { id } = await params;
       setProjectId(id);
+
+          if (!authLoading && !checkAccess('ai-roadmap-visualizer')) {
+      router.push(`/dashboard/projects/${projectId}`);
+      return null;
+    }
 
       // 1. Get Auth User
       const { data: { user: authUser }, error: authError } = await supabase.auth.getUser();

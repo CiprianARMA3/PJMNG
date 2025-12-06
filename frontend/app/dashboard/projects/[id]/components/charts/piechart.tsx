@@ -1,20 +1,39 @@
 "use client";
 
+import { useEffect, useState } from 'react';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts';
+import { createClient } from '@/utils/supabase/client';
+import { useParams } from 'next/navigation';
 
-const data = [
-  { name: 'Management', value: 2, color: '#8b5cf6' }, // Purple
-  { name: 'Frontend', value: 10, color: '#3b82f6' },  // Blue
-  { name: 'Backend', value: 10, color: '#06b6d4' },   // Cyan
+type ChartData = {
+  name: string;
+  value: number;
+  color: string;
+};
+
+// Vibrant palette to cycle through (No greys)
+const COLOR_PALETTE = [
+  '#8b5cf6', // Violet
+  '#3b82f6', // Blue
+  '#06b6d4', // Cyan
+  '#10b981', // Emerald
+  '#f59e0b', // Amber
+  '#ef4444', // Red
+  '#d946ef', // Fuchsia
+  '#f97316', // Orange
+  '#14b8a6', // Teal
+  '#6366f1', // Indigo
+  '#ec4899', // Pink
+  '#84cc16', // Lime
 ];
 
 const CustomTooltip = ({ active, payload }: any) => {
   if (active && payload && payload.length) {
     return (
       <div className="bg-[#0a0a0a]/95 backdrop-blur border border-white/10 p-3 rounded-lg shadow-xl">
-        <p className="text-white font-medium text-sm mb-1">{payload[0].name}</p>
+        <p className="text-white font-medium text-sm mb-1 capitalize">{payload[0].name}</p>
         <p className="text-white/60 text-xs">
-          {payload[0].value} members
+          {payload[0].value} {payload[0].value === 1 ? 'member' : 'members'}
         </p>
       </div>
     );
@@ -23,13 +42,106 @@ const CustomTooltip = ({ active, payload }: any) => {
 };
 
 export default function TeamCompositionChart() {
+  const supabase = createClient();
+  const params = useParams();
+  const projectId = params.id as string;
+  
+  const [data, setData] = useState<ChartData[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  // Helper to assign colors consistently based on role name
+  const getColorForRole = (role: string, index: number) => {
+    // 1. Check if it's a standard role with a preferred color
+    const standardColors: Record<string, string> = {
+      admin: '#8b5cf6',   // Purple
+      member: '#3b82f6',  // Blue
+      viewer: '#06b6d4',  // Cyan
+    };
+    
+    if (standardColors[role.toLowerCase()]) {
+      return standardColors[role.toLowerCase()];
+    }
+
+    // 2. Otherwise cycle through the palette
+    return COLOR_PALETTE[index % COLOR_PALETTE.length];
+  };
+
+  useEffect(() => {
+    const fetchTeamData = async () => {
+      if (!projectId) return;
+
+      try {
+        const { data: members, error } = await supabase
+          .from('project_users')
+          .select('role_info')
+          .eq('project_id', projectId);
+
+        if (error) throw error;
+
+        // Aggregate roles
+        const roleCounts: Record<string, number> = {};
+
+        members?.forEach((member) => {
+          let roleName = 'viewer'; // Default fallback
+
+          if (typeof member.role_info === 'string') {
+            try {
+              const parsed = JSON.parse(member.role_info);
+              roleName = parsed.role || roleName;
+            } catch {
+              if (member.role_info.length > 0) roleName = member.role_info;
+            }
+          } else if (typeof member.role_info === 'object' && member.role_info !== null) {
+            roleName = (member.role_info as any).role || roleName;
+          }
+
+          roleName = roleName.toLowerCase();
+          roleCounts[roleName] = (roleCounts[roleName] || 0) + 1;
+        });
+
+        // Transform to ChartData with dynamic colors
+        const formattedData: ChartData[] = Object.entries(roleCounts).map(([name, value], index) => ({
+          name: name.charAt(0).toUpperCase() + name.slice(1), 
+          value,
+          color: getColorForRole(name, index)
+        }));
+
+        // Sort by value desc
+        formattedData.sort((a, b) => b.value - a.value);
+
+        setData(formattedData);
+      } catch (err) {
+        console.error("Error fetching team composition:", err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchTeamData();
+  }, [projectId]);
+
   const total = data.reduce((sum, item) => sum + item.value, 0);
 
+  if (loading) {
+    return (
+      <div className="bg-[#0a0a0a] rounded-xl p-6 h-full flex flex-col items-center justify-center animate-pulse">
+        <div className="w-32 h-32 bg-white/5 rounded-full mb-4"></div>
+      </div>
+    );
+  }
+
+  if (total === 0) {
+    return (
+      <div className="bg-[#0a0a0a] rounded-xl p-6 h-full flex flex-col items-center justify-center">
+         <p className="text-white/40 text-sm">No team members found.</p>
+      </div>
+    );
+  }
+
   return (
-    <div className="bg-[#0a0a0a]  rounded-xl p-6 h-full flex flex-col">
+    <div className="bg-[#0a0a0a] rounded-xl p-6 h-full flex flex-col">
       <div className="flex items-center justify-between mb-4">
-        <h3 className="text-white font-semibold text-lg">Team</h3>
-        <button className="text-xs text-white/40 hover:text-white transition-colors">View All</button>
+        <h3 className="text-white font-semibold text-lg">Team Composition</h3>
       </div>
       
       <div className="flex-1 flex flex-col items-center justify-center">
@@ -58,12 +170,12 @@ export default function TeamCompositionChart() {
           {/* Center Text */}
           <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
             <span className="text-3xl font-bold text-white">{total}</span>
-            <span className="text-xs text-white/40 uppercase tracking-wider font-medium">Total</span>
+            <span className="text-xs text-white/40 uppercase tracking-wider font-medium">Members</span>
           </div>
         </div>
 
         {/* Legend */}
-        <div className="w-full mt-4 space-y-1">
+        <div className="w-full mt-4 space-y-1 max-h-[150px] overflow-y-auto scrollbar-hide">
           {data.map((item) => {
              const percentage = ((item.value / total) * 100).toFixed(0);
              return (

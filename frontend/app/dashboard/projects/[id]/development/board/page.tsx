@@ -68,11 +68,7 @@ export default function Board({ params }: PageProps) {
 
   const { checkAccess, loading: authLoading } = useProjectPermissions(projectId);
 
-  if (!authLoading && !checkAccess('board')) {
-    router.push(`/dashboard/projects/${projectId}`);
-    return null;
-  }
-  if (authLoading) return null;
+
 
   // --- MODALS STATE ---
   const [showGroupModal, setShowGroupModal] = useState(false);
@@ -114,6 +110,10 @@ useEffect(() => {
         window.location.href = "/auth/login"; 
         return; 
       }
+        if (!authLoading && !checkAccess('board')) {
+    router.push(`/dashboard/projects/${projectId}`);
+    return null;
+  }
 
       // 3. Fetch User Profile (Fix for Menu Name/Avatar)
       const { data: userProfile } = await supabase

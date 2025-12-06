@@ -72,11 +72,7 @@ export default function RepositoryPage() {
 
   const { checkAccess, loading: authLoading } = useProjectPermissions(projectId);
 
-  if (!authLoading && !checkAccess('repository-logs')) {
-    router.push(`/dashboard/projects/${projectId}`);
-    return null;
-  }
-  if (authLoading) return null;
+ 
 
   // --- STATE ---
 
@@ -130,6 +126,10 @@ useEffect(() => {
     const init = async () => {
       if (!projectId) return;
       setLoading(true);
+       if (!authLoading && !checkAccess('repository-logs')) {
+    router.push(`/dashboard/projects/${projectId}`);
+    return null;
+  }
 
       try {
         // 1. Get Auth User
