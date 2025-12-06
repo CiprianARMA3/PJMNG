@@ -13,7 +13,7 @@ type ChartData = {
 
 // Vibrant palette to cycle through (No greys)
 const COLOR_PALETTE = [
-  '#8b5cf6', // Violet
+  '#10b981', // Violet
   '#3b82f6', // Blue
   '#06b6d4', // Cyan
   '#10b981', // Emerald

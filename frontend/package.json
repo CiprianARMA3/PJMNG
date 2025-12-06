@@ -32,6 +32,7 @@
     "react-syntax-highlighter": "^16.1.0",
     "recharts": "^3.4.1",
     "remark-gfm": "^4.0.1",
+    "stripe": "^20.0.0",
     "three": "^0.181.2"
   },
   "devDependencies": {
