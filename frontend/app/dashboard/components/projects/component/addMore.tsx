@@ -137,7 +137,7 @@ export default function AddProjectButton() {
               onClick={openJoinModal}
               className="w-full px-4 py-3 text-left text-white hover:bg-white/10 transition-all duration-150 flex items-start gap-3"
             >
-              <Users size={18} className="text-blue-400 mt-1" />
+              <Users size={18} className="text-zinc-400 mt-1" />
               <div>
                 <div className="font-medium text-sm">Join Project</div>
                 <div className="text-xs text-white/50 mt-0.5">Enter an invite code</div>
@@ -159,8 +159,8 @@ export default function AddProjectButton() {
             </button>
 
             <div className="mb-6">
-              <div className="w-10 h-10 bg-blue-500/10 rounded-full flex items-center justify-center mb-3">
-                 <Users size={20} className="text-blue-400" />
+              <div className="w-10 h-10 bg-zinc-500/10 rounded-full flex items-center justify-center mb-3">
+                 <Users size={20} className="text-zinc-400" />
               </div>
               <h2 className="text-lg font-bold text-white">Join Workspace</h2>
               <p className="text-xs text-zinc-400 mt-1">Enter the invitation code shared by the project admin.</p>
@@ -173,7 +173,7 @@ export default function AddProjectButton() {
                   placeholder="Paste UUID code here..." 
                   value={inviteCode}
                   onChange={(e) => setInviteCode(e.target.value)}
-                  className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2.5 text-sm text-white focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500/20 transition-all placeholder:text-zinc-700 font-mono"
+                  className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2.5 text-sm text-white focus:outline-none focus:border-zinc-500 focus:ring-1 focus:ring-zinc-500/20 transition-all placeholder:text-zinc-700 font-mono"
                   autoFocus
                 />
                 {error && (
@@ -195,7 +195,7 @@ export default function AddProjectButton() {
                 <button 
                   type="submit"
                   disabled={!inviteCode || isJoining}
-                  className="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold rounded-lg transition-colors flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="px-4 py-2 bg-zinc-600 hover:bg-zinc-500 text-white text-xs font-bold rounded-lg transition-colors flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {isJoining ? <Loader2 size={14} className="animate-spin" /> : <ArrowRight size={14} />}
                   Join Project
