@@ -2,7 +2,9 @@
 import { useState, useEffect, useMemo, useCallback } from "react";
 import { createClient } from "@/utils/supabase/client";
 import PRICING_TABLE from "./pricingTable";
-import { ChevronRight } from "lucide-react";
+import { ChevronRight, Loader2 } from "lucide-react";
+import { createSubscriptionCheckout } from "@/app/actions/stripe";
+import { PLAN_UUIDS } from "@/utils/stripe/config";
 
 interface Plan {
   id: string;
@@ -12,6 +14,13 @@ interface Plan {
   features: string[];
   recommended?: boolean;
 }
+
+// Map Plan Names (from DB) to Config UUIDs
+const PLAN_MAPPING: Record<string, string> = {
+  'Individual': PLAN_UUIDS.INDIVIDUAL,
+  'Developers': PLAN_UUIDS.DEVELOPERS,
+  'Enterprise': PLAN_UUIDS.ENTERPRISE
+};
 
 const supabase = createClient();
 
@@ -29,22 +38,7 @@ const CheckIcon = () => (
 
 const LoadingSpinner = () => (
   <div className="flex justify-center items-center h-64 text-white">
-    <svg
-      aria-hidden="true"
-      className="inline w-8 h-8 text-neutral-400 animate-spin fill-white"
-      viewBox="0 0 100 101"
-      fill="none"
-      xmlns="http://www.w3.org/2000/svg"
-    >
-      <path
-        d="M100 50.5908C100 78.2051 77.6142 100.591 50 100.591C22.3858 100.591 0 78.2051 0 50.5908C0 22.9766 22.3858 0.59082 50 0.59082C77.6142 0.59082 100 22.9766 100 50.5908ZM9.08144 50.5908C9.08144 73.1895 27.4013 91.5094 50 91.5094C72.5987 91.5094 90.9186 73.1895 90.9186 50.5908C90.9186 27.9921 72.5987 9.67226 50 9.67226C27.4013 9.67226 9.08144 27.9921 9.08144 50.5908Z"
-        fill="currentColor"
-      />
-      <path
-        d="M93.9676 39.0409C96.393 38.4038 97.8624 35.9116 97.0079 33.5539C95.2932 28.8227 92.871 24.3692 89.8167 20.348C85.8452 15.1192 80.8826 10.7238 75.2124 7.41289C69.5422 4.10194 63.2754 1.94025 56.7698 1.05124C51.7666 0.367541 46.6976 0.446843 41.7345 1.27873C39.2613 1.69328 37.813 4.19778 38.4501 6.62326C39.0873 9.04874 41.5694 10.4717 44.0505 10.1071C47.8511 9.54855 51.7191 9.52689 55.5402 10.0491C60.8642 10.7766 65.9928 12.5457 70.6331 15.2552C75.2735 17.9648 79.3347 21.5619 82.5849 25.841C84.9175 28.9121 86.7997 32.2913 88.1811 35.8758C89.083 38.2158 91.5421 39.6781 93.9676 39.0409Z"
-        fill="currentFill"
-      />
-    </svg>
+    <Loader2 className="w-8 h-8 animate-spin text-neutral-400" />
   </div>
 );
 
@@ -77,6 +71,76 @@ const FeatureItem = ({ feature }: { feature: string }) => (
     <span>{feature}</span>
   </li>
 );
+
+// --- NEW COMPONENT: Pricing Card with Subscribe Logic ---
+const PricingCard = ({ plan, isMonthly }: { plan: Plan; isMonthly: boolean }) => {
+  const [loading, setLoading] = useState(false);
+
+  const handleSubscribe = async () => {
+    const planId = PLAN_MAPPING[plan.name];
+    
+    if (!planId) {
+      console.error(`Plan mapping not found for: ${plan.name}`);
+      return;
+    }
+
+    setLoading(true);
+    try {
+      await createSubscriptionCheckout(planId, isMonthly ? 'month' : 'year');
+    } catch (error: any) {
+      alert(error.message || "An error occurred during checkout.");
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div
+      className={`bg-white/2 backdrop-blur-lg border border-white/10 shadow-lg rounded-3xl p-6 hover:scale-[1.03] hover:bg-white/5 transition-all duration-300 flex flex-col ${
+        plan.recommended
+          ? "border-purple-500 shadow-[0_0_20px_3px_rgba(168,85,247,0.5)]"
+          : ""
+      }`}
+    >
+      <div className="relative h-full flex flex-col">
+        <h4 className="text-white text-lg font-semibold mb-4">{plan.name}</h4>
+        <h3 className="text-4xl font-semibold text-white">
+          €{isMonthly ? plan.monthly_price : plan.yearly_price}
+          <sub className="text-white/60 font-medium text-sm ml-1">
+            / {isMonthly ? "month" : "year"}
+          </sub>
+        </h3>
+
+        <hr className="my-6 border-white/10" />
+
+        <ul className="space-y-4 flex-grow">
+          {plan.features.map((feature, index) => (
+            <FeatureItem key={`${plan.id}-${index}`} feature={feature} />
+          ))}
+        </ul>
+
+        <div className="mt-8 pt-4">
+          <button
+            type="button"
+            onClick={handleSubscribe}
+            disabled={loading}
+            className={`w-full px-4 py-2 text-[15px] font-medium tracking-wide 
+            bg-purple-600 hover:bg-purple-700 text-white rounded-lg cursor-pointer transition-colors flex items-center justify-center gap-2
+            ${loading ? 'opacity-70 cursor-not-allowed' : ''}`}
+          >
+            {loading ? (
+              <>
+                <Loader2 className="w-4 h-4 animate-spin" />
+                Processing...
+              </>
+            ) : (
+              "Get Started"
+            )}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
 
 export default function PricingInterface() {
   const [plans, setPlans] = useState<Plan[]>([]);
@@ -147,50 +211,6 @@ export default function PricingInterface() {
     fetchPlans();
   }, [parseFeatures]);
 
-  // Memoized pricing cards
-  const pricingCards = useMemo(() => (
-    <div className="grid lg:grid-cols-3 md:grid-cols-2 gap-6 max-md:max-w-md max-md:mx-auto mt-8">
-      {plans.map((plan) => (
-        <div
-          key={plan.id}
-          className={`bg-white/2 backdrop-blur-lg border border-white/10 shadow-lg rounded-3xl p-6 hover:scale-[1.03] hover:bg-white/5 transition-all duration-300 ${
-            plan.recommended
-              ? "border-purple-500 shadow-[0_0_20px_3px_rgba(168,85,247,0.5)]"
-              : ""
-          }`}
-        >
-          <div className="relative h-full flex flex-col">
-            <h4 className="text-white text-lg font-semibold mb-4">{plan.name}</h4>
-            <h3 className="text-4xl font-semibold text-white">
-              €{isMonthly ? plan.monthly_price : plan.yearly_price}
-              <sub className="text-white/60 font-medium text-sm ml-1">
-                / {isMonthly ? "month" : "year"}
-              </sub>
-            </h3>
-
-            <hr className="my-6 border-white/10" />
-
-            <ul className="space-y-4 flex-grow">
-              {plan.features.map((feature, index) => (
-                <FeatureItem key={`${plan.id}-${index}`} feature={feature} />
-              ))}
-            </ul>
-
-            <div className="mt-8 pt-4">
-              <button
-                type="button"
-                className="w-full px-4 py-2 text-[15px] font-medium tracking-wide 
-                bg-purple-600 hover:bg-purple-700 text-white rounded-lg cursor-pointer transition-colors"
-              >
-                Get Started
-              </button>
-            </div>
-          </div>
-        </div>
-      ))}
-    </div>
-  ), [plans, isMonthly]);
-
   if (loading) return <LoadingSpinner />;
 
   return (
@@ -216,7 +236,12 @@ export default function PricingInterface() {
         </ToggleButton>
       </div>
       
-      {pricingCards}
+      {/* Pricing Cards Grid */}
+      <div className="grid lg:grid-cols-3 md:grid-cols-2 gap-6 max-md:max-w-md max-md:mx-auto mt-8">
+        {plans.map((plan) => (
+          <PricingCard key={plan.id} plan={plan} isMonthly={isMonthly} />
+        ))}
+      </div>
 
       <div className="flex justify-center items-center mt-[15px] gap-2 cursor-default">
         <ChevronRight className="w-8 h-8 text-white/70 rotate-90 mb-[100px]" />

@@ -3,7 +3,8 @@
 import { redirect } from 'next/navigation';
 import { cookies } from 'next/headers';
 import { createClient } from '@/utils/supabase/server';
-import { stripe, STRIPE_PRODUCTS, getBaseUrl } from '@/utils/stripe/config';
+import { STRIPE_PRODUCTS, getBaseUrl,SUBSCRIPTION_PLANS } from '@/utils/stripe/config';
+import { stripe } from '@/utils/stripe/server';
 import Stripe from 'stripe';
 
 const PACK_AMOUNTS = [100000, 250000, 500000, 1000000, 2000000];
@@ -60,6 +61,73 @@ export async function getTokenPacks(modelKey: string, isEnterprise: boolean) {
   }).filter(Boolean);
 
   return packs;
+}
+
+export async function createSubscriptionCheckout(
+  targetPlanId: string, 
+  interval: 'month' | 'year'
+) {
+  const supabase = createClient(cookies());
+  const { data: { user } } = await supabase.auth.getUser();
+
+  if (!user) throw new Error('Not authenticated');
+
+  // 1. Get current usage to validate Downgrades
+  const { count: projectCount, error: countError } = await supabase
+    .from('projects')
+    .select('*', { count: 'exact', head: true })
+    .eq('created_by', user.id);
+
+  if (countError) throw new Error('Failed to fetch usage data');
+
+  const targetPlanConfig = SUBSCRIPTION_PLANS[targetPlanId];
+  if (!targetPlanConfig) throw new Error('Invalid Plan selected');
+
+  // 2. Check Downgrade Constraints
+  const limit = targetPlanConfig.limits.projects;
+  if ((projectCount || 0) > limit) {
+    throw new Error(`Cannot switch to ${targetPlanConfig.name} plan. You have ${projectCount} active projects, but the limit is ${limit}. Please archive or delete projects first.`);
+  }
+
+  // 3. Get Price ID
+  const priceId = targetPlanConfig.prices[interval];
+  if (!priceId) throw new Error('Price not found for this interval');
+
+  // 4. Check if user has a Stripe Customer ID already
+  const { data: userData } = await supabase
+    .from('users')
+    .select('stripe_customer_id')
+    .eq('id', user.id)
+    .single();
+
+  let customerId = userData?.stripe_customer_id;
+
+  // 5. Create Customer if not exists (Best practice: do this via webhook usually, but lazy create works)
+  if (!customerId) {
+    const customer = await stripe.customers.create({
+      email: user.email,
+      metadata: { supabase_user_id: user.id }
+    });
+    customerId = customer.id;
+    // Save immediately to avoid duplicates
+    await supabase.from('users').update({ stripe_customer_id: customerId }).eq('id', user.id);
+  }
+
+  // 6. Create Session
+  const session = await stripe.checkout.sessions.create({
+    customer: customerId,
+    line_items: [{ price: priceId, quantity: 1 }],
+    mode: 'subscription',
+    success_url: `${getBaseUrl()}/dashboard?subscription_success=true`,
+    cancel_url: `${getBaseUrl()}/dashboard/components/subscriptionFolder?canceled=true`,
+    metadata: {
+      userId: user.id,
+      targetPlanId: targetPlanId,
+      type: 'subscription_update'
+    },
+  });
+
+  if (session.url) redirect(session.url);
 }
 
 // --- Action: Create Checkout ---
