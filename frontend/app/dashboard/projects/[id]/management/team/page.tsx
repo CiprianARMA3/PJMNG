@@ -796,7 +796,7 @@ const handleRemovePermission = async (userId: string, permissionToRemove: string
     <div className="p-4 rounded-xl border border-zinc-800/60 bg-zinc-900/20 flex flex-col gap-4">
         
         <div>
-            <label className="text-xs text-zinc-400 block mb-2">Assigned Role</label>
+            <label className="text-xs text-zinc-400 block mb-2">Assign Role</label>
             <div className="relative">
                 <select 
                     value={member.role} 

@@ -33,7 +33,7 @@ const SECTIONS = {
   HOME: "Home Page",
   MAIL: "Messages",
   CreditCard: "Subscriptions",
-  ANALYTICS: "analytics",
+  // ANALYTICS: "analytics",
   SETTINGS: "settings",
   SEARCH: "search",
   PROFILE_SETTINGS: "profile-settings",
@@ -43,7 +43,7 @@ const MAIN_MENU = [
   { icon: Home, label: "Dashboard", section: SECTIONS.HOME },
   { icon: Mail, label: "Messages", section: SECTIONS.MAIL },
   { icon: CreditCard, label: "Subscriptions", section: SECTIONS.CreditCard },
-  { icon: BarChart, label: "Analytics", section: SECTIONS.ANALYTICS },
+  // { icon: BarChart, label: "Analytics", section: SECTIONS.ANALYTICS },
 ];
 
 // Loading fallback component
@@ -143,12 +143,12 @@ export default function DashboardPage() {
             <QuickActionsSection />
           </Suspense>
         );
-      case SECTIONS.ANALYTICS:
-        return (
-          <Suspense fallback={<SectionSkeleton />}>
-            <AnalyticsSection />
-          </Suspense>
-        );
+      // case SECTIONS.ANALYTICS:
+      //   return (
+      //     <Suspense fallback={<SectionSkeleton />}>
+      //       <AnalyticsSection />
+      //     </Suspense>
+      //   );
       case SECTIONS.SETTINGS:
         return (
           <Suspense fallback={<SectionSkeleton />}>
@@ -214,15 +214,9 @@ export default function DashboardPage() {
         <div className="max-w-7xl mx-auto px-6">
           <div className="flex items-center justify-between h-16">
             {/* Logo */}
-            <div className="flex items-center gap-3">
-              <Image
-                src="/logo-white.png"
-                alt="Logo"
-                width={160}
-                height={40}
-                className="w-40 h-auto"
-                priority
-              />
+            <div className="flex items-center gap-1">
+          <span className="text-2xl font-normal tracking-tight">KAPR<span className="text-purple-600 font-normal">Y</span></span>
+          <span className="text-2xl font-black tracking-tight text-white">.DEV</span>
             </div>
 
             {/* Desktop Navigation */}
