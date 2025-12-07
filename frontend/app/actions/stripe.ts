@@ -72,28 +72,15 @@ export async function createSubscriptionCheckout(
 
   if (!user) throw new Error('Not authenticated');
 
-  // 1. Get current usage to validate Downgrades
-  const { count: projectCount, error: countError } = await supabase
-    .from('projects')
-    .select('*', { count: 'exact', head: true })
-    .eq('created_by', user.id);
-
-  if (countError) throw new Error('Failed to fetch usage data');
-
+  // 1. Get Plan Config
   const targetPlanConfig = SUBSCRIPTION_PLANS[targetPlanId];
   if (!targetPlanConfig) throw new Error('Invalid Plan selected');
 
-  // 2. Check Downgrade Constraints
-  const limit = targetPlanConfig.limits.projects;
-  if ((projectCount || 0) > limit) {
-    throw new Error(`Cannot switch to ${targetPlanConfig.name} plan. You have ${projectCount} active projects, but the limit is ${limit}. Please archive or delete projects first.`);
-  }
-
-  // 3. Get Price ID
+  // 2. Get Price ID
   const priceId = targetPlanConfig.prices[interval];
   if (!priceId) throw new Error('Price not found for this interval');
 
-  // 4. Check if user has a Stripe Customer ID already
+  // 3. Get or Create Customer
   const { data: userData } = await supabase
     .from('users')
     .select('stripe_customer_id')
@@ -102,29 +89,35 @@ export async function createSubscriptionCheckout(
 
   let customerId = userData?.stripe_customer_id;
 
-  // 5. Create Customer if not exists (Best practice: do this via webhook usually, but lazy create works)
   if (!customerId) {
     const customer = await stripe.customers.create({
       email: user.email,
       metadata: { supabase_user_id: user.id }
     });
     customerId = customer.id;
-    // Save immediately to avoid duplicates
+    // Update immediately so we don't lose the link
     await supabase.from('users').update({ stripe_customer_id: customerId }).eq('id', user.id);
   }
 
-  // 6. Create Session
+  // 4. Create Session with METADATA
   const session = await stripe.checkout.sessions.create({
     customer: customerId,
     line_items: [{ price: priceId, quantity: 1 }],
     mode: 'subscription',
     success_url: `${getBaseUrl()}/dashboard?subscription_success=true`,
     cancel_url: `${getBaseUrl()}/dashboard/components/subscriptionFolder?canceled=true`,
+    // ✅ CRITICAL: Sending the plan ID here allows the webhook to update the DB correctly
     metadata: {
       userId: user.id,
-      targetPlanId: targetPlanId,
+      targetPlanId: targetPlanId, 
       type: 'subscription_update'
     },
+    subscription_data: {
+      metadata: {
+        userId: user.id,
+        targetPlanId: targetPlanId // Also attach to subscription for renewals
+      }
+    }
   });
 
   if (session.url) redirect(session.url);
