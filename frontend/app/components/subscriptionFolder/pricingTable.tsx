@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useMemo, memo, useState } from 'react';
-import { ArrowRight, Check, X, HelpCircle, Loader2 } from 'lucide-react';
+import { ArrowRight, Check, X, HelpCircle, Loader2, CheckCircle2 } from 'lucide-react';
 import { createSubscriptionCheckout } from "@/app/actions/stripe";
 import { PLAN_UUIDS } from '@/utils/stripe/config'; 
 
@@ -21,14 +21,16 @@ interface PricingTier {
 interface PricingTableProps {
   tiers?: PricingTier[];
   className?: string;
+  currentPlanName?: string | null;
 }
 
-// Map Plan Names to UUIDs (from your safe config)
 const PLAN_MAPPING: Record<string, string> = {
   'Individual': PLAN_UUIDS.INDIVIDUAL,
   'Developers': PLAN_UUIDS.DEVELOPERS,
   'Enterprise': PLAN_UUIDS.ENTERPRISE
 };
+
+const PLAN_ORDER = ["Individual", "Developers", "Enterprise"];
 
 // --- SUB-COMPONENTS ---
 
@@ -55,10 +57,44 @@ const FeatureValue = memo(({ value }: { value: string | boolean | number }) => {
 });
 FeatureValue.displayName = 'FeatureValue';
 
-const SubscribeButton = ({ tier, interval }: { tier: PricingTier; interval: 'month' | 'year' }) => {
+const SubscribeButton = ({ 
+  tier, 
+  interval, 
+  currentPlanName 
+}: { 
+  tier: PricingTier; 
+  interval: 'month' | 'year'; 
+  currentPlanName: string | null;
+}) => {
   const [loading, setLoading] = useState(false);
 
+  // Logic to determine text and state
+  const isCurrent = currentPlanName?.toLowerCase() === tier.name.toLowerCase();
+  const currentRank = currentPlanName ? PLAN_ORDER.indexOf(currentPlanName) : -1;
+  const tierRank = PLAN_ORDER.indexOf(tier.name);
+
+  let buttonText = tier.ctaText;
+  let buttonClass = 'bg-zinc-800 hover:bg-zinc-700 text-white border border-zinc-700';
+  
+  if (isCurrent) {
+    buttonText = "Current Plan";
+    buttonClass = 'bg-green-600/20 text-green-400 border border-green-500/20 cursor-not-allowed';
+  } else if (currentRank !== -1) {
+    // If user has a plan, check hierarchy
+    if (tierRank > currentRank) {
+      buttonText = "Upgrade";
+      buttonClass = 'bg-white text-black hover:bg-zinc-200 border border-white';
+    } else {
+      buttonText = "Downgrade";
+      buttonClass = 'bg-transparent text-white border border-white/20 hover:bg-white/10';
+    }
+  } else if (tier.name === 'Developers') {
+     // Default highlight for developers if no plan
+     buttonClass = 'bg-purple-600 hover:bg-purple-700 text-white border border-purple-500';
+  }
+
   const handleSubscribe = async () => {
+    if (isCurrent) return;
     const planId = PLAN_MAPPING[tier.name];
     if (!planId) return;
 
@@ -74,16 +110,11 @@ const SubscribeButton = ({ tier, interval }: { tier: PricingTier; interval: 'mon
   return (
     <button
       onClick={handleSubscribe}
-      disabled={loading}
-      className={`
-        w-full py-2 px-4 rounded-lg flex items-center justify-center gap-2 transition-all font-medium text-sm
-        ${tier.name === 'Developers' 
-          ? 'bg-purple-600 hover:bg-purple-700 text-white' 
-          : 'bg-zinc-800 hover:bg-zinc-700 text-white border border-zinc-700'}
-      `}
+      disabled={loading || isCurrent}
+      className={`w-full py-2 px-4 rounded-lg flex items-center justify-center gap-2 transition-all font-medium text-sm ${buttonClass} ${loading ? 'opacity-70 cursor-not-allowed' : ''}`}
     >
-      <span>{loading ? "Processing..." : tier.ctaText}</span>
-      {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <ArrowRight className="w-4 h-4" />}
+      <span>{loading ? "Processing..." : buttonText}</span>
+      {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : !isCurrent && <ArrowRight className="w-4 h-4" />}
     </button>
   );
 };
@@ -136,7 +167,7 @@ const defaultTiers: PricingTier[] = [
   {
     name: 'Enterprise',
     price: { month: 200, year: 2000 },
-    ctaText: 'Contact sales',
+    ctaText: 'Contact sales', // This will be overridden by Upgrade logic if user is logged in
     features: {
       productivity: 'Enterprise suite',
       ai_assistant: 'Priority Support',
@@ -206,7 +237,7 @@ const featureCategories = [
 
 // --- MAIN COMPONENT ---
 
-const PricingTable: React.FC<PricingTableProps> = ({ tiers = defaultTiers, className = '' }) => {
+const PricingTable: React.FC<PricingTableProps> = ({ tiers = defaultTiers, className = '', currentPlanName }) => {
   const [billingInterval, setBillingInterval] = useState<'month' | 'year'>('month');
   const safeTiers = useMemo(() => tiers || defaultTiers, [tiers]);
 
@@ -243,35 +274,44 @@ const PricingTable: React.FC<PricingTableProps> = ({ tiers = defaultTiers, class
           <span className="text-zinc-500 font-medium">Plans & Features</span>
         </div>
         
-        {safeTiers.map((tier) => (
-          <div
-            key={tier.name}
-            className={`p-6 border-r border-zinc-800 last:border-r-0 flex flex-col items-center text-center relative ${
-              isDevelopersTier(tier.name) ? 'bg-zinc-900/50' : ''
-            }`}
-          >
-             {isDevelopersTier(tier.name) && (
-              <div className="absolute top-0 inset-x-0 h-1 bg-purple-600"></div>
-            )}
+        {safeTiers.map((tier) => {
+          const isCurrent = currentPlanName?.toLowerCase() === tier.name.toLowerCase();
+          return (
+            <div
+              key={tier.name}
+              className={`p-6 border-r border-zinc-800 last:border-r-0 flex flex-col items-center text-center relative ${
+                isCurrent ? 'bg-green-900/10' : isDevelopersTier(tier.name) ? 'bg-zinc-900/50' : ''
+              }`}
+            >
+               {isDevelopersTier(tier.name) && !isCurrent && (
+                <div className="absolute top-0 inset-x-0 h-1 bg-purple-600"></div>
+              )}
+               {isCurrent && (
+                <div className="absolute top-0 inset-x-0 h-1 bg-green-500"></div>
+              )}
 
-            <h4 className="text-lg font-semibold mb-2">{tier.name}</h4>
-            
-            <div className="mb-6 h-12 flex items-end justify-center gap-1">
-              <span className="text-3xl font-bold">
-                €{billingInterval === 'month' ? tier.price.month : Math.round(tier.price.year / 12)}
-              </span>
-              <span className="text-zinc-500 text-sm mb-1">/mo</span>
-            </div>
-            
-            {billingInterval === 'year' && (
-              <div className="text-xs text-green-500 mb-4 font-medium">
-                Billed €{tier.price.year} yearly
+              <h4 className="text-lg font-semibold mb-2 flex items-center gap-2">
+                  {tier.name}
+                  {isCurrent && <CheckCircle2 size={16} className="text-green-500" />}
+              </h4>
+              
+              <div className="mb-6 h-12 flex items-end justify-center gap-1">
+                <span className="text-3xl font-bold">
+                  €{billingInterval === 'month' ? tier.price.month : Math.round(tier.price.year / 12)}
+                </span>
+                <span className="text-zinc-500 text-sm mb-1">/mo</span>
               </div>
-            )}
+              
+              {billingInterval === 'year' && (
+                <div className="text-xs text-green-500 mb-4 font-medium">
+                  Billed €{tier.price.year} yearly
+                </div>
+              )}
 
-            <SubscribeButton tier={tier} interval={billingInterval} />
-          </div>
-        ))}
+              <SubscribeButton tier={tier} interval={billingInterval} currentPlanName={currentPlanName || null} />
+            </div>
+          );
+        })}
       </div>
 
       {/* Feature Grid */}
@@ -291,7 +331,7 @@ const PricingTable: React.FC<PricingTableProps> = ({ tiers = defaultTiers, class
                   <div
                     key={`${tier.name}-${feature.key}`}
                     className={`p-4 flex items-center justify-center border-r border-zinc-800 border-b border-zinc-800/50 last:border-r-0 ${
-                      isDevelopersTier(tier.name) ? 'bg-zinc-900/20' : ''
+                       currentPlanName?.toLowerCase() === tier.name.toLowerCase() ? 'bg-green-900/5' : isDevelopersTier(tier.name) ? 'bg-zinc-900/20' : ''
                     }`}
                   >
                     <FeatureValue value={tier.features[feature.key]} />

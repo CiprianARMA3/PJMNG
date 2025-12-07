@@ -1,9 +1,9 @@
 "use client";
-import { useState, useEffect, useMemo, useCallback } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { createClient } from "@/utils/supabase/client";
 import PRICING_TABLE from "./pricingTable";
-import { ChevronRight, Loader2 } from "lucide-react";
-import { createSubscriptionCheckout } from "@/app/actions/stripe";
+import { ChevronRight, Loader2, CheckCircle2, ArrowUpCircle, ArrowDownCircle } from "lucide-react";
+import { createSubscriptionCheckout, getUserBillingInfo } from "@/app/actions/stripe";
 import { PLAN_UUIDS } from "@/utils/stripe/config";
 
 interface Plan {
@@ -21,6 +21,9 @@ const PLAN_MAPPING: Record<string, string> = {
   'Developers': PLAN_UUIDS.DEVELOPERS,
   'Enterprise': PLAN_UUIDS.ENTERPRISE
 };
+
+// Define Hierarchy for Upgrade/Downgrade logic
+const PLAN_ORDER = ["Individual", "Developers", "Enterprise"];
 
 const supabase = createClient();
 
@@ -42,7 +45,6 @@ const LoadingSpinner = () => (
   </div>
 );
 
-// Toggle button component
 const ToggleButton = ({ 
   active, 
   onClick, 
@@ -64,7 +66,6 @@ const ToggleButton = ({
   </button>
 );
 
-// Feature list item component
 const FeatureItem = ({ feature }: { feature: string }) => (
   <li className="flex items-start text-[15px] text-white/70 font-medium">
     <CheckIcon />
@@ -72,13 +73,52 @@ const FeatureItem = ({ feature }: { feature: string }) => (
   </li>
 );
 
-// --- NEW COMPONENT: Pricing Card with Subscribe Logic ---
-const PricingCard = ({ plan, isMonthly }: { plan: Plan; isMonthly: boolean }) => {
+// --- Pricing Card ---
+const PricingCard = ({ 
+  plan, 
+  isMonthly, 
+  currentPlanName 
+}: { 
+  plan: Plan; 
+  isMonthly: boolean; 
+  currentPlanName: string | null 
+}) => {
   const [loading, setLoading] = useState(false);
+  
+  // Normalize names for comparison
+  const planName = plan.name;
+  const currentName = currentPlanName || "";
+  
+  const isCurrentPlan = currentName.toLowerCase() === planName.toLowerCase();
+  
+  // Determine Rank
+  const currentRank = PLAN_ORDER.indexOf(currentName); // -1 if no plan
+  const planRank = PLAN_ORDER.indexOf(planName);
+  
+  // Determine Button State
+  let buttonText = "Get Started";
+  let buttonStyle = "bg-purple-600 hover:bg-purple-700 text-white cursor-pointer";
+  let isDisabled = false;
+
+  if (isCurrentPlan) {
+    buttonText = "Current Plan";
+    buttonStyle = "bg-green-600/20 text-green-400 cursor-default border border-green-500/20";
+    isDisabled = true;
+  } else if (currentRank !== -1) {
+    // User has a plan, so other cards are either Upgrade or Downgrade
+    if (planRank > currentRank) {
+      buttonText = "Upgrade";
+      buttonStyle = "bg-white text-black hover:bg-gray-200 cursor-pointer"; // Distinct style for upgrade
+    } else {
+      buttonText = "Downgrade";
+      buttonStyle = "bg-white/10 text-white hover:bg-white/20 cursor-pointer";
+    }
+  }
 
   const handleSubscribe = async () => {
+    if (isDisabled) return;
+
     const planId = PLAN_MAPPING[plan.name];
-    
     if (!planId) {
       console.error(`Plan mapping not found for: ${plan.name}`);
       return;
@@ -95,13 +135,19 @@ const PricingCard = ({ plan, isMonthly }: { plan: Plan; isMonthly: boolean }) =>
 
   return (
     <div
-      className={`bg-white/2 backdrop-blur-lg border border-white/10 shadow-lg rounded-3xl p-6 hover:scale-[1.03] hover:bg-white/5 transition-all duration-300 flex flex-col ${
-        plan.recommended
+      className={`bg-white/2 backdrop-blur-lg border ${isCurrentPlan ? 'border-green-500/40 bg-green-500/5' : 'border-white/10'} shadow-lg rounded-3xl p-6 hover:scale-[1.03] hover:bg-white/5 transition-all duration-300 flex flex-col ${
+        plan.recommended && !isCurrentPlan
           ? "border-purple-500 shadow-[0_0_20px_3px_rgba(168,85,247,0.5)]"
           : ""
       }`}
     >
       <div className="relative h-full flex flex-col">
+        {isCurrentPlan && (
+            <div className="absolute -top-3 -right-3 bg-green-500 text-black text-xs font-bold px-3 py-1 rounded-full flex items-center gap-1 shadow-lg shadow-green-900/50">
+                <CheckCircle2 size={12} /> ACTIVE
+            </div>
+        )}
+
         <h4 className="text-white text-lg font-semibold mb-4">{plan.name}</h4>
         <h3 className="text-4xl font-semibold text-white">
           €{isMonthly ? plan.monthly_price : plan.yearly_price}
@@ -122,10 +168,8 @@ const PricingCard = ({ plan, isMonthly }: { plan: Plan; isMonthly: boolean }) =>
           <button
             type="button"
             onClick={handleSubscribe}
-            disabled={loading}
-            className={`w-full px-4 py-2 text-[15px] font-medium tracking-wide 
-            bg-purple-600 hover:bg-purple-700 text-white rounded-lg cursor-pointer transition-colors flex items-center justify-center gap-2
-            ${loading ? 'opacity-70 cursor-not-allowed' : ''}`}
+            disabled={loading || isDisabled}
+            className={`w-full px-4 py-2 text-[15px] font-medium tracking-wide rounded-lg transition-colors flex items-center justify-center gap-2 ${buttonStyle} ${loading ? 'opacity-70 cursor-not-allowed' : ''}`}
           >
             {loading ? (
               <>
@@ -133,7 +177,11 @@ const PricingCard = ({ plan, isMonthly }: { plan: Plan; isMonthly: boolean }) =>
                 Processing...
               </>
             ) : (
-              "Get Started"
+              <>
+                {buttonText === "Upgrade" && <ArrowUpCircle size={16} />}
+                {buttonText === "Downgrade" && <ArrowDownCircle size={16} />}
+                {buttonText}
+              </>
             )}
           </button>
         </div>
@@ -146,46 +194,44 @@ export default function PricingInterface() {
   const [plans, setPlans] = useState<Plan[]>([]);
   const [isMonthly, setIsMonthly] = useState(true);
   const [loading, setLoading] = useState(true);
+  const [currentPlan, setCurrentPlan] = useState<string | null>(null);
 
-  // Parse features from plan data
   const parseFeatures = useCallback((features: any): string[] => {
     let parsedFeatures: any = {};
     const featuresList: string[] = [];
-
     if (typeof features === "string") {
-      try {
-        parsedFeatures = JSON.parse(features);
-      } catch {
-        parsedFeatures = {};
-      }
+      try { parsedFeatures = JSON.parse(features); } catch { parsedFeatures = {}; }
     } else if (typeof features === "object" && features !== null) {
       parsedFeatures = features;
     }
-
     if (parsedFeatures.features && typeof parsedFeatures.features === "object") {
       Object.values(parsedFeatures.features).forEach((section: any) => {
         if (section.description) featuresList.push(section.description);
       });
     }
-
     if (parsedFeatures.ai_capabilities && Array.isArray(parsedFeatures.ai_capabilities)) {
       featuresList.push(...parsedFeatures.ai_capabilities.slice(0, 2));
     }
-
     return featuresList;
   }, []);
 
-  // Fetch plans
   useEffect(() => {
-    const fetchPlans = async () => {
+    const fetchData = async () => {
       try {
-        const { data, error } = await supabase
+        // 1. Fetch Plans from DB
+        const { data: plansData, error: plansError } = await supabase
           .from("plans")
           .select("id, name, monthly_price, yearly_price, features");
 
-        if (error) throw error;
+        if (plansError) throw plansError;
 
-        const mappedPlans: Plan[] = (data || []).map((p: any) => ({
+        // 2. Fetch User's Real Subscription Info
+        const billingInfo = await getUserBillingInfo();
+        if (billingInfo?.subscription && !billingInfo.subscription.cancelAtPeriodEnd) {
+           setCurrentPlan(billingInfo.subscription.planName);
+        }
+
+        const mappedPlans: Plan[] = (plansData || []).map((p: any) => ({
           id: p.id,
           name: p.name,
           monthly_price: p.monthly_price,
@@ -194,10 +240,9 @@ export default function PricingInterface() {
           recommended: p.name === "Developers",
         }));
 
-        // SORT PLANS: Individual → Developers → Enterprise
-        const order = ["Individual", "Developers", "Enterprise"];
+        // Sort based on defined constant order
         const sortedPlans = mappedPlans.sort(
-          (a, b) => order.indexOf(a.name) - order.indexOf(b.name)
+          (a, b) => PLAN_ORDER.indexOf(a.name) - PLAN_ORDER.indexOf(b.name)
         );
 
         setPlans(sortedPlans);
@@ -208,14 +253,14 @@ export default function PricingInterface() {
       }
     };
 
-    fetchPlans();
+    fetchData();
   }, [parseFeatures]);
 
   if (loading) return <LoadingSpinner />;
 
   return (
     <div className="max-w-6xl mx-auto p-6 mt-[-30px]">
-      {/* Monthly / Yearly Toggle */}
+      
       <div className="flex mx-auto bg-white/5 backdrop-blur-lg border border-white/10 rounded-full max-w-[250px] p-1 mt-10">
         <ToggleButton active={isMonthly} onClick={() => setIsMonthly(true)}>
           Monthly
@@ -236,10 +281,9 @@ export default function PricingInterface() {
         </ToggleButton>
       </div>
       
-      {/* Pricing Cards Grid */}
       <div className="grid lg:grid-cols-3 md:grid-cols-2 gap-6 max-md:max-w-md max-md:mx-auto mt-8">
         {plans.map((plan) => (
-          <PricingCard key={plan.id} plan={plan} isMonthly={isMonthly} />
+          <PricingCard key={plan.id} plan={plan} isMonthly={isMonthly} currentPlanName={currentPlan} />
         ))}
       </div>
 
@@ -247,7 +291,7 @@ export default function PricingInterface() {
         <ChevronRight className="w-8 h-8 text-white/70 rotate-90 mb-[100px]" />
       </div>
 
-      <PRICING_TABLE />
+      <PRICING_TABLE currentPlanName={currentPlan} />
     </div>
   );
 }

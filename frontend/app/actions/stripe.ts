@@ -3,7 +3,7 @@
 import { redirect } from 'next/navigation';
 import { cookies } from 'next/headers';
 import { createClient } from '@/utils/supabase/server';
-import { STRIPE_PRODUCTS, getBaseUrl,SUBSCRIPTION_PLANS } from '@/utils/stripe/config';
+import { STRIPE_PRODUCTS, getBaseUrl, SUBSCRIPTION_PLANS } from '@/utils/stripe/config';
 import { stripe } from '@/utils/stripe/server';
 import Stripe from 'stripe';
 
@@ -80,33 +80,65 @@ export async function createSubscriptionCheckout(
   const priceId = targetPlanConfig.prices[interval];
   if (!priceId) throw new Error('Price not found for this interval');
 
-  // 3. Get or Create Customer
+  // 3. Get User & Customer ID
   const { data: userData } = await supabase
     .from('users')
-    .select('stripe_customer_id')
+    .select('stripe_customer_id, subscription_id')
     .eq('id', user.id)
     .single();
 
   let customerId = userData?.stripe_customer_id;
 
+  // Create Customer if missing
   if (!customerId) {
     const customer = await stripe.customers.create({
       email: user.email,
       metadata: { supabase_user_id: user.id }
     });
     customerId = customer.id;
-    // Update immediately so we don't lose the link
     await supabase.from('users').update({ stripe_customer_id: customerId }).eq('id', user.id);
   }
 
-  // 4. Create Session with METADATA
+  // --- 4. CHECK FOR EXISTING SUBSCRIPTION (Upgrade/Downgrade Logic) ---
+  // Instead of creating a new checkout, we check if they already have a sub to update.
+  const activeSubs = await stripe.subscriptions.list({
+    customer: customerId,
+    status: 'active',
+    limit: 1
+  });
+
+  if (activeSubs.data.length > 0) {
+    // USER HAS A SUBSCRIPTION -> SWAP IT
+    const currentSub = activeSubs.data[0];
+    const currentItemId = currentSub.items.data[0].id;
+
+    // Direct Update via Stripe API (No Checkout UI needed)
+    await stripe.subscriptions.update(currentSub.id, {
+      items: [{
+        id: currentItemId,
+        price: priceId, // Swap to new price
+      }],
+      metadata: {
+        userId: user.id,
+        targetPlanId: targetPlanId, 
+        type: 'subscription_update'
+      },
+      // 'always_invoice' calculates proration and charges/credits immediately
+      proration_behavior: 'always_invoice', 
+    });
+
+    // Redirect back to dashboard immediately (Webhook will handle DB sync)
+    redirect(`${getBaseUrl()}/dashboard?updated=true`);
+    return;
+  }
+
+  // --- 5. NO EXISTING SUBSCRIPTION -> CREATE CHECKOUT ---
   const session = await stripe.checkout.sessions.create({
     customer: customerId,
     line_items: [{ price: priceId, quantity: 1 }],
     mode: 'subscription',
     success_url: `${getBaseUrl()}/dashboard?subscription_success=true`,
     cancel_url: `${getBaseUrl()}/dashboard/components/subscriptionFolder?canceled=true`,
-    // ✅ CRITICAL: Sending the plan ID here allows the webhook to update the DB correctly
     metadata: {
       userId: user.id,
       targetPlanId: targetPlanId, 
@@ -115,7 +147,7 @@ export async function createSubscriptionCheckout(
     subscription_data: {
       metadata: {
         userId: user.id,
-        targetPlanId: targetPlanId // Also attach to subscription for renewals
+        targetPlanId: targetPlanId
       }
     }
   });
@@ -140,22 +172,20 @@ export async function createTokenPackCheckout(
 
   if (!user) throw new Error('Not authenticated');
 
-  // Validate projectId format (Basic check)
   if (!projectId || typeof projectId !== 'string') {
       console.error("Invalid Project ID received:", projectId);
       throw new Error("Invalid Project ID");
   }
 
-  // Verify Project Existence
   const { data: project, error } = await supabase
     .from('projects')
-    .select('id') // Select just ID to confirm existence/access
+    .select('id')
     .eq('id', projectId)
     .single();
 
   if (error || !project) {
     console.error("Project fetch error:", error, "Project ID:", projectId);
-    throw new Error(`Project not found or access denied. Error: ${error?.message || 'Unknown'}`);
+    throw new Error(`Project not found or access denied.`);
   }
 
   let lineItem: Stripe.Checkout.SessionCreateParams.LineItem;
@@ -184,11 +214,10 @@ export async function createTokenPackCheckout(
     throw new Error('Invalid pack configuration');
   }
 
-const session = await stripe.checkout.sessions.create({
+  const session = await stripe.checkout.sessions.create({
     customer_email: user.email,
     line_items: [lineItem],
     mode: 'payment',
-    // UPDATE THESE TWO LINES:
     success_url: `${getBaseUrl()}/dashboard/projects/${projectId}/payments/completed`,
     cancel_url: `${getBaseUrl()}/dashboard/projects/${projectId}/payments/failed`,
     
@@ -221,4 +250,107 @@ export async function createSubscriptionSession(priceId: string, projectId?: str
   });
 
   if (session.url) redirect(session.url);
+}
+
+// --- NEW: Billing & Invoices ---
+
+export async function getUserBillingInfo() {
+  const supabase = createClient(cookies());
+  const { data: { user } } = await supabase.auth.getUser();
+
+  if (!user) throw new Error('Not authenticated');
+
+  const { data: userData } = await supabase
+    .from('users')
+    .select('stripe_customer_id')
+    .eq('id', user.id)
+    .single();
+
+  if (!userData?.stripe_customer_id) {
+    return { invoices: [], subscription: null };
+  }
+
+  // 1. Fetch Invoices
+  const invoices = await stripe.invoices.list({
+    customer: userData.stripe_customer_id,
+    limit: 10,
+    status: 'paid'
+  });
+
+  const formattedInvoices = invoices.data.map(inv => ({
+    id: inv.id,
+    date: new Date(inv.created * 1000).toLocaleDateString(),
+    amount: (inv.amount_paid / 100).toFixed(2),
+    currency: inv.currency.toUpperCase(),
+    pdfUrl: inv.invoice_pdf,
+    status: inv.status
+  }));
+
+  // 2. Fetch Active Subscription
+  let subscriptionDetails = null;
+  const subscriptions = await stripe.subscriptions.list({
+    customer: userData.stripe_customer_id,
+    status: 'active',
+    limit: 1,
+    expand: ['data.plan.product'] 
+  });
+
+  if (subscriptions.data.length > 0) {
+    const sub = subscriptions.data[0] as any;
+    
+    // Robust Product Name & Price Fetching
+    let productName = 'Unknown Plan';
+    let amount = '0';
+    let interval = 'month';
+
+    if (sub.plan && sub.plan.product) {
+        const product = sub.plan.product as Stripe.Product;
+        productName = product.name;
+        amount = (sub.plan.amount / 100).toFixed(2);
+        interval = sub.plan.interval;
+    } else if (sub.items && sub.items.data.length > 0) {
+        const item = sub.items.data[0];
+        if (item.price) {
+           amount = ((item.price.unit_amount || 0) / 100).toFixed(2);
+           interval = item.price.recurring?.interval || 'month';
+        }
+    }
+
+    let formattedDate = 'Unknown';
+    if (sub.current_period_end) {
+        const dateObj = new Date(sub.current_period_end * 1000);
+        if (!isNaN(dateObj.getTime())) {
+            formattedDate = dateObj.toLocaleDateString('en-GB', { 
+                day: '2-digit', 
+                month: 'short', 
+                year: 'numeric' 
+            });
+        }
+    }
+
+    subscriptionDetails = {
+      id: sub.id,
+      planName: productName,
+      amount: amount,
+      interval: interval,
+      currentPeriodEnd: formattedDate,
+      cancelAtPeriodEnd: sub.cancel_at_period_end
+    };
+  }
+
+  return {
+    invoices: formattedInvoices,
+    subscription: subscriptionDetails
+  };
+}
+
+export async function cancelUserSubscription(subscriptionId: string) {
+  try {
+    await stripe.subscriptions.update(subscriptionId, {
+      cancel_at_period_end: true
+    });
+    return { success: true };
+  } catch (error: any) {
+    return { success: false, error: error.message };
+  }
 }
