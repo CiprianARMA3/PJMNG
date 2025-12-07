@@ -123,12 +123,14 @@ export async function createTokenPackCheckout(
     throw new Error('Invalid pack configuration');
   }
 
-  const session = await stripe.checkout.sessions.create({
+const session = await stripe.checkout.sessions.create({
     customer_email: user.email,
     line_items: [lineItem],
     mode: 'payment',
-    success_url: `${getBaseUrl()}/dashboard/projects/${projectId}/payments?success=true`,
-    cancel_url: `${getBaseUrl()}/dashboard/projects/${projectId}/payments?canceled=true`,
+    // UPDATE THESE TWO LINES:
+    success_url: `${getBaseUrl()}/dashboard/projects/${projectId}/payments/completed`,
+    cancel_url: `${getBaseUrl()}/dashboard/projects/${projectId}/payments/failed`,
+    
     metadata: {
       projectId,
       userId: user.id,

@@ -98,7 +98,7 @@ export default function TokenManagementPage({ params }: { params: Promise<{ id: 
   };
 
   const currentPack = selectedPackIndex !== null ? packs[selectedPackIndex] : null;
-  const taxAmount = currentPack ? (currentPack.unitAmount / 100) * 0.22 : 0;
+  const taxAmount = currentPack ? (currentPack.unitAmount / 100) * 0.0 : 0;
   const totalDue = currentPack ? (currentPack.unitAmount / 100) + taxAmount : 0;
 
   return (
