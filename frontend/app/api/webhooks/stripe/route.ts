@@ -35,108 +35,159 @@ export async function POST(req: Request) {
   const supabaseAdmin = createAdminClient();
   const session = event.data.object as any;
 
-  console.log(`🔔 Webhook received: ${event.type}`);
+  console.log(`🔔 Webhook received: ${event.type} | ID: ${session.id}`);
 
-  // --- 1. HANDLE SUBSCRIPTION CHANGES (Created / Updated) ---
+  // Common function to update user subscription in DB
+  const updateUserSubscription = async (
+    stripeCustomerId: string, 
+    priceId: string | null,
+    status: string, 
+    currentPeriodEnd: number | null | undefined, // Allow undefined
+    metadata: any
+  ) => {
+    
+    // 1. Determine User ID
+    let userId = metadata?.userId || metadata?.supabase_user_id;
+
+    // Fallback: Fetch from Customer if not in session metadata
+    if (!userId) {
+      try {
+        const customer = await stripe.customers.retrieve(stripeCustomerId) as any;
+        if (!customer.deleted && customer.metadata?.supabase_user_id) {
+            userId = customer.metadata.supabase_user_id;
+        } else if (!customer.deleted && customer.email) {
+             // Fallback by Email
+             const { data: userByEmail } = await supabaseAdmin
+                .from('users')
+                .select('id')
+                .eq('email', customer.email)
+                .single();
+             if (userByEmail) userId = userByEmail.id;
+        }
+      } catch (e) {
+        console.error("Error fetching customer:", e);
+      }
+    }
+
+    // Fallback: Search in DB by Stripe Customer ID
+    if (!userId) {
+       const { data: users } = await supabaseAdmin
+        .from('users')
+        .select('id')
+        .eq('stripe_customer_id', stripeCustomerId)
+        .single();
+       if (users) userId = users.id;
+    }
+
+    if (!userId) {
+        console.error(`❌ Fatal: Could not find User for Customer ${stripeCustomerId}`);
+        return false;
+    }
+
+    // 2. Determine Plan ID
+    let planId = metadata?.targetPlanId;
+    if (!planId && priceId) {
+        planId = findPlanByPriceId(priceId);
+    }
+
+    // 3. Prepare Update Data
+    let endIso: string;
+    
+    // Safety check for date
+    if (typeof currentPeriodEnd === 'number' && !isNaN(currentPeriodEnd)) {
+        endIso = new Date(currentPeriodEnd * 1000).toISOString();
+    } else {
+        console.warn(`⚠️ Invalid currentPeriodEnd (${currentPeriodEnd}) for User ${userId}. Defaulting to +30 days.`);
+        // Default to 30 days from now to keep the account active if we missed the date
+        endIso = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
+    }
+    
+    const updateData: any = {
+        subscription_status: status,
+        current_period_end: endIso,
+        stripe_customer_id: stripeCustomerId
+    };
+
+    if (planId) updateData.plan_id = planId;
+
+    if (session.object === 'subscription') {
+        updateData.subscription_id = session.id;
+    } else if (session.subscription) {
+        updateData.subscription_id = session.subscription;
+    }
+
+    console.log(`🔄 Updating User ${userId}: Status=${status}, Plan=${planId || 'Keep Existing'}, Ends=${endIso}`);
+
+    const { error } = await supabaseAdmin
+        .from('users')
+        .update(updateData)
+        .eq('id', userId);
+
+    if (error) {
+        console.error("❌ DB Update Error:", error);
+        return false;
+    }
+    return true;
+  };
+
+  // --- HANDLERS ---
+
   if (
     event.type === 'customer.subscription.created' || 
     event.type === 'customer.subscription.updated'
   ) {
     const subscription = session;
-    const priceId = subscription.items.data[0].price.id;
-    const customerId = subscription.customer;
-    const status = subscription.status;
-    const currentPeriodEnd = new Date(subscription.current_period_end * 1000).toISOString();
+    const priceId = subscription.items.data[0]?.price.id;
+    
+    await updateUserSubscription(
+        subscription.customer,
+        priceId,
+        subscription.status,
+        subscription.current_period_end,
+        subscription.metadata
+    );
+  }
 
-    // Strategy 1: Try to get info from Metadata (Most Reliable)
-    let planId = subscription.metadata?.targetPlanId;
-    let userId = subscription.metadata?.userId;
-
-    // Strategy 2: Fallback to Price ID mapping if metadata is missing
-    if (!planId) {
-        planId = findPlanByPriceId(priceId);
-    }
-
-    // Strategy 3: Find User by Customer ID if userId missing in metadata
-    if (!userId) {
-        const { data: users, error: fetchError } = await supabaseAdmin
-            .from('users')
-            .select('id')
-            .eq('stripe_customer_id', customerId);
-
-        if (!fetchError && users && users.length > 0) {
-            userId = users[0].id;
-        }
-    }
-
-    if (planId && userId) {
-      console.log(`🔄 Updating subscription for User ${userId} to Plan ${planId}`);
-
-      const { error: updateError } = await supabaseAdmin
-        .from('users')
-        .update({
-          plan_id: planId,
-          subscription_id: subscription.id,
-          subscription_status: status,
-          current_period_end: currentPeriodEnd,
-        })
-        .eq('id', userId);
-
-      if (updateError) {
-        console.error("❌ Error updating user subscription:", updateError);
-        return new NextResponse('Update failed', { status: 500 });
-      }
-      
-      console.log("✅ Subscription updated in DB via Subscription Event");
-    } else {
-      console.warn(`⚠️ Could not update subscription. PlanId: ${planId}, UserId: ${userId}, PriceId: ${priceId}`);
+  if (event.type === 'invoice.payment_succeeded') {
+    const invoice = session;
+    if (invoice.subscription) {
+        const priceId = invoice.lines.data[0]?.price?.id;
+        // Robust check for period end
+        const periodEnd = invoice.lines.data[0]?.period?.end || invoice.period_end;
+        
+        await updateUserSubscription(
+            invoice.customer,
+            priceId,
+            'active', 
+            periodEnd,
+            invoice.metadata 
+        );
     }
   }
 
-  // --- 2. HANDLE SUBSCRIPTION DELETION ---
   if (event.type === 'customer.subscription.deleted') {
     const subscription = session;
-    const customerId = subscription.customer;
+    const { data: user } = await supabaseAdmin
+        .from('users')
+        .select('id')
+        .eq('stripe_customer_id', subscription.customer)
+        .single();
 
-    console.log(`⚠️ Subscription deleted for customer ${customerId}`);
-
-    // Find user by stripe_customer_id
-    const { data: users, error: fetchError } = await supabaseAdmin
-      .from('users')
-      .select('id')
-      .eq('stripe_customer_id', customerId);
-
-    if (fetchError || !users || users.length === 0) {
-      console.error("❌ User not found for customer:", customerId);
-      return new NextResponse('User not found', { status: 400 });
+    if (user) {
+        await supabaseAdmin.from('users').update({
+            subscription_status: 'canceled',
+            plan_id: null,
+            subscription_id: null
+        }).eq('id', user.id);
+        console.log(`🚫 Subscription fully deleted for User ${user.id}`);
     }
-
-    const userId = users[0].id;
-
-    const { error } = await supabaseAdmin
-      .from('users')
-      .update({
-        subscription_status: 'canceled',
-        plan_id: null,
-        subscription_id: null,
-      })
-      .eq('id', userId);
-
-    if (error) {
-      console.error("❌ Error cancelling subscription:", error);
-      return new NextResponse('Update failed', { status: 500 });
-    }
-
-    console.log("✅ Subscription canceled for user:", userId);
   }
 
-  // --- 3. HANDLE CHECKOUT COMPLETION (Primary for New Subs) ---
   if (event.type === 'checkout.session.completed') {
     const metadata = session.metadata;
 
-    // A. Handle Token Refill
     if (metadata?.type === 'token_refill') {
-      try {
+       try {
         const projectId = metadata.projectId;
         const newTokens = JSON.parse(metadata.purchased_tokens || '{}');
         const amountPaid = session.amount_total / 100;
@@ -148,7 +199,6 @@ export async function POST(req: Request) {
             .single();
 
         if (existingPack) {
-            // ... Update Logic ...
             const oldPurchased = existingPack.tokens_purchased || {};
             const oldRemaining = existingPack.remaining_tokens || {};
             const sumTokens = (key: string, oldObj: any, newObj: any) => (Number(oldObj[key]) || 0) + (Number(newObj[key]) || 0);
@@ -169,7 +219,6 @@ export async function POST(req: Request) {
                 expires_at: new Date(new Date().setFullYear(new Date().getFullYear() + 1)).toISOString(),
             }).eq('id', existingPack.id);
         } else {
-            // ... Insert Logic ...
              const fullTokenSet = {
                 "gemini-2.5-pro": newTokens["gemini-2.5-pro"] || 0,
                 "gemini-2.5-flash": newTokens["gemini-2.5-flash"] || 0,
@@ -187,47 +236,35 @@ export async function POST(req: Request) {
             });
         }
         console.log("✅ Token wallet updated!");
-      } catch (err) {
-        console.error('❌ Error processing token refill:', err);
-      }
+       } catch(e) { console.error("Token refill error", e); }
     }
-
+    
     // B. Handle New Subscription (Force Update from Session Metadata)
     if (metadata?.type === 'subscription_update') {
-      const userId = metadata.userId;
-      const stripeCustomerId = session.customer;
-      const planId = metadata.targetPlanId;
-      
-      console.log(`🔗 Checkout Completed: User ${userId}, Plan ${planId}`);
+        const subscriptionId = session.subscription;
+        
+        // Default to 30 days from now if fetch fails
+        let currentPeriodEnd = Math.floor(Date.now() / 1000) + 2592000;
 
-      // Attempt to fetch fresh expiry
-      let currentPeriodEnd: string | null = null;
-      try {
-        const subscription = await stripe.subscriptions.list({ customer: stripeCustomerId, limit: 1 });
-        if (subscription.data.length > 0) {
-            // ✅ FIX: Cast to 'any' to avoid TS error on 'current_period_end'
-            const sub = subscription.data[0] as any;
-            currentPeriodEnd = new Date(sub.current_period_end * 1000).toISOString();
+        try {
+            // ✅ FIX: Verify string + Cast 'sub' to any to avoid TS error on 'Response<Subscription>'
+            if (subscriptionId && typeof subscriptionId === 'string') {
+                const sub = await stripe.subscriptions.retrieve(subscriptionId) as any;
+                if (sub.current_period_end) {
+                    currentPeriodEnd = sub.current_period_end;
+                }
+            }
+        } catch(e) { 
+            console.error("Sub fetch failed, using default date:", e); 
         }
-      } catch (e) { console.error("Could not fetch fresh expiry", e); }
-
-      // Update DB
-      const { error } = await supabaseAdmin
-        .from('users')
-        .update({ 
-          stripe_customer_id: stripeCustomerId,
-          plan_id: planId,
-          subscription_status: 'active',
-          ...(currentPeriodEnd && { current_period_end: currentPeriodEnd }) 
-        })
-        .eq('id', userId);
-
-      if (error) {
-        console.error("❌ Failed to update user from checkout session:", error);
-        return new NextResponse('Update failed', { status: 500 });
-      }
-
-      console.log("✅ Subscription updated in DB via Checkout Session");
+        
+        await updateUserSubscription(
+            session.customer,
+            null, 
+            'active',
+            currentPeriodEnd,
+            metadata 
+        );
     }
   }
 
