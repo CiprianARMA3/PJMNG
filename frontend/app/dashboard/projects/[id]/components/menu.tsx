@@ -2,7 +2,7 @@
 
 import { useProjectPermissions } from "@/hooks/useProjectPermissions";
 import { PAGE_REQUIREMENTS } from "@/utils/permissions";
-
+import { signOut } from '@/app/actions/auth';
 import {
   LayoutGrid,
   KanbanSquare,
@@ -268,7 +268,7 @@ export default function Menu({ project, user }: MenuProps) {
         </nav>
 
         <div className="p-4 border-t border-white/[0.08]">
-           <button className="flex items-center gap-3 w-full px-3 py-2 text-sm font-medium text-zinc-400 hover:text-red-400 hover:bg-red-500/10 rounded-md transition-all">
+           <button onClick={() => signOut()} className="flex items-center gap-3 w-full px-3 py-2 text-sm font-medium text-zinc-400 hover:text-red-400 hover:bg-red-500/10 rounded-md transition-all cursor-pointer">
               <LogOut className="w-4 h-4" /> Sign Out
            </button>
         </div>
