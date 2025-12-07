@@ -1,9 +1,9 @@
+// frontend/app/api/webhooks/stripe/route.ts
 import { headers } from 'next/headers';
 import { NextResponse } from 'next/server';
-import {SUBSCRIPTION_PLANS } from '@/utils/stripe/config';
+import { SUBSCRIPTION_PLANS } from '@/utils/stripe/config';
 import { createAdminClient } from '@/utils/supabase/admin';
 import { stripe } from '@/utils/stripe/server';
-
 
 // Helper to match Stripe Price ID to your Plan IDs
 const findPlanByPriceId = (priceId: string) => {
@@ -46,7 +46,7 @@ export async function POST(req: Request) {
     const subscription = session;
     const priceId = subscription.items.data[0].price.id;
     const customerId = subscription.customer;
-    const status = subscription.status; // active, past_due, etc.
+    const status = subscription.status;
     const currentPeriodEnd = new Date(subscription.current_period_end * 1000).toISOString();
 
     const planId = findPlanByPriceId(priceId);
@@ -54,19 +54,37 @@ export async function POST(req: Request) {
     if (planId) {
       console.log(`🔄 Updating subscription for customer ${customerId} to plan ${planId}`);
       
-      const { error } = await supabaseAdmin
+      // ✅ FIX: Use stripe_customer_id to find the user, then update plan_id
+      const { data: users, error: fetchError } = await supabaseAdmin
+        .from('users')
+        .select('id')
+        .eq('stripe_customer_id', customerId);
+
+      if (fetchError || !users || users.length === 0) {
+        console.error("❌ User not found for customer:", customerId, fetchError);
+        return new NextResponse('User not found', { status: 400 });
+      }
+
+      const userId = users[0].id;
+
+      const { error: updateError } = await supabaseAdmin
         .from('users')
         .update({
           plan_id: planId,
           subscription_id: subscription.id,
           subscription_status: status,
-          current_period_end: currentPeriodEnd,
-          // We assume stripe_customer_id is already linked via checkout.session.completed
+          current_period_end: currentPeriodEnd,  // ✅ LOGS EXPIRY DATE
         })
-        .eq('stripe_customer_id', customerId);
+        .eq('id', userId);
 
-      if (error) console.error("❌ Error updating user subscription:", error);
-      else console.log("✅ Subscription updated in DB");
+      if (updateError) {
+        console.error("❌ Error updating user subscription:", updateError);
+        return new NextResponse('Update failed', { status: 500 });
+      }
+      
+      console.log("✅ Subscription updated in DB for user:", userId);
+    } else {
+      console.warn("⚠️ Price ID not found in SUBSCRIPTION_PLANS:", priceId);
     }
   }
 
@@ -76,15 +94,34 @@ export async function POST(req: Request) {
 
     console.log(`⚠️ Subscription deleted for customer ${customerId}`);
 
+    // ✅ FIX: Find user by stripe_customer_id first
+    const { data: users, error: fetchError } = await supabaseAdmin
+      .from('users')
+      .select('id')
+      .eq('stripe_customer_id', customerId);
+
+    if (fetchError || !users || users.length === 0) {
+      console.error("❌ User not found for customer:", customerId, fetchError);
+      return new NextResponse('User not found', { status: 400 });
+    }
+
+    const userId = users[0].id;
+
     const { error } = await supabaseAdmin
       .from('users')
       .update({
         subscription_status: 'canceled',
-        plan_id: null, // Optional: revert to free plan ID if you have one
+        plan_id: null,
+        subscription_id: null,
       })
-      .eq('stripe_customer_id', customerId);
+      .eq('id', userId);
 
-    if (error) console.error("❌ Error cancelling subscription:", error);
+    if (error) {
+      console.error("❌ Error cancelling subscription:", error);
+      return new NextResponse('Update failed', { status: 500 });
+    }
+
+    console.log("✅ Subscription canceled for user:", userId);
   }
 
   // --- 2. HANDLE CHECKOUT COMPLETION ---
@@ -98,7 +135,6 @@ export async function POST(req: Request) {
         const newTokens = JSON.parse(metadata.purchased_tokens || '{}');
         const amountPaid = session.amount_total / 100;
 
-        // Check if a pack already exists
         const { data: existingPack, error: fetchError } = await supabaseAdmin
             .from('token_packs')
             .select('*')
@@ -111,7 +147,6 @@ export async function POST(req: Request) {
         }
 
         if (existingPack) {
-            // Update Existing Wallet
             console.log("🔄 Updating existing token wallet...");
 
             const oldPurchased = existingPack.tokens_purchased || {};
@@ -143,7 +178,6 @@ export async function POST(req: Request) {
             console.log("✅ Token wallet updated!");
 
         } else {
-            // Create New Wallet
             console.log("✨ Creating new token wallet...");
             const fullTokenSet = {
                 "gemini-2.5-pro": newTokens["gemini-2.5-pro"] || 0,
@@ -173,15 +207,53 @@ export async function POST(req: Request) {
     if (metadata?.type === 'subscription_update') {
       const userId = metadata.userId;
       const stripeCustomerId = session.customer;
+      const planId = metadata.targetPlanId;
 
-      console.log(`🔗 Linking Stripe Customer ${stripeCustomerId} to User ${userId}`);
+      console.log(`🔗 Processing subscription for User ${userId}, Customer ${stripeCustomerId}, Plan ${planId}`);
       
+      // ✅ Fetch subscription to get current_period_end
+      let currentPeriodEnd: string | null = null;
+      try {
+        const subscription = await stripe.subscriptions.list({
+          customer: stripeCustomerId,
+          limit: 1,
+        });
+
+        console.log('🔍 DEBUG - Subscription list response:', JSON.stringify(subscription.data[0], null, 2));
+
+        if (subscription.data.length > 0) {
+          const sub = subscription.data[0] as any;
+          const timestampSeconds = sub.current_period_end;
+          const dateObj = new Date(timestampSeconds * 1000);
+          currentPeriodEnd = dateObj.toISOString();
+          
+          console.log(`⏱️ Raw timestamp from Stripe: ${timestampSeconds}`);
+          console.log(`📅 Converted to ISO string: ${currentPeriodEnd}`);
+          console.log(`✅ Will be logged to DB as: ${currentPeriodEnd}`);
+        } else {
+          console.warn('⚠️ No subscription found for customer');
+        }
+      } catch (err) {
+        console.error('❌ Error fetching subscription expiry:', err);
+      }
+
+      // ✅ Update BOTH stripe_customer_id AND plan_id in one operation
       const { error } = await supabaseAdmin
         .from('users')
-        .update({ stripe_customer_id: stripeCustomerId })
+        .update({ 
+          stripe_customer_id: stripeCustomerId,
+          plan_id: planId,
+          subscription_status: 'active',
+          current_period_end: currentPeriodEnd,  // ✅ LOG EXPIRY IMMEDIATELY
+        })
         .eq('id', userId);
 
-      if (error) console.error("❌ Failed to link customer ID:", error);
+      if (error) {
+        console.error("❌ Failed to update subscription:", error);
+        return new NextResponse('Update failed', { status: 500 });
+      }
+
+      console.log("✅ Subscription updated for user:", userId);
     }
   }
 

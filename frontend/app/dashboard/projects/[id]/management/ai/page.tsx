@@ -660,7 +660,7 @@ export default function AIUsagePage() {
                                     />
                                     <div className="flex flex-col overflow-hidden">
                                         <span className="text-xs font-medium text-zinc-300 truncate">
-                                            {logUser?.full_name || "System Process"}
+                                            {logUser?.full_name || "Unknown"}
                                         </span>
                                         <span className="text-[10px] text-zinc-600 truncate">
                                             {logUser?.email || "Automated"}
