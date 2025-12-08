@@ -1,5 +1,5 @@
 "use client";
-import { useState, useEffect, Suspense, lazy } from "react";
+import { useState, useEffect, Suspense, lazy, useCallback, useMemo } from "react";
 import { createClient } from "@/utils/supabase/client";
 import { useRouter } from "next/navigation";
 import useRequireAuth from "@/hooks/useRequireAuth";
@@ -103,27 +103,28 @@ export default function DashboardPage() {
     fetchUser();
   }, [sessionUser]);
 
-  const handleLogout = async () => {
+  const handleLogout = useCallback(async () => {
     await supabase.auth.signOut();
     router.push("/auth/login");
-  };
+  }, [router]);
 
-  // Safe avatar URL with fallback
-  const getAvatarUrl = () => {
+  // Safe avatar URL with fallback (memoized)
+  const avatarUrl = useMemo(() => {
     if (!user || !user.avatar_url) {
       return `${DEFAULT_AVATAR}?t=${Date.now()}`;
     }
-    return user.avatar_url.includes('?') 
-      ? user.avatar_url 
+    return user.avatar_url.includes('?')
+      ? user.avatar_url
       : `${user.avatar_url}?t=${Date.now()}`;
-  };
+  }, [user?.avatar_url]);
 
-  const renderMainContent = () => {
-    const sectionProps = {
-      userName: user?.fullName || "User",
-      user: user
-    };
+  // Memoize section props to prevent unnecessary re-renders
+  const sectionProps = useMemo(() => ({
+    userName: user?.fullName || "User",
+    user: user
+  }), [user?.fullName, user]);
 
+  const renderMainContent = useCallback(() => {
     switch (activeSection) {
       case SECTIONS.HOME:
         return (
@@ -143,12 +144,6 @@ export default function DashboardPage() {
             <QuickActionsSection />
           </Suspense>
         );
-      // case SECTIONS.ANALYTICS:
-      //   return (
-      //     <Suspense fallback={<SectionSkeleton />}>
-      //       <AnalyticsSection />
-      //     </Suspense>
-      //   );
       case SECTIONS.SETTINGS:
         return (
           <Suspense fallback={<SectionSkeleton />}>
@@ -174,7 +169,7 @@ export default function DashboardPage() {
           </Suspense>
         );
     }
-  };
+  }, [activeSection, sectionProps, user]);
 
   if (loading || userLoading || !user) {
     return (
@@ -202,21 +197,14 @@ export default function DashboardPage() {
 
   return (
     <div className="min-h-screen bg-black text-white relative">
-      {/* Simplified blur overlay for better performance */}
-      <div className="fixed inset-0 pointer-events-none z-40 overflow-hidden">
-        <div className="absolute inset-0 opacity-1 backdrop-blur-[0.5px]"></div>
-        <div className="absolute inset-0 opacity-1 backdrop-blur-[2px]"></div>
-        <div className="absolute inset-0 opacity-1 backdrop-blur-[8px]"></div>
-      </div>
-
       {/* Navigation Bar */}
       <nav className="fixed top-0 left-0 right-0 z-50 bg-[#0a0a0a]/80 backdrop-blur-sm border-b border-white/10">
         <div className="max-w-7xl mx-auto px-6">
           <div className="flex items-center justify-between h-16">
             {/* Logo */}
             <div className="flex items-center gap-1">
-          <span className="text-2xl font-normal tracking-tight">KAPR<span className="text-purple-600 font-normal">Y</span></span>
-          <span className="text-2xl font-black tracking-tight text-white">.DEV</span>
+              <span className="text-2xl font-normal tracking-tight">KAPR<span className="text-purple-600 font-normal">Y</span></span>
+              <span className="text-2xl font-black tracking-tight text-white">.DEV</span>
             </div>
 
             {/* Desktop Navigation */}
@@ -225,11 +213,10 @@ export default function DashboardPage() {
                 <button
                   key={section}
                   onClick={() => setActiveSection(section)}
-                  className={`flex items-center gap-2 px-3 py-2 rounded-lg transition-all duration-200 text-sm font-medium ${
-                    activeSection === section
+                  className={`flex items-center gap-2 px-3 py-2 rounded-lg transition-all duration-200 text-sm font-medium ${activeSection === section
                       ? "text-white bg-white/10"
                       : "text-white/60 hover:text-white hover:bg-white/5"
-                  }`}
+                    }`}
                 >
                   <Icon className="w-4 h-4" />
                   {label}
@@ -246,17 +233,17 @@ export default function DashboardPage() {
 
               {/* User Profile - WITH SAFE AVATAR URL */}
               <div className="relative">
-                <button 
+                <button
                   onClick={() => setActiveSection(SECTIONS.PROFILE_SETTINGS)}
                   className="flex items-center gap-3 p-2 rounded-lg hover:bg-white/5 transition-colors"
                 >
                   <Image
-                    src={getAvatarUrl()}
+                    src={avatarUrl}
                     alt="User Avatar"
                     width={32}
                     height={32}
                     className="rounded-lg object-cover border border-white/20"
-                    key={getAvatarUrl()} // Use the safe URL as key
+                    key={avatarUrl}
                     unoptimized
                   />
                   <div className="hidden sm:block text-left">
@@ -272,7 +259,7 @@ export default function DashboardPage() {
               </div>
 
               {/* Mobile Menu Button */}
-              <button 
+              <button
                 className="md:hidden p-2 rounded-lg hover:bg-white/5 transition-colors"
                 onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
               >
@@ -296,11 +283,10 @@ export default function DashboardPage() {
                       setActiveSection(section);
                       setIsMobileMenuOpen(false);
                     }}
-                    className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-200 ${
-                      activeSection === section
+                    className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-200 ${activeSection === section
                         ? "bg-white/10 text-white"
                         : "text-white/60 hover:text-white hover:bg-white/5"
-                    }`}
+                      }`}
                   >
                     <Icon className="w-5 h-5" />
                     <span className="text-sm font-medium">{label}</span>

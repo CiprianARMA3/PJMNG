@@ -64,7 +64,7 @@ export async function getTokenPacks(modelKey: string, isEnterprise: boolean) {
 }
 
 export async function createSubscriptionCheckout(
-  targetPlanId: string, 
+  targetPlanId: string,
   interval: 'month' | 'year'
 ) {
   const supabase = createClient(cookies());
@@ -120,11 +120,11 @@ export async function createSubscriptionCheckout(
       }],
       metadata: {
         userId: user.id,
-        targetPlanId: targetPlanId, 
+        targetPlanId: targetPlanId,
         type: 'subscription_update'
       },
       // 'always_invoice' calculates proration and charges/credits immediately
-      proration_behavior: 'always_invoice', 
+      proration_behavior: 'always_invoice',
     });
 
     // Redirect back to dashboard immediately (Webhook will handle DB sync)
@@ -141,7 +141,7 @@ export async function createSubscriptionCheckout(
     cancel_url: `${getBaseUrl()}/dashboard/components/subscriptionFolder?canceled=true`,
     metadata: {
       userId: user.id,
-      targetPlanId: targetPlanId, 
+      targetPlanId: targetPlanId,
       type: 'subscription_update'
     },
     subscription_data: {
@@ -157,11 +157,11 @@ export async function createSubscriptionCheckout(
 
 // --- Action: Create Checkout ---
 export async function createTokenPackCheckout(
-  projectId: string, 
-  pack: { 
-    modelKey: string; 
-    amount: number; 
-    priceId?: string; 
+  projectId: string,
+  pack: {
+    modelKey: string;
+    amount: number;
+    priceId?: string;
     unitAmount?: number;
     baseProductId?: string;
     isAdHoc?: boolean;
@@ -173,8 +173,8 @@ export async function createTokenPackCheckout(
   if (!user) throw new Error('Not authenticated');
 
   if (!projectId || typeof projectId !== 'string') {
-      console.error("Invalid Project ID received:", projectId);
-      throw new Error("Invalid Project ID");
+    console.error("Invalid Project ID received:", projectId);
+    throw new Error("Invalid Project ID");
   }
 
   const { data: project, error } = await supabase
@@ -220,7 +220,7 @@ export async function createTokenPackCheckout(
     mode: 'payment',
     success_url: `${getBaseUrl()}/dashboard/projects/${projectId}/payments/completed`,
     cancel_url: `${getBaseUrl()}/dashboard/projects/${projectId}/payments/failed`,
-    
+
     metadata: {
       projectId,
       userId: user.id,
@@ -262,12 +262,26 @@ export async function getUserBillingInfo() {
 
   const { data: userData } = await supabase
     .from('users')
-    .select('stripe_customer_id')
+    .select('stripe_customer_id, subscription_id, plan_id')
     .eq('id', user.id)
     .single();
 
   if (!userData?.stripe_customer_id) {
-    return { invoices: [], subscription: null };
+    return { invoices: [], subscription: null, planDetails: null };
+  }
+
+  // Fetch plan details from database if plan_id exists
+  let dbPlanDetails = null;
+  if (userData?.plan_id) {
+    const { data: planData } = await supabase
+      .from('plans')
+      .select('id, name, monthly_price, yearly_price, features')
+      .eq('id', userData.plan_id)
+      .single();
+
+    if (planData) {
+      dbPlanDetails = planData;
+    }
   }
 
   // 1. Fetch Invoices
@@ -292,40 +306,42 @@ export async function getUserBillingInfo() {
     customer: userData.stripe_customer_id,
     status: 'active',
     limit: 1,
-    expand: ['data.plan.product'] 
+    expand: ['data.plan.product']
   });
 
   if (subscriptions.data.length > 0) {
     const sub = subscriptions.data[0] as any;
-    
+
     // Robust Product Name & Price Fetching
     let productName = 'Unknown Plan';
     let amount = '0';
     let interval = 'month';
 
     if (sub.plan && sub.plan.product) {
-        const product = sub.plan.product as Stripe.Product;
-        productName = product.name;
-        amount = (sub.plan.amount / 100).toFixed(2);
-        interval = sub.plan.interval;
+      const product = sub.plan.product as Stripe.Product;
+      productName = product.name;
+      amount = (sub.plan.amount / 100).toFixed(2);
+      interval = sub.plan.interval;
     } else if (sub.items && sub.items.data.length > 0) {
-        const item = sub.items.data[0];
-        if (item.price) {
-           amount = ((item.price.unit_amount || 0) / 100).toFixed(2);
-           interval = item.price.recurring?.interval || 'month';
-        }
+      const item = sub.items.data[0];
+      if (item.price) {
+        amount = ((item.price.unit_amount || 0) / 100).toFixed(2);
+        interval = item.price.recurring?.interval || 'month';
+      }
     }
 
     let formattedDate = 'Unknown';
+    let expirationTimestamp = null;
     if (sub.current_period_end) {
-        const dateObj = new Date(sub.current_period_end * 1000);
-        if (!isNaN(dateObj.getTime())) {
-            formattedDate = dateObj.toLocaleDateString('en-GB', { 
-                day: '2-digit', 
-                month: 'short', 
-                year: 'numeric' 
-            });
-        }
+      const dateObj = new Date(sub.current_period_end * 1000);
+      if (!isNaN(dateObj.getTime())) {
+        formattedDate = dateObj.toLocaleDateString('en-GB', {
+          day: '2-digit',
+          month: 'short',
+          year: 'numeric'
+        });
+        expirationTimestamp = dateObj.getTime();
+      }
     }
 
     subscriptionDetails = {
@@ -334,13 +350,21 @@ export async function getUserBillingInfo() {
       amount: amount,
       interval: interval,
       currentPeriodEnd: formattedDate,
-      cancelAtPeriodEnd: sub.cancel_at_period_end
+      expirationTimestamp: expirationTimestamp,
+      cancelAtPeriodEnd: sub.cancel_at_period_end,
+      status: sub.status,
+      currentPeriodStart: sub.current_period_start ? new Date(sub.current_period_start * 1000).toLocaleDateString('en-GB', {
+        day: '2-digit',
+        month: 'short',
+        year: 'numeric'
+      }) : 'Unknown'
     };
   }
 
   return {
     invoices: formattedInvoices,
-    subscription: subscriptionDetails
+    subscription: subscriptionDetails,
+    planDetails: dbPlanDetails
   };
 }
 

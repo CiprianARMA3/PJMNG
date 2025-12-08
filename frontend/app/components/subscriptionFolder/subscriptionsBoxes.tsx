@@ -27,49 +27,76 @@ const PLAN_ORDER = ["Individual", "Developers", "Enterprise"];
 
 const supabase = createClient();
 
-// --- MODAL COMPONENT ---
-function ConfirmationModal({ 
-  isOpen, 
-  onClose, 
-  onConfirm, 
-  isLoading, 
+// --- MODAL COMPONENT WITH DOUBLE CONFIRMATION ---
+function ConfirmationModal({
+  isOpen,
+  onClose,
+  onConfirm,
+  isLoading,
   isSuccess,
-  planName, 
+  planName,
   price,
   isUpgrade
-}: { 
-  isOpen: boolean; 
-  onClose: () => void; 
-  onConfirm: () => void; 
+}: {
+  isOpen: boolean;
+  onClose: () => void;
+  onConfirm: () => void;
   isLoading: boolean;
   isSuccess: boolean;
   planName: string;
   price: string;
   isUpgrade: boolean;
 }) {
+  const [step, setStep] = useState<'initial' | 'final'>(('initial'));
+  const [confirmText, setConfirmText] = useState('');
+
+  // Reset state when modal closes or opens
+  useEffect(() => {
+    if (!isOpen) {
+      setStep('initial');
+      setConfirmText('');
+    }
+  }, [isOpen]);
+
+  const handleFirstConfirm = () => {
+    setStep('final');
+  };
+
+  const handleFinalConfirm = () => {
+    if (confirmText.toUpperCase() === 'CONFIRM') {
+      onConfirm();
+    }
+  };
+
+  const handleClose = () => {
+    setStep('initial');
+    setConfirmText('');
+    onClose();
+  };
+
   if (!isOpen) return null;
 
   return (
     <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 animate-in fade-in duration-200">
       <div className="w-full max-w-md bg-[#111] border border-zinc-800 rounded-2xl shadow-2xl p-8 relative flex flex-col items-center text-center">
-        
+
         {/* --- SUCCESS STATE --- */}
         {isSuccess ? (
           <div className="animate-in zoom-in duration-300 flex flex-col items-center">
-             <div className="w-16 h-16 rounded-full bg-green-500/10 flex items-center justify-center mb-6 text-green-500 shadow-[0_0_20px_rgba(34,197,94,0.2)]">
-                <CheckCircle2 className="w-8 h-8" />
-             </div>
-             <h3 className="text-2xl font-bold text-white mb-2">Subscription Updated!</h3>
-             <p className="text-zinc-400 mb-6">
-               Your plan has been successfully changed. <br/>Reloading page...
-             </p>
-             <Loader2 className="w-6 h-6 animate-spin text-zinc-600" />
+            <div className="w-16 h-16 rounded-full bg-green-500/10 flex items-center justify-center mb-6 text-green-500 shadow-[0_0_20px_rgba(34,197,94,0.2)]">
+              <CheckCircle2 className="w-8 h-8" />
+            </div>
+            <h3 className="text-2xl font-bold text-white mb-2">Subscription Updated!</h3>
+            <p className="text-zinc-400 mb-6">
+              Your plan has been successfully changed. <br />Reloading page...
+            </p>
+            <Loader2 className="w-6 h-6 animate-spin text-zinc-600" />
           </div>
-        ) : (
-          /* --- CONFIRMATION STATE --- */
+        ) : step === 'initial' ? (
+          /* --- FIRST CONFIRMATION STATE --- */
           <>
-            <button 
-              onClick={onClose}
+            <button
+              onClick={handleClose}
               className="absolute top-4 right-4 text-zinc-500 hover:text-white transition-colors"
               disabled={isLoading}
             >
@@ -79,11 +106,15 @@ function ConfirmationModal({
             <div className={`w-14 h-14 rounded-full flex items-center justify-center mb-5 ${isUpgrade ? 'bg-blue-500/10 text-blue-500' : 'bg-orange-500/10 text-orange-500'}`}>
               <AlertTriangle className="w-7 h-7" />
             </div>
-            
+
+            <div className="mb-2 px-3 py-1 bg-purple-500/10 border border-purple-500/20 rounded-full text-purple-400 text-xs font-medium">
+              Step 1 of 2
+            </div>
+
             <h3 className="text-xl font-bold text-white mb-3">
               Confirm {isUpgrade ? 'Upgrade' : 'Downgrade'}
             </h3>
-            
+
             <p className="text-zinc-400 text-sm leading-relaxed mb-8">
               You are about to switch to the <span className="text-white font-semibold">{planName}</span> plan.
               <br />
@@ -99,21 +130,81 @@ function ConfirmationModal({
             </p>
 
             <div className="flex gap-3 w-full">
-              <button 
-                onClick={onClose}
+              <button
+                onClick={handleClose}
                 disabled={isLoading}
                 className="flex-1 py-3 rounded-xl font-medium text-sm bg-zinc-900 text-zinc-300 hover:bg-zinc-800 hover:text-white transition-colors border border-zinc-800"
               >
                 Cancel
               </button>
-              <button 
-                onClick={onConfirm}
+              <button
+                onClick={handleFirstConfirm}
                 disabled={isLoading}
-                className={`flex-1 py-3 rounded-xl font-medium text-sm text-white transition-all flex items-center justify-center gap-2 ${
-                  isUpgrade 
-                    ? 'bg-blue-600 hover:bg-blue-500 shadow-lg shadow-blue-900/20' 
-                    : 'bg-zinc-700 hover:bg-zinc-600'
-                }`}
+                className={`flex-1 py-3 rounded-xl font-medium text-sm text-white transition-all flex items-center justify-center gap-2 ${isUpgrade
+                  ? 'bg-blue-600 hover:bg-blue-500 shadow-lg shadow-blue-900/20'
+                  : 'bg-zinc-700 hover:bg-zinc-600'
+                  }`}
+              >
+                Continue
+              </button>
+            </div>
+          </>
+        ) : (
+          /* --- SECOND CONFIRMATION STATE --- */
+          <>
+            <button
+              onClick={handleClose}
+              className="absolute top-4 right-4 text-zinc-500 hover:text-white transition-colors"
+              disabled={isLoading}
+            >
+              <X className="w-5 h-5" />
+            </button>
+
+            <div className="w-14 h-14 rounded-full flex items-center justify-center mb-5 bg-red-500/10 text-red-500">
+              <AlertTriangle className="w-7 h-7" />
+            </div>
+
+            <div className="mb-2 px-3 py-1 bg-purple-500/10 border border-purple-500/20 rounded-full text-purple-400 text-xs font-medium">
+              Step 2 of 2 - Final Confirmation
+            </div>
+
+            <h3 className="text-xl font-bold text-white mb-3">
+              Are you absolutely sure?
+            </h3>
+
+            <p className="text-zinc-400 text-sm leading-relaxed mb-4">
+              This action will {isUpgrade ? 'upgrade' : 'downgrade'} your subscription to <span className="text-white font-semibold">{planName}</span>.
+            </p>
+
+            <div className="w-full mb-6 p-4 bg-red-500/5 border border-red-500/20 rounded-lg">
+              <p className="text-red-400 text-xs mb-3 font-medium">
+                ⚠️ To proceed, please type <span className="text-white font-bold">CONFIRM</span> below:
+              </p>
+              <input
+                type="text"
+                value={confirmText}
+                onChange={(e) => setConfirmText(e.target.value)}
+                placeholder="Type CONFIRM"
+                className="w-full px-4 py-2 bg-black/50 border border-zinc-700 rounded-lg text-white text-sm focus:outline-none focus:border-red-500/50 transition-colors"
+                autoFocus
+              />
+            </div>
+
+            <div className="flex gap-3 w-full">
+              <button
+                onClick={() => setStep('initial')}
+                disabled={isLoading}
+                className="flex-1 py-3 rounded-xl font-medium text-sm bg-zinc-900 text-zinc-300 hover:bg-zinc-800 hover:text-white transition-colors border border-zinc-800"
+              >
+                Back
+              </button>
+              <button
+                onClick={handleFinalConfirm}
+                disabled={isLoading || confirmText.toUpperCase() !== 'CONFIRM'}
+                className={`flex-1 py-3 rounded-xl font-medium text-sm text-white transition-all flex items-center justify-center gap-2 ${confirmText.toUpperCase() === 'CONFIRM' && !isLoading
+                  ? 'bg-red-600 hover:bg-red-500 shadow-lg shadow-red-900/20'
+                  : 'bg-zinc-800 cursor-not-allowed opacity-50'
+                  }`}
               >
                 {isLoading ? (
                   <>
@@ -152,22 +243,21 @@ const LoadingSpinner = () => (
   </div>
 );
 
-const ToggleButton = ({ 
-  active, 
-  onClick, 
-  children 
-}: { 
-  active: boolean; 
-  onClick: () => void; 
+const ToggleButton = ({
+  active,
+  onClick,
+  children
+}: {
+  active: boolean;
+  onClick: () => void;
   children: React.ReactNode;
 }) => (
   <button
     onClick={onClick}
-    className={`w-full text-[14px] font-medium py-2 px-4 rounded-full cursor-pointer transition-all duration-300 ${
-      active
-        ? "bg-purple-600 text-white shadow-md shadow-purple-900/20"
-        : "bg-transparent text-white/60 hover:text-white"
-    }`}
+    className={`w-full text-[14px] font-medium py-2 px-4 rounded-full cursor-pointer transition-all duration-300 ${active
+      ? "bg-purple-600 text-white shadow-md shadow-purple-900/20"
+      : "bg-transparent text-white/60 hover:text-white"
+      }`}
   >
     {children}
   </button>
@@ -181,27 +271,27 @@ const FeatureItem = ({ feature }: { feature: string }) => (
 );
 
 // --- Pricing Card ---
-const PricingCard = ({ 
-  plan, 
-  isMonthly, 
+const PricingCard = ({
+  plan,
+  isMonthly,
   currentPlanName,
   onSelect
-}: { 
-  plan: Plan; 
-  isMonthly: boolean; 
+}: {
+  plan: Plan;
+  isMonthly: boolean;
   currentPlanName: string | null;
   onSelect: () => void;
 }) => {
   // Normalize names for comparison
   const planName = plan.name;
   const currentName = currentPlanName || "";
-  
+
   const isCurrentPlan = currentName.toLowerCase() === planName.toLowerCase();
-  
+
   // Determine Rank
   const currentRank = PLAN_ORDER.indexOf(currentName); // -1 if no plan
   const planRank = PLAN_ORDER.indexOf(planName);
-  
+
   // Determine Button State
   let buttonText = "Get Started";
   let buttonStyle = "bg-purple-600 hover:bg-purple-700 text-white cursor-pointer shadow-lg shadow-purple-900/20 border border-purple-500";
@@ -214,7 +304,7 @@ const PricingCard = ({
   } else if (currentRank !== -1) {
     if (planRank > currentRank) {
       buttonText = "Upgrade";
-      buttonStyle = "bg-white text-black hover:bg-zinc-200 cursor-pointer border border-white"; 
+      buttonStyle = "bg-white text-black hover:bg-zinc-200 cursor-pointer border border-white";
     } else {
       buttonText = "Downgrade";
       buttonStyle = "bg-transparent text-white border border-white/20 hover:bg-white/10 cursor-pointer";
@@ -223,46 +313,45 @@ const PricingCard = ({
 
   return (
     <div
-      className={`relative bg-[#0A0A0A] border rounded-3xl p-6 hover:scale-[1.02] transition-all duration-300 flex flex-col h-full ${
-        plan.recommended && !isCurrentPlan
-          ? "border-purple-500/50 shadow-[0_0_30px_-5px_rgba(168,85,247,0.15)]"
-          : isCurrentPlan 
-            ? "border-green-500/30 bg-green-900/5"
-            : "border-white/10 hover:border-white/20 hover:bg-white/5"
-      }`}
+      className={`relative bg-[#0A0A0A] border rounded-3xl p-6 hover:scale-[1.02] transition-all duration-300 flex flex-col h-full ${plan.recommended && !isCurrentPlan
+        ? "border-purple-500/50 shadow-[0_0_30px_-5px_rgba(168,85,247,0.15)]"
+        : isCurrentPlan
+          ? "border-green-500/30 bg-green-900/5"
+          : "border-white/10 hover:border-white/20 hover:bg-white/5"
+        }`}
     >
       <div className="flex flex-col h-full">
-        
+
         {/* Active Badge */}
         {isCurrentPlan && (
-            <div className="absolute -top-3 right-6 bg-green-500 text-black text-[11px] font-bold px-3 py-1 rounded-full flex items-center gap-1 shadow-lg shadow-green-500/20 z-10">
-                <CheckCircle2 size={12} /> ACTIVE
-            </div>
+          <div className="absolute -top-3 right-6 bg-green-500 text-black text-[11px] font-bold px-3 py-1 rounded-full flex items-center gap-1 shadow-lg shadow-green-500/20 z-10">
+            <CheckCircle2 size={12} /> ACTIVE
+          </div>
         )}
 
         {/* Recommended Badge */}
         {plan.recommended && !isCurrentPlan && (
-             <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-purple-600 text-white text-[11px] font-bold px-3 py-1 rounded-full shadow-lg shadow-purple-600/30 z-10">
-             RECOMMENDED
-         </div>
+          <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-purple-600 text-white text-[11px] font-bold px-3 py-1 rounded-full shadow-lg shadow-purple-600/30 z-10">
+            RECOMMENDED
+          </div>
         )}
 
         <h4 className="text-zinc-400 text-sm font-semibold mb-2 uppercase tracking-wider">{plan.name}</h4>
-        
+
         <div className="flex items-baseline mb-6">
-            <h3 className="text-4xl font-bold text-white">
+          <h3 className="text-4xl font-bold text-white">
             €{isMonthly ? plan.monthly_price : plan.yearly_price}
-            </h3>
-            <span className="text-zinc-500 font-medium ml-1.5">
-                / {isMonthly ? "month" : "year"}
-            </span>
+          </h3>
+          <span className="text-zinc-500 font-medium ml-1.5">
+            / {isMonthly ? "month" : "year"}
+          </span>
         </div>
 
         <button
-            type="button"
-            onClick={onSelect}
-            disabled={isDisabled}
-            className={`w-full py-2.5 rounded-xl text-sm font-semibold transition-all flex items-center justify-center gap-2 mb-8 ${buttonStyle} ${isDisabled ? 'opacity-100' : ''}`}
+          type="button"
+          onClick={onSelect}
+          disabled={isDisabled}
+          className={`w-full py-2.5 rounded-xl text-sm font-semibold transition-all flex items-center justify-center gap-2 mb-8 ${buttonStyle} ${isDisabled ? 'opacity-100' : ''}`}
         >
           <>
             {buttonText === "Upgrade" && <ArrowUpCircle size={16} />}
@@ -272,11 +361,11 @@ const PricingCard = ({
         </button>
 
         <div className="border-t border-white/5 pt-6 flex-grow">
-            <ul className="space-y-4">
+          <ul className="space-y-4">
             {plan.features.map((feature, index) => (
-                <FeatureItem key={`${plan.id}-${index}`} feature={feature} />
+              <FeatureItem key={`${plan.id}-${index}`} feature={feature} />
             ))}
-            </ul>
+          </ul>
         </div>
       </div>
     </div>
@@ -295,7 +384,7 @@ export default function PricingInterface() {
   const [isPending, startTransition] = useTransition();
   const [modalOpen, setModalOpen] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false); // Success state
-  const [selectedPlan, setSelectedPlan] = useState<{name: string, price: string} | null>(null);
+  const [selectedPlan, setSelectedPlan] = useState<{ name: string, price: string } | null>(null);
 
   const parseFeatures = useCallback((features: any): string[] => {
     let parsedFeatures: any = {};
@@ -305,7 +394,7 @@ export default function PricingInterface() {
     } else if (typeof features === "object" && features !== null) {
       parsedFeatures = features;
     }
-    
+
     // Extract description from 'features' object
     if (parsedFeatures.features && typeof parsedFeatures.features === "object") {
       Object.values(parsedFeatures.features).forEach((section: any) => {
@@ -333,7 +422,7 @@ export default function PricingInterface() {
         // 2. Fetch User's Real Subscription Info
         const billingInfo = await getUserBillingInfo();
         if (billingInfo?.subscription && !billingInfo.subscription.cancelAtPeriodEnd) {
-           setCurrentPlan(billingInfo.subscription.planName);
+          setCurrentPlan(billingInfo.subscription.planName);
         }
 
         const mappedPlans: Plan[] = (plansData || []).map((p: any) => ({
@@ -374,7 +463,7 @@ export default function PricingInterface() {
 
   const confirmSubscription = async () => {
     if (!selectedPlan) return;
-    
+
     startTransition(async () => {
       try {
         const planId = PLAN_MAPPING[selectedPlan.name];
@@ -410,34 +499,33 @@ export default function PricingInterface() {
 
   return (
     <div className="max-w-7xl mx-auto p-4 md:p-8 animate-in fade-in duration-700">
-      
+
       {/* Toggle */}
       <div className="flex justify-center mb-12">
         <div className="bg-white/5 backdrop-blur-md border border-white/10 rounded-full p-1 flex">
-            <ToggleButton active={isMonthly} onClick={() => setIsMonthly(true)}>
+          <ToggleButton active={isMonthly} onClick={() => setIsMonthly(true)}>
             Monthly
-            </ToggleButton>
-            <ToggleButton active={!isMonthly} onClick={() => setIsMonthly(false)}>
+          </ToggleButton>
+          <ToggleButton active={!isMonthly} onClick={() => setIsMonthly(false)}>
             <span className="flex items-center gap-2">
-                Yearly
-                <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full transition-colors ${
-                    !isMonthly ? "bg-white text-purple-600" : "bg-purple-500/20 text-purple-200"
+              Yearly
+              <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full transition-colors ${!isMonthly ? "bg-white text-purple-600" : "bg-purple-500/20 text-purple-200"
                 }`}>
                 -17%
-                </span>
+              </span>
             </span>
-            </ToggleButton>
+          </ToggleButton>
         </div>
       </div>
-      
+
       {/* Cards Grid */}
       <div className="grid lg:grid-cols-3 md:grid-cols-2 gap-8 max-w-5xl mx-auto">
         {plans.map((plan) => (
-          <PricingCard 
-            key={plan.id} 
-            plan={plan} 
-            isMonthly={isMonthly} 
-            currentPlanName={currentPlan} 
+          <PricingCard
+            key={plan.id}
+            plan={plan}
+            isMonthly={isMonthly}
+            currentPlanName={currentPlan}
             onSelect={() => handleSelectPlan(plan)}
           />
         ))}
@@ -447,17 +535,17 @@ export default function PricingInterface() {
       <div className="flex flex-col justify-center items-center mt-20 mb-10 gap-4">
         <div className="h-px w-full max-w-xs bg-gradient-to-r from-transparent via-white/20 to-transparent"></div>
         <p className="text-zinc-500 text-sm font-medium uppercase tracking-widest flex items-center gap-2">
-           <ChevronRight className="w-4 h-4 text-zinc-600" /> 
-           Detailed Comparison 
-           <ChevronRight className="w-4 h-4 text-zinc-600 rotate-180" />
+          <ChevronRight className="w-4 h-4 text-zinc-600" />
+          Detailed Comparison
+          <ChevronRight className="w-4 h-4 text-zinc-600 rotate-180" />
         </p>
       </div>
 
       {/* Table */}
       <PRICING_TABLE currentPlanName={currentPlan} />
 
-       {/* --- CONFIRMATION MODAL --- */}
-       <ConfirmationModal
+      {/* --- CONFIRMATION MODAL --- */}
+      <ConfirmationModal
         isOpen={modalOpen}
         onClose={() => setModalOpen(false)}
         onConfirm={confirmSubscription}
