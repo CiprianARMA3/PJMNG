@@ -10,7 +10,7 @@ export interface UserSubscriptionData {
     current_period_end: string | null;
     subscription_id: string | null;
     planName: string | null;
-    planConfig: typeof SUBSCRIPTION_PLANS[keyof typeof SUBSCRIPTION_PLANS] | null;
+    planConfig: any;
 }
 
 /**
@@ -40,11 +40,27 @@ export async function getUserSubscriptionData(): Promise<UserSubscriptionData | 
 
         // Map plan_id to plan name and config
         let planName: string | null = null;
-        let planConfig: typeof SUBSCRIPTION_PLANS[keyof typeof SUBSCRIPTION_PLANS] | null = null;
+        let planConfig: any = null;
 
         if (userData.plan_id && SUBSCRIPTION_PLANS[userData.plan_id]) {
-            planConfig = SUBSCRIPTION_PLANS[userData.plan_id];
+            planConfig = { ...SUBSCRIPTION_PLANS[userData.plan_id] };
             planName = planConfig.name;
+
+            // Fetch price from database to ensure accuracy
+            const { data: planDbData } = await supabase
+                .from('plans')
+                .select('monthly_price, yearly_price')
+                .eq('id', userData.plan_id)
+                .single();
+
+            if (planDbData) {
+                // Merge DB prices into planConfig.prices
+                planConfig.prices = {
+                    ...planConfig.prices,
+                    monthly_price: planDbData.monthly_price,
+                    yearly_price: planDbData.yearly_price
+                };
+            }
         }
 
         return {

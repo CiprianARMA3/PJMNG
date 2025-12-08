@@ -226,11 +226,6 @@ export default function DashboardPage() {
 
             {/* User & Actions */}
             <div className="flex items-center gap-4">
-              {/* Notifications */}
-              <button className="p-2 rounded-lg hover:bg-white/5 transition-colors text-white/60 hover:text-white">
-                <Bell className="w-5 h-5" />
-              </button>
-
               {/* User Profile - WITH SAFE AVATAR URL */}
               <div className="relative">
                 <button
