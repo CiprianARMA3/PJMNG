@@ -1,45 +1,98 @@
 "use client";
 
-import React, { useEffect, use } from "react";
-import { Check, ArrowRight, Package, Rocket } from "lucide-react";
+import React, { useEffect, use, useState } from "react";
+import { Check, ArrowRight, Package, Rocket, Loader2, AlertCircle } from "lucide-react";
 import Link from "next/link";
 import confetti from "canvas-confetti";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
+import { verifyTokenPurchase } from "@/app/actions/stripe";
 
 export default function PaymentCompletedPage({ params }: { params: Promise<{ id: string }> }) {
   const { id: projectId } = use(params);
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const sessionId = searchParams.get('session_id');
+
+  const [verifying, setVerifying] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    // Trigger Confetti
+    const verify = async () => {
+      if (!sessionId) {
+        setVerifying(false);
+        return;
+      }
+
+      try {
+        const result = await verifyTokenPurchase(sessionId);
+        if (!result.success && result.message !== 'Already processed') {
+          setError(result.message);
+        } else {
+          // Success or already processed
+          triggerConfetti();
+          router.refresh();
+        }
+      } catch (err) {
+        console.error(err);
+        setError("Verification failed");
+      } finally {
+        setVerifying(false);
+      }
+    };
+
+    verify();
+  }, [sessionId, router]);
+
+  const triggerConfetti = () => {
     const duration = 3 * 1000;
     const animationEnd = Date.now() + duration;
     const defaults = { startVelocity: 30, spread: 360, ticks: 60, zIndex: 0 };
-
     const random = (min: number, max: number) => Math.random() * (max - min) + min;
 
-    const interval: any = setInterval(function() {
+    const interval: any = setInterval(function () {
       const timeLeft = animationEnd - Date.now();
-
-      if (timeLeft <= 0) {
-        return clearInterval(interval);
-      }
-
+      if (timeLeft <= 0) return clearInterval(interval);
       const particleCount = 50 * (timeLeft / duration);
       confetti({ ...defaults, particleCount, origin: { x: random(0.1, 0.3), y: Math.random() - 0.2 } });
       confetti({ ...defaults, particleCount, origin: { x: random(0.7, 0.9), y: Math.random() - 0.2 } });
     }, 250);
+  };
 
-    // Refresh the router to ensure the layout/sidebar updates with new token count
-    router.refresh();
+  if (verifying) {
+    return (
+      <div className="min-h-screen bg-[#09090b] flex items-center justify-center p-4">
+        <div className="text-center">
+          <Loader2 size={40} className="animate-spin text-indigo-500 mx-auto mb-4" />
+          <p className="text-zinc-400">Verifying payment...</p>
+        </div>
+      </div>
+    );
+  }
 
-    return () => clearInterval(interval);
-  }, [router]);
+  if (error) {
+    return (
+      <div className="min-h-screen bg-[#09090b] flex items-center justify-center p-4">
+        <div className="max-w-md w-full bg-[#0C0C0E] border border-red-500/20 rounded-2xl p-8 text-center shadow-2xl">
+          <div className="w-20 h-20 bg-red-500/10 rounded-full flex items-center justify-center mx-auto mb-6">
+            <AlertCircle size={40} className="text-red-500" />
+          </div>
+          <h1 className="text-2xl font-bold text-white mb-2">Verification Failed</h1>
+          <p className="text-zinc-400 mb-6">{error}</p>
+          <Link
+            href={`/dashboard/projects/${projectId}/payments`}
+            className="block w-full py-3 bg-zinc-800 text-white font-medium rounded-lg hover:bg-zinc-700 transition-colors"
+          >
+            Return to Payments
+          </Link>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-[#09090b] flex items-center justify-center p-4">
       <div className="max-w-md w-full bg-[#0C0C0E] border border-zinc-800 rounded-2xl p-8 text-center shadow-2xl animate-in fade-in zoom-in duration-500">
-        
+
         <div className="w-20 h-20 bg-green-500/10 rounded-full flex items-center justify-center mx-auto mb-6 border border-green-500/20 shadow-[0_0_30px_-5px_rgba(34,197,94,0.3)]">
           <Check size={40} className="text-green-500" strokeWidth={3} />
         </div>
@@ -50,7 +103,7 @@ export default function PaymentCompletedPage({ params }: { params: Promise<{ id:
         </p>
 
         <div className="space-y-3">
-          <Link 
+          <Link
             href={`/dashboard/projects/${projectId}`}
             className="block w-full py-3 bg-white text-black font-bold rounded-lg hover:bg-zinc-200 transition-colors flex items-center justify-center gap-2"
           >
@@ -58,7 +111,7 @@ export default function PaymentCompletedPage({ params }: { params: Promise<{ id:
             Go to Dashboard
           </Link>
 
-          <Link 
+          <Link
             href={`/dashboard/projects/${projectId}/payments`}
             className="block w-full py-3 bg-zinc-900 text-zinc-300 font-medium rounded-lg border border-zinc-800 hover:bg-zinc-800 transition-colors flex items-center justify-center gap-2"
           >
@@ -68,7 +121,7 @@ export default function PaymentCompletedPage({ params }: { params: Promise<{ id:
         </div>
 
         <div className="mt-8 text-[10px] text-zinc-600">
-          Transaction ID: {Math.random().toString(36).substr(2, 9).toUpperCase()}
+          Session ID: {sessionId?.slice(0, 10)}...
         </div>
       </div>
     </div>

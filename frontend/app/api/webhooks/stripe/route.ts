@@ -15,6 +15,7 @@ const findPlanByPriceId = (priceId: string) => {
 };
 
 export async function POST(req: Request) {
+  console.log("🔥 [STRIPE-WEBHOOK] Endpoint hit! Reading body...");
   const body = await req.text();
   const headerList = await headers();
   const signature = headerList.get('Stripe-Signature') as string;
@@ -27,6 +28,7 @@ export async function POST(req: Request) {
       signature,
       process.env.STRIPE_WEBHOOK_SECRET!
     );
+    console.log(`✅ [STRIPE-WEBHOOK] Event constructed: ${event.type}`);
   } catch (err: any) {
     console.error(`❌ Webhook signature verification failed: ${err.message}`);
     return new NextResponse(`Webhook Error: ${err.message}`, { status: 400 });
@@ -258,18 +260,24 @@ export async function POST(req: Request) {
 
   if (event.type === 'checkout.session.completed') {
     const metadata = session.metadata;
+    console.log(`💳 [STRIPE-WEBHOOK] checkout.session.completed hit.`);
+    console.log(`   Session ID: ${session.id}`);
+    console.log(`   Metadata:`, JSON.stringify(metadata, null, 2));
 
     console.log(`\n💳 checkout.session.completed: ${session.id}`);
     console.log(`   Type: ${metadata?.type}`);
     console.log(`   Subscription ID: ${session.subscription}`);
 
     if (metadata?.type === 'token_refill') {
+      console.log(`[STRIPE-TOKEN] Processing token refill for session ${session.id}`);
       try {
         const projectId = metadata.projectId;
         const userId = metadata.userId; // User who initiated the checkout
         const newTokens = JSON.parse(metadata.purchased_tokens || '{}');
         const amountPaid = session.amount_total / 100;
         const currency = session.currency.toUpperCase() || 'EUR';
+
+        console.log(`[STRIPE-TOKEN] Project: ${projectId}, User: ${userId}, Tokens:`, newTokens);
 
         // --- Log Transaction to token_transactions table ---
         const tokenEntries = Object.entries(newTokens).filter(([, tokens]) => Number(tokens) > 0);
@@ -300,26 +308,39 @@ export async function POST(req: Request) {
           });
 
           if (transactionError) {
-            console.error(`❌ Error logging token transaction for model ${modelKey}:`, transactionError);
+            console.error(`❌ [STRIPE-TOKEN] Error logging token transaction for model ${modelKey}:`, transactionError);
           } else {
-            console.log(`✅ Logged token transaction for Project ${projectId}, Model ${modelKey}.`);
+            console.log(`✅ [STRIPE-TOKEN] Logged token transaction for Project ${projectId}, Model ${modelKey}.`);
           }
         }
         // --- End Transaction Logging ---
 
 
-        const { data: existingPack } = await supabaseAdmin
+        // Fetch existing pack(s) - Use list to avoid .single() error if duplicates exist
+        const { data: packs, error: fetchError } = await supabaseAdmin
           .from('token_packs')
           .select('*')
-          .eq('project_id', projectId)
-          .single();
+          .eq('project_id', projectId);
+
+        if (fetchError) {
+          console.error(`❌ [STRIPE-TOKEN] Error fetching token packs:`, fetchError);
+        }
+
+        const existingPack = packs && packs.length > 0 ? packs[0] : null;
 
         if (existingPack) {
+          console.log(`[STRIPE-TOKEN] Updating existing token pack ${existingPack.id}`);
           const oldPurchased = existingPack.tokens_purchased || {};
           const oldRemaining = existingPack.remaining_tokens || {};
-          const sumTokens = (key: string, oldObj: any, newObj: any) => (Number(oldObj[key]) || 0) + (Number(newObj[key]) || 0);
 
-          await supabaseAdmin.from('token_packs').update({
+          // Hardened sum function to prevent NaN
+          const sumTokens = (key: string, oldObj: any, newObj: any) => {
+            const oldVal = Number(oldObj?.[key]) || 0;
+            const newVal = Number(newObj?.[key]) || 0;
+            return oldVal + newVal;
+          };
+
+          const { error: updateError } = await supabaseAdmin.from('token_packs').update({
             tokens_purchased: {
               "gemini-2.5-pro": sumTokens("gemini-2.5-pro", oldPurchased, newTokens),
               "gemini-2.5-flash": sumTokens("gemini-2.5-flash", oldPurchased, newTokens),
@@ -334,13 +355,21 @@ export async function POST(req: Request) {
             updated_at: new Date().toISOString(),
             expires_at: new Date(new Date().setFullYear(new Date().getFullYear() + 1)).toISOString(),
           }).eq('id', existingPack.id);
+
+          if (updateError) {
+            console.error(`❌ [STRIPE-TOKEN] Error updating token pack:`, updateError);
+          } else {
+            console.log(`✅ [STRIPE-TOKEN] Successfully updated token pack ${existingPack.id}`);
+          }
+
         } else {
+          console.log(`[STRIPE-TOKEN] Creating new token pack for project ${projectId}`);
           const fullTokenSet = {
             "gemini-2.5-pro": newTokens["gemini-2.5-pro"] || 0,
             "gemini-2.5-flash": newTokens["gemini-2.5-flash"] || 0,
             "gemini-3-pro-preview": newTokens["gemini-3-pro-preview"] || 0
           };
-          await supabaseAdmin.from('token_packs').insert({
+          const { error: insertError } = await supabaseAdmin.from('token_packs').insert({
             user_id: metadata.userId,
             project_id: projectId,
             price_paid: amountPaid,
@@ -350,9 +379,15 @@ export async function POST(req: Request) {
             remaining_tokens: fullTokenSet,
             metadata: { stripe_session_id: session.id }
           });
+
+          if (insertError) {
+            console.error(`❌ [STRIPE-TOKEN] Error inserting token pack:`, insertError);
+          } else {
+            console.log(`✅ [STRIPE-TOKEN] Successfully created new token pack`);
+          }
         }
-        console.log("✅ Token wallet updated!");
-      } catch (e) { console.error("Token refill error", e); }
+        console.log("✅ [STRIPE-TOKEN] Token wallet process completed!");
+      } catch (e) { console.error("[STRIPE-TOKEN] Token refill error", e); }
     }
 
     // B. Handle New Subscription (checkout.session.completed for subscriptions)
