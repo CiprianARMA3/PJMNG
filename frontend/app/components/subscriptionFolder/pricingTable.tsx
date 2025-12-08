@@ -1,11 +1,11 @@
 'use client';
 
-import React, { useMemo, memo, useState } from 'react';
-import { ArrowRight, Check, X, HelpCircle, Loader2, CheckCircle2 } from 'lucide-react';
+import React, { useMemo, memo, useState, useTransition } from 'react';
+import { ArrowRight, Check, X, HelpCircle, Loader2, CheckCircle2, AlertTriangle } from 'lucide-react';
 import { createSubscriptionCheckout } from "@/app/actions/stripe";
 import { PLAN_UUIDS } from '@/utils/stripe/config'; 
 
-// Types
+// --- TYPES ---
 interface PricingTier {
   name: string;
   price: {
@@ -24,6 +24,7 @@ interface PricingTableProps {
   currentPlanName?: string | null;
 }
 
+// Map Names to Config UUIDs
 const PLAN_MAPPING: Record<string, string> = {
   'Individual': PLAN_UUIDS.INDIVIDUAL,
   'Developers': PLAN_UUIDS.DEVELOPERS,
@@ -32,18 +33,112 @@ const PLAN_MAPPING: Record<string, string> = {
 
 const PLAN_ORDER = ["Individual", "Developers", "Enterprise"];
 
-// --- SUB-COMPONENTS ---
+// --- MODAL COMPONENT ---
+function ConfirmationModal({ 
+  isOpen, 
+  onClose, 
+  onConfirm, 
+  isLoading, 
+  isSuccess,
+  planName, 
+  price,
+  isUpgrade
+}: { 
+  isOpen: boolean; 
+  onClose: () => void; 
+  onConfirm: () => void; 
+  isLoading: boolean;
+  isSuccess: boolean;
+  planName: string;
+  price: string;
+  isUpgrade: boolean;
+}) {
+  if (!isOpen) return null;
 
-const Tooltip = memo(({ content }: { content: string }) => (
-  <div className="relative flex group">
-    <HelpCircle className="w-5 h-5 text-gray-400 cursor-help" />
-    <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 bg-[#1a1a1a] rounded-lg text-white text-sm w-48 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-10 pointer-events-none">
-      <p className="m-0">{content}</p>
-      <div className="absolute top-full left-1/2 transform -translate-x-1/2 border-4 border-transparent border-t-[#1a1a1a]"></div>
+  return (
+    <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+      <div className="w-full max-w-md bg-[#111] border border-zinc-800 rounded-2xl shadow-2xl p-8 relative flex flex-col items-center text-center">
+        
+        {/* --- SUCCESS STATE --- */}
+        {isSuccess ? (
+          <div className="animate-in zoom-in duration-300 flex flex-col items-center">
+             <div className="w-16 h-16 rounded-full bg-green-500/10 flex items-center justify-center mb-6 text-green-500 shadow-[0_0_20px_rgba(34,197,94,0.2)]">
+                <CheckCircle2 className="w-8 h-8" />
+             </div>
+             <h3 className="text-2xl font-bold text-white mb-2">Subscription Updated!</h3>
+             <p className="text-zinc-400 mb-6">
+               Your plan has been successfully changed. <br/>Reloading page...
+             </p>
+             <Loader2 className="w-6 h-6 animate-spin text-zinc-600" />
+          </div>
+        ) : (
+          /* --- CONFIRMATION STATE --- */
+          <>
+            <button 
+              onClick={onClose}
+              className="absolute top-4 right-4 text-zinc-500 hover:text-white transition-colors"
+              disabled={isLoading}
+            >
+              <X className="w-5 h-5" />
+            </button>
+
+            <div className={`w-14 h-14 rounded-full flex items-center justify-center mb-5 ${isUpgrade ? 'bg-blue-500/10 text-blue-500' : 'bg-orange-500/10 text-orange-500'}`}>
+              <AlertTriangle className="w-7 h-7" />
+            </div>
+            
+            <h3 className="text-xl font-bold text-white mb-3">
+              Confirm {isUpgrade ? 'Upgrade' : 'Downgrade'}
+            </h3>
+            
+            <p className="text-zinc-400 text-sm leading-relaxed mb-8">
+              You are about to switch to the <span className="text-white font-semibold">{planName}</span> plan.
+              <br />
+              {isUpgrade ? (
+                <span className="text-blue-400 mt-2 block text-xs bg-blue-500/5 py-1 px-2 rounded border border-blue-500/10">
+                  You will be charged a prorated amount of approx <b>{price}</b> immediately.
+                </span>
+              ) : (
+                <span className="text-orange-400 mt-2 block text-xs bg-orange-500/5 py-1 px-2 rounded border border-orange-500/10">
+                  Your new rate will apply at the start of the next billing cycle.
+                </span>
+              )}
+            </p>
+
+            <div className="flex gap-3 w-full">
+              <button 
+                onClick={onClose}
+                disabled={isLoading}
+                className="flex-1 py-3 rounded-xl font-medium text-sm bg-zinc-900 text-zinc-300 hover:bg-zinc-800 hover:text-white transition-colors border border-zinc-800"
+              >
+                Cancel
+              </button>
+              <button 
+                onClick={onConfirm}
+                disabled={isLoading}
+                className={`flex-1 py-3 rounded-xl font-medium text-sm text-white transition-all flex items-center justify-center gap-2 ${
+                  isUpgrade 
+                    ? 'bg-blue-600 hover:bg-blue-500 shadow-lg shadow-blue-900/20' 
+                    : 'bg-zinc-700 hover:bg-zinc-600'
+                }`}
+              >
+                {isLoading ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    Processing...
+                  </>
+                ) : (
+                  <>Confirm Change</>
+                )}
+              </button>
+            </div>
+          </>
+        )}
+      </div>
     </div>
-  </div>
-));
-Tooltip.displayName = 'Tooltip';
+  );
+}
+
+// --- SUB-COMPONENTS ---
 
 const FeatureValue = memo(({ value }: { value: string | boolean | number }) => {
   if (typeof value === 'boolean') {
@@ -53,81 +148,64 @@ const FeatureValue = memo(({ value }: { value: string | boolean | number }) => {
       <X className="w-5 h-5 text-zinc-600 flex-shrink-0" />
     );
   }
-  return <p className="text-zinc-300 text-sm text-center m-0">{value}</p>;
+  return <p className="text-zinc-300 text-sm text-center m-0 font-medium">{value}</p>;
 });
 FeatureValue.displayName = 'FeatureValue';
 
 const SubscribeButton = ({ 
   tier, 
-  interval, 
-  currentPlanName 
+  currentPlanName,
+  onSelect
 }: { 
   tier: PricingTier; 
-  interval: 'month' | 'year'; 
   currentPlanName: string | null;
+  onSelect: () => void;
 }) => {
-  const [loading, setLoading] = useState(false);
-
-  // Logic to determine text and state
-  const isCurrent = currentPlanName?.toLowerCase() === tier.name.toLowerCase();
-  const currentRank = currentPlanName ? PLAN_ORDER.indexOf(currentPlanName) : -1;
-  const tierRank = PLAN_ORDER.indexOf(tier.name);
+  const planName = tier.name;
+  const currentName = currentPlanName || "";
+  const isCurrent = currentName.toLowerCase() === planName.toLowerCase();
+  
+  const currentRank = PLAN_ORDER.indexOf(currentName);
+  const tierRank = PLAN_ORDER.indexOf(planName);
 
   let buttonText = tier.ctaText;
   let buttonClass = 'bg-zinc-800 hover:bg-zinc-700 text-white border border-zinc-700';
   
   if (isCurrent) {
     buttonText = "Current Plan";
-    buttonClass = 'bg-green-600/20 text-green-400 border border-green-500/20 cursor-not-allowed';
+    buttonClass = 'bg-green-500/10 text-green-400 border border-green-500/20 cursor-default hover:bg-green-500/10';
   } else if (currentRank !== -1) {
-    // If user has a plan, check hierarchy
     if (tierRank > currentRank) {
       buttonText = "Upgrade";
-      buttonClass = 'bg-white text-black hover:bg-zinc-200 border border-white';
+      buttonClass = 'bg-white text-black hover:bg-zinc-200 border border-white font-semibold';
     } else {
       buttonText = "Downgrade";
-      buttonClass = 'bg-transparent text-white border border-white/20 hover:bg-white/10';
+      buttonClass = 'bg-transparent text-zinc-300 border border-zinc-700 hover:bg-zinc-800 hover:text-white';
     }
   } else if (tier.name === 'Developers') {
-     // Default highlight for developers if no plan
-     buttonClass = 'bg-purple-600 hover:bg-purple-700 text-white border border-purple-500';
+     buttonClass = 'bg-purple-600 hover:bg-purple-700 text-white border border-purple-500 shadow-lg shadow-purple-900/20';
   }
-
-  const handleSubscribe = async () => {
-    if (isCurrent) return;
-    const planId = PLAN_MAPPING[tier.name];
-    if (!planId) return;
-
-    setLoading(true);
-    try {
-      await createSubscriptionCheckout(planId, interval);
-    } catch (error: any) {
-      alert(error.message || "An error occurred.");
-      setLoading(false);
-    }
-  };
 
   return (
     <button
-      onClick={handleSubscribe}
-      disabled={loading || isCurrent}
-      className={`w-full py-2 px-4 rounded-lg flex items-center justify-center gap-2 transition-all font-medium text-sm ${buttonClass} ${loading ? 'opacity-70 cursor-not-allowed' : ''}`}
+      onClick={onSelect}
+      disabled={isCurrent}
+      className={`w-full py-2.5 px-4 rounded-lg flex items-center justify-center gap-2 transition-all font-medium text-sm ${buttonClass} ${isCurrent ? 'opacity-100' : ''}`}
     >
-      <span>{loading ? "Processing..." : buttonText}</span>
-      {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : !isCurrent && <ArrowRight className="w-4 h-4" />}
+      <span>{buttonText}</span>
+      {!isCurrent && <ArrowRight className="w-4 h-4" />}
     </button>
   );
 };
 
 // --- DATA ---
-
 const defaultTiers: PricingTier[] = [
   {
     name: 'Individual',
     price: { month: 15, year: 150 },
     ctaText: 'Get started',
     features: {
-      productivity: 'Enhanced productivity',
+      productivity: 'Standard suite',
       ai_assistant: 'Standard Support',
       integrated_calendar: true,
       collaboration: 'Single-user',
@@ -148,10 +226,10 @@ const defaultTiers: PricingTier[] = [
     price: { month: 30, year: 300 },
     ctaText: 'Get started',
     features: {
-      productivity: 'Enhanced productivity',
+      productivity: 'Enhanced suite',
       ai_assistant: 'Full Support',
       integrated_calendar: true,
-      collaboration: 'Multi-user',
+      collaboration: 'Team (Max 50)',
       max_users: 50,
       development_tools: 'Advanced assistance',
       code_linking: true,
@@ -167,7 +245,7 @@ const defaultTiers: PricingTier[] = [
   {
     name: 'Enterprise',
     price: { month: 200, year: 2000 },
-    ctaText: 'Contact sales', // This will be overridden by Upgrade logic if user is logged in
+    ctaText: 'Contact sales',
     features: {
       productivity: 'Enterprise suite',
       ai_assistant: 'Priority Support',
@@ -220,7 +298,6 @@ const featureCategories = [
     features: [
       { key: 'project_management', label: 'Project tools' },
       { key: 'max_projects', label: 'Max projects' },
-      { key: 'unlimited_projects', label: 'Unlimited projects' },
       { key: 'issue_tracking', label: 'Issue tracking' },
       { key: 'concept_workspace', label: 'Concept workspace' },
       { key: 'task_organization', label: 'Task organization' }
@@ -240,19 +317,69 @@ const featureCategories = [
 const PricingTable: React.FC<PricingTableProps> = ({ tiers = defaultTiers, className = '', currentPlanName }) => {
   const [billingInterval, setBillingInterval] = useState<'month' | 'year'>('month');
   const safeTiers = useMemo(() => tiers || defaultTiers, [tiers]);
+  
+  // MODAL STATE
+  const [isPending, startTransition] = useTransition();
+  const [modalOpen, setModalOpen] = useState(false);
+  const [isSuccess, setIsSuccess] = useState(false); // Success state
+  const [selectedPlan, setSelectedPlan] = useState<{name: string, price: string} | null>(null);
 
-  const isDevelopersTier = useMemo(() => (name: string) => name === 'Developers', []);
+  const isDevelopersTier = (name: string) => name === 'Developers';
+
+  const handleSelectPlan = (tier: PricingTier) => {
+    // 1. Just Open Modal, do NOT charge yet
+    const priceAmount = billingInterval === 'month' ? tier.price.month : tier.price.year;
+    setSelectedPlan({
+      name: tier.name,
+      price: `€${priceAmount}/${billingInterval}`
+    });
+    setIsSuccess(false); // Reset success state
+    setModalOpen(true);
+  };
+
+  const confirmSubscription = async () => {
+    if (!selectedPlan) return;
+    
+    startTransition(async () => {
+      try {
+        const planId = PLAN_MAPPING[selectedPlan.name];
+        if (planId) {
+          await createSubscriptionCheckout(planId, billingInterval);
+        }
+      } catch (error: any) {
+        // Handle "Success" redirect
+        if (error.message === 'NEXT_REDIRECT') {
+          setIsSuccess(true);
+          // Wait 2 seconds for user to see success, then reload
+          setTimeout(() => {
+            window.location.reload();
+          }, 2000);
+          return;
+        }
+        
+        alert(error.message);
+        setModalOpen(false);
+      }
+    });
+  };
+
+  const isUpgrade = useMemo(() => {
+    if (!currentPlanName || !selectedPlan) return true;
+    const currentRank = PLAN_ORDER.indexOf(currentPlanName);
+    const newRank = PLAN_ORDER.indexOf(selectedPlan.name);
+    return newRank > currentRank;
+  }, [currentPlanName, selectedPlan]);
 
   return (
     <div className={`w-full text-white font-sans ${className}`}>
       
       {/* Interval Toggle */}
       <div className="flex justify-center mb-10">
-        <div className="bg-zinc-900 p-1 rounded-xl border border-zinc-800 flex relative">
+        <div className="bg-zinc-900 p-1.5 rounded-xl border border-zinc-800 flex relative">
           <button
             onClick={() => setBillingInterval('month')}
             className={`px-6 py-2 text-sm font-medium rounded-lg transition-all z-10 ${
-              billingInterval === 'month' ? 'text-white bg-zinc-700 shadow-sm' : 'text-zinc-400 hover:text-white'
+              billingInterval === 'month' ? 'text-white bg-zinc-700 shadow-sm ring-1 ring-white/5' : 'text-zinc-400 hover:text-white'
             }`}
           >
             Monthly
@@ -260,78 +387,87 @@ const PricingTable: React.FC<PricingTableProps> = ({ tiers = defaultTiers, class
           <button
             onClick={() => setBillingInterval('year')}
             className={`px-6 py-2 text-sm font-medium rounded-lg transition-all z-10 ${
-              billingInterval === 'year' ? 'text-white bg-zinc-700 shadow-sm' : 'text-zinc-400 hover:text-white'
+              billingInterval === 'year' ? 'text-white bg-zinc-700 shadow-sm ring-1 ring-white/5' : 'text-zinc-400 hover:text-white'
             }`}
           >
-            Yearly <span className="text-[10px] text-green-400 ml-1 font-bold">SAVE 17%</span>
+            Yearly <span className="text-[10px] text-green-400 ml-1 font-bold bg-green-400/10 px-1.5 py-0.5 rounded uppercase tracking-wide">Save 17%</span>
           </button>
         </div>
       </div>
 
       {/* Header Grid */}
-      <div className="grid grid-cols-4 border border-zinc-800 rounded-t-2xl overflow-hidden">
-        <div className="p-6 border-r border-zinc-800 bg-zinc-900/30 flex items-end pb-8">
-          <span className="text-zinc-500 font-medium">Plans & Features</span>
+      <div className="grid grid-cols-4 border border-zinc-800 rounded-t-2xl overflow-hidden shadow-2xl bg-[#0A0A0A]">
+        <div className="p-6 border-r border-zinc-800 bg-zinc-900/30 flex flex-col justify-end pb-8">
+          <span className="text-zinc-400 font-medium text-sm uppercase tracking-wider">Features Comparison</span>
         </div>
         
         {safeTiers.map((tier) => {
           const isCurrent = currentPlanName?.toLowerCase() === tier.name.toLowerCase();
+          const isDev = isDevelopersTier(tier.name);
+
           return (
             <div
               key={tier.name}
-              className={`p-6 border-r border-zinc-800 last:border-r-0 flex flex-col items-center text-center relative ${
-                isCurrent ? 'bg-green-900/10' : isDevelopersTier(tier.name) ? 'bg-zinc-900/50' : ''
+              className={`p-6 border-r border-zinc-800 last:border-r-0 flex flex-col items-center text-center relative transition-colors duration-300 ${
+                isCurrent ? 'bg-green-900/5' : isDev ? 'bg-zinc-900/20' : ''
               }`}
             >
-               {isDevelopersTier(tier.name) && !isCurrent && (
-                <div className="absolute top-0 inset-x-0 h-1 bg-purple-600"></div>
+               {isDev && !isCurrent && (
+                <div className="absolute top-0 inset-x-0 h-1 bg-gradient-to-r from-purple-600 via-purple-400 to-purple-600"></div>
               )}
                {isCurrent && (
-                <div className="absolute top-0 inset-x-0 h-1 bg-green-500"></div>
+                <div className="absolute top-0 inset-x-0 h-1 bg-green-500 shadow-[0_0_15px_rgba(34,197,94,0.6)]"></div>
               )}
 
-              <h4 className="text-lg font-semibold mb-2 flex items-center gap-2">
+              <h4 className="text-lg font-bold mb-2 flex items-center gap-2 text-white">
                   {tier.name}
-                  {isCurrent && <CheckCircle2 size={16} className="text-green-500" />}
+                  {isCurrent && <CheckCircle2 size={18} className="text-green-500 fill-green-500/10" />}
               </h4>
               
-              <div className="mb-6 h-12 flex items-end justify-center gap-1">
-                <span className="text-3xl font-bold">
-                  €{billingInterval === 'month' ? tier.price.month : Math.round(tier.price.year / 12)}
-                </span>
-                <span className="text-zinc-500 text-sm mb-1">/mo</span>
+              <div className="mb-6 h-14 flex flex-col justify-end items-center">
+                <div className="flex items-end gap-1">
+                    <span className="text-3xl font-bold tracking-tight">
+                    €{billingInterval === 'month' ? tier.price.month : Math.round(tier.price.year / 12)}
+                    </span>
+                    <span className="text-zinc-500 text-sm mb-1 font-medium">/mo</span>
+                </div>
+                {billingInterval === 'year' && (
+                    <div className="text-[11px] text-green-400 font-medium mt-1">
+                    Billed €{tier.price.year} yearly
+                    </div>
+                )}
               </div>
               
-              {billingInterval === 'year' && (
-                <div className="text-xs text-green-500 mb-4 font-medium">
-                  Billed €{tier.price.year} yearly
-                </div>
-              )}
-
-              <SubscribeButton tier={tier} interval={billingInterval} currentPlanName={currentPlanName || null} />
+              <div className="w-full mt-auto">
+                 <SubscribeButton 
+                    tier={tier} 
+                    currentPlanName={currentPlanName || null}
+                    onSelect={() => handleSelectPlan(tier)}
+                 />
+              </div>
             </div>
           );
         })}
       </div>
 
       {/* Feature Grid */}
-      <div className="border-x border-b border-zinc-800 rounded-b-2xl overflow-hidden">
+      <div className="border-x border-b border-zinc-800 rounded-b-2xl overflow-hidden bg-[#0A0A0A]">
         {featureCategories.map((category) => (
           <div key={category.name}>
-            <div className="bg-zinc-900/80 p-3 pl-6 text-xs font-bold uppercase tracking-wider text-zinc-500 border-b border-zinc-800">
+            <div className="bg-zinc-900/50 p-3 pl-6 text-xs font-bold uppercase tracking-wider text-zinc-500 border-b border-zinc-800 backdrop-blur-sm sticky top-0">
               {category.name}
             </div>
 
             {category.features.map((feature) => (
-              <div key={feature.key} className="grid grid-cols-4 group hover:bg-zinc-900/20 transition-colors">
-                <div className="p-4 text-sm text-zinc-400 flex items-center border-r border-zinc-800 border-b border-zinc-800/50">
+              <div key={feature.key} className="grid grid-cols-4 group hover:bg-white/[0.02] transition-colors">
+                <div className="p-4 text-sm text-zinc-400 flex items-center border-r border-zinc-800 border-b border-zinc-800/50 font-medium">
                   {feature.label}
                 </div>
                 {safeTiers.map((tier) => (
                   <div
                     key={`${tier.name}-${feature.key}`}
                     className={`p-4 flex items-center justify-center border-r border-zinc-800 border-b border-zinc-800/50 last:border-r-0 ${
-                       currentPlanName?.toLowerCase() === tier.name.toLowerCase() ? 'bg-green-900/5' : isDevelopersTier(tier.name) ? 'bg-zinc-900/20' : ''
+                       currentPlanName?.toLowerCase() === tier.name.toLowerCase() ? 'bg-green-900/5' : isDevelopersTier(tier.name) ? 'bg-zinc-900/10' : ''
                     }`}
                   >
                     <FeatureValue value={tier.features[feature.key]} />
@@ -342,6 +478,18 @@ const PricingTable: React.FC<PricingTableProps> = ({ tiers = defaultTiers, class
           </div>
         ))}
       </div>
+
+      {/* --- CONFIRMATION MODAL --- */}
+      <ConfirmationModal
+        isOpen={modalOpen}
+        onClose={() => setModalOpen(false)}
+        onConfirm={confirmSubscription}
+        isLoading={isPending}
+        isSuccess={isSuccess}
+        planName={selectedPlan?.name || ''}
+        price={selectedPlan?.price || ''}
+        isUpgrade={isUpgrade}
+      />
     </div>
   );
 };
