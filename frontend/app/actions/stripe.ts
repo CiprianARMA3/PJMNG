@@ -378,3 +378,39 @@ export async function cancelUserSubscription(subscriptionId: string) {
     return { success: false, error: error.message };
   }
 }
+
+// Fetch user invoices from Stripe
+export async function getUserInvoices() {
+  const supabase = createClient(cookies());
+  const { data: { user } } = await supabase.auth.getUser();
+
+  if (!user) throw new Error('Not authenticated');
+
+  const { data: userData } = await supabase
+    .from('users')
+    .select('stripe_customer_id')
+    .eq('id', user.id)
+    .single();
+
+  if (!userData?.stripe_customer_id) {
+    return [];
+  }
+
+  // Fetch Invoices from Stripe
+  const invoices = await stripe.invoices.list({
+    customer: userData.stripe_customer_id,
+    limit: 10,
+    status: 'paid'
+  });
+
+  const formattedInvoices = invoices.data.map(inv => ({
+    id: inv.id,
+    date: new Date(inv.created * 1000).toLocaleDateString(),
+    amount: (inv.amount_paid / 100).toFixed(2),
+    currency: inv.currency.toUpperCase(),
+    pdfUrl: inv.invoice_pdf,
+    status: inv.status
+  }));
+
+  return formattedInvoices;
+}
