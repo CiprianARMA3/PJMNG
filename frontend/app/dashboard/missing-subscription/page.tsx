@@ -29,8 +29,8 @@ export default function MissingSubscriptionPage() {
         </div>
 
         <div className="space-y-3">
-          <Link 
-            href="/dashboard/components/subscriptionFolder" // Adjust to your pricing page route
+          {/* <Link 
+            href="/dashboard/" // Adjust to your pricing page route
             className="w-full py-3 bg-white text-black font-bold rounded-lg hover:bg-zinc-200 transition-colors flex items-center justify-center gap-2"
           >
             <CreditCard size={18} />
@@ -42,7 +42,7 @@ export default function MissingSubscriptionPage() {
             className="w-full py-3 bg-transparent text-zinc-500 hover:text-zinc-300 font-medium text-sm transition-colors"
           >
             Back to Dashboard
-          </Link>
+          </Link> */}
         </div>
       </div>
     </div>

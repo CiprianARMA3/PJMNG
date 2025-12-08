@@ -3,7 +3,19 @@
 import { useState, useEffect, useRef } from "react";
 import { createClient } from "@/utils/supabase/client";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Github, Settings, Link2, Crown, Upload, X, Globe, CheckCircle2, LayoutTemplate, MoreHorizontal } from "lucide-react"; 
+import { 
+  ArrowLeft, 
+  Github, 
+  Settings, 
+  Link2, 
+  Crown, 
+  Upload, 
+  Globe, 
+  CheckCircle2, 
+  LayoutTemplate, 
+  MoreHorizontal,
+  Code // Keeping Code icon for the Widget as in the target style
+} from "lucide-react"; 
 import Image from 'next/image';
 import Link from 'next/link';
 
@@ -28,21 +40,38 @@ interface UserWithPlan {
   plan?: Plan;
 }
 
-// Helper: Internal Card Component to create the "Menu on top" look
-const PageWidget = ({ title, icon: Icon, iconColor, children }: any) => (
-  <div className="bg-[#0a0a0a] border border-white/10 rounded-xl flex flex-col overflow-hidden shadow-2xl w-full h-full hover:border-white/20 transition-colors">
-    {/* The Menu / Header Bar */}
-    <div className="px-4 py-3 border-b border-white/5 flex items-center justify-between bg-white/[0.02]">
-      <div className="flex items-center gap-2.5">
-        <Icon size={16} className={iconColor} />
-        <h3 className="text-sm font-semibold text-white/90 tracking-tight">{title}</h3>
+// --- 1. MATTE BACKGROUND COMPONENT (From Target) ---
+const NoiseBackground = () => (
+  <div className="fixed inset-0 z-0 w-full h-full bg-[#0a0a0a]">
+    {/* Base Gradient */}
+    <div className="absolute inset-0 bg-gradient-to-tr from-[#050505] to-[#111111]" />
+    
+    {/* Noise Overlay */}
+    <div 
+      className="absolute inset-0 opacity-[0.03] pointer-events-none"
+      style={{
+        backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E")`
+      }}
+    />
+  </div>
+);
+
+// --- 2. Page Widget (Matte Style - Adapted from Target) ---
+const PageWidget = ({ title, icon: Icon, children }: any) => (
+  <div className="relative z-10 w-full bg-[#111111] border border-[#222] rounded-xl flex flex-col overflow-visible shadow-[0_15px_30px_-10px_rgba(0,0,0,0.5)] hover:border-[#333] transition-colors">
+    {/* Header */}
+    <div className="px-5 py-4 border-b border-[#222] flex items-center justify-between bg-[#141414] rounded-t-xl">
+      <div className="flex items-center gap-3">
+        <div className="p-1.5 bg-[#1a1a1a] rounded-md border border-[#2a2a2a]">
+           <Icon size={14} className="text-neutral-400" /> {/* Icon is smaller and neutral-colored */}
+        </div>
+        <h3 className="text-sm font-medium text-neutral-300 tracking-wide">{title}</h3>
       </div>
-      {/* Menu dots */}
-      <MoreHorizontal size={16} className="text-white/20" />
+      <MoreHorizontal size={16} className="text-neutral-600" />
     </div>
     
     {/* Content */}
-    <div className="flex-1 p-5 bg-[#0a0a0a] min-h-0 relative flex flex-col">
+    <div className="flex-1 p-6 bg-[#111111] min-h-0 relative flex flex-col rounded-b-xl">
       {children}
     </div>
   </div>
@@ -297,14 +326,15 @@ export default function CreateProjectPage() {
   // --- No Plan State ---
   if (!user?.plan_id) {
     return (
-      <div className="min-h-screen bg-[#0a0a0a] text-white flex items-center justify-center">
-        <div className="max-w-md w-full p-8 bg-[#121212] border border-white/5 rounded-lg text-center">
-            <Crown className="w-12 h-12 text-purple-500 mx-auto mb-4" />
-            <h2 className="text-xl font-medium mb-2">Subscription Required</h2>
-            <p className="text-neutral-400 mb-6 text-sm">You need an active plan to create projects.</p>
+      <div className="min-h-screen relative flex items-center justify-center p-4">
+        <NoiseBackground />
+        <div className="relative z-10 max-w-md w-full p-8 bg-[#111111] border border-[#222] rounded-xl shadow-[0_20px_40px_-15px_rgba(0,0,0,0.7)] text-center">
+            <Crown className="w-12 h-12 text-yellow-500 mx-auto mb-4" />
+            <h2 className="text-xl font-medium mb-2 text-white/90">Subscription Required</h2>
+            <p className="text-neutral-500 mb-6 text-sm">You need an active plan to create projects.</p>
             <div className="flex gap-3 justify-center">
-                <button onClick={() => router.back()} className="px-4 py-2 text-sm text-neutral-400 hover:text-white rounded-md transition-colors">Cancel</button>
-                <Link href="/dashboard/subscriptions" className="px-4 py-2 text-sm bg-purple-600 hover:bg-purple-700 text-white rounded-md font-medium transition-colors">View Plans</Link>
+                <button onClick={() => router.back()} className="px-4 py-2 text-sm text-neutral-400 hover:text-white rounded-lg transition-colors bg-[#1a1a1a] border border-[#2a2a2a] hover:border-[#3a3a3a]">Cancel</button>
+                <Link href="/dashboard/subscriptions" className="px-4 py-2 text-sm bg-neutral-200 hover:bg-white text-black rounded-lg font-medium transition-colors shadow-sm">View Plans</Link>
             </div>
         </div>
       </div>
@@ -313,7 +343,10 @@ export default function CreateProjectPage() {
 
   // --- Main Render ---
   return (
-    <div className="min-h-screen bg-[#0a0a0a] text-white selection:bg-purple-500/30">
+    <div className="min-h-screen relative font-sans">
+        
+        {/* Background */}
+        <NoiseBackground />
         
         {/* Scrollbar Styles */}
         <style global jsx>{`
@@ -324,82 +357,79 @@ export default function CreateProjectPage() {
         `}</style>
 
 
-        {/* Top Navigation Bar - Replicating Dashboard Header Look */}
-        <nav className="border-b border-white/5 bg-[#0a0a0a] sticky top-0 z-50">
+        {/* Top Navigation Bar - Matte Style */}
+        <nav className="border-b border-[#222] bg-[#111111] sticky top-0 z-50 shadow-md">
             <div className="max-w-5xl mx-auto px-6 h-16 flex items-center justify-between">
                 <div className="flex items-center gap-4">
-                    <button onClick={() => router.back()} className="p-2 -ml-2 text-neutral-400 hover:text-white hover:bg-white/5 rounded-full transition-all">
+                    <button onClick={() => router.back()} className="p-2 -ml-2 text-neutral-400 hover:text-white hover:bg-[#1a1a1a] rounded-full transition-all">
                         <ArrowLeft size={18} />
                     </button>
-                    <div className="h-4 w-[1px] bg-white/10"></div>
+                    <div className="h-4 w-[1px] bg-[#222]"></div>
                     <span className="font-semibold tracking-tight text-lg text-white/90">Create Project</span>
                 </div>
                 <div className="flex items-center gap-3">
-                    <span className="text-xs text-neutral-500 uppercase tracking-wider font-semibold">
+                    <span className="text-xs text-neutral-600 uppercase tracking-wider font-medium">
                         {selectedPlan?.name} Plan Active
                     </span>
-                    {/* <Link href="/dashboard/subscriptions" className="text-xs text-purple-400 hover:text-purple-300 font-medium">Manage Plan</Link> */}
+                    {/* <Link href="/dashboard/subscriptions" className="text-xs text-neutral-400 hover:text-white font-medium">Manage Plan</Link> */}
                 </div>
             </div>
         </nav>
 
-        <main className="max-w-5xl mx-auto px-6 py-10">
+        <main className="max-w-5xl mx-auto px-6 py-10 relative z-10">
             <form onSubmit={handleSubmit} className="grid grid-cols-1 lg:grid-cols-12 gap-10">
                 
-                {/* *** LEFT COLUMN: FORM INPUTS (8/12 WIDTH, CONTENT CENTERED) *** - lg:col-span-8 sets the column width.
-                  - The inner <div className="max-w-xl mx-auto"> ensures the form fields 
-                    are centered horizontally within this 8-column space.
-                */}
+                {/* *** LEFT COLUMN: FORM INPUTS *** */}
                 <div className="lg:col-span-8">
                     <div className="max-w-xl mx-auto space-y-10">
                         
                         {/* Section 1: Project Identity (Visuals) */}
                         <section>
                             <div className="flex items-center gap-2 mb-6 text-white/90">
-                                <LayoutTemplate className="text-purple-500" size={20} />
-                                <h2 className="text-lg font-medium">Project Identity</h2>
+                                <LayoutTemplate className="text-neutral-400" size={20} />
+                                <h2 className="text-lg font-medium text-neutral-300">Project Identity</h2>
                             </div>
                             
                             {/* Visual Preview Area */}
-                            <div className="bg-[#121212] border border-white/5 rounded-lg overflow-hidden relative group">
+                            <div className="bg-[#111111] border border-[#222] rounded-xl overflow-hidden relative group shadow-lg">
                                 
                                 {/* Banner Area */}
                                 <div 
-                                    className="h-40 w-full bg-[#1A1A1A] relative cursor-pointer hover:bg-[#222] transition-colors"
+                                    className="h-40 w-full bg-[#1A1A1A] relative cursor-pointer hover:bg-[#1f1f1f] transition-colors"
                                     onClick={() => bannerInputRef.current?.click()}
                                 >
                                     {projectMedia.bannerPreview ? (
                                         <img src={projectMedia.bannerPreview} alt="Banner" className="w-full h-full object-cover opacity-80" />
                                     ) : (
-                                        <div className="absolute inset-0 flex flex-col items-center justify-center text-neutral-500 gap-2">
-                                            {uploadingBanner ? <div className="animate-spin h-6 w-6 border-2 border-neutral-600 border-t-white rounded-full"></div> : <Upload size={20} />}
+                                        <div className="absolute inset-0 flex flex-col items-center justify-center text-neutral-600 gap-2">
+                                            {uploadingBanner ? <div className="animate-spin h-6 w-6 border-2 border-neutral-700 border-t-white rounded-full"></div> : <Upload size={20} />}
                                             <span className="text-xs font-medium">{uploadingBanner ? "Uploading..." : "Upload Banner Image"}</span>
                                         </div>
                                     )}
                                     <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
-                                        <span className="text-xs font-medium bg-black/50 px-3 py-1 rounded-full backdrop-blur-sm border border-white/10">Change Banner</span>
+                                        <span className="text-xs font-medium bg-black/50 px-3 py-1 rounded-full backdrop-blur-sm border border-white/10 text-white/80">Change Banner</span>
                                     </div>
                                 </div>
 
                                 {/* Logo Area (Overlapping) */}
                                 <div className="px-6 pb-6 -mt-10 flex items-end justify-between relative z-10">
                                     <div 
-                                        className="w-24 h-24 rounded-xl bg-[#121212] border-4 border-[#121212] relative cursor-pointer overflow-hidden group/logo"
+                                        className="w-24 h-24 rounded-xl bg-[#111111] border-4 border-[#111111] relative cursor-pointer overflow-hidden group/logo shadow-xl"
                                         onClick={() => logoInputRef.current?.click()}
                                     >
                                         {projectMedia.logoPreview ? (
                                             <img src={projectMedia.logoPreview} alt="Logo" className="w-full h-full object-cover" />
                                         ) : (
-                                            <div className="w-full h-full bg-[#1A1A1A] flex items-center justify-center text-neutral-500 hover:bg-[#222] transition-colors">
-                                                {uploadingLogo ? <div className="animate-spin h-4 w-4 border-2 border-neutral-600 border-t-white rounded-full"></div> : <Upload size={18} />}
+                                            <div className="w-full h-full bg-[#1A1A1A] flex items-center justify-center text-neutral-600 hover:bg-[#222] transition-colors">
+                                                {uploadingLogo ? <div className="animate-spin h-4 w-4 border-2 border-neutral-700 border-t-white rounded-full"></div> : <Upload size={18} />}
                                             </div>
                                         )}
                                         <div className="absolute inset-0 bg-black/50 opacity-0 group-hover/logo:opacity-100 flex items-center justify-center transition-opacity">
-                                            <span className="text-[10px] font-medium text-white">Edit</span>
+                                            <span className="text-[10px] font-medium text-white/80">Edit</span>
                                         </div>
                                     </div>
                                     <div className="mb-2 text-right">
-                                        <p className="text-xs text-neutral-500">1200x400px (Banner) • 500x500px (Logo)</p>
+                                        <p className="text-xs text-neutral-600">1200x400px (Banner) • 500x500px (Logo)</p>
                                     </div>
                                 </div>
 
@@ -409,19 +439,19 @@ export default function CreateProjectPage() {
                             </div>
                         </section>
 
-                        <div className="h-[1px] bg-white/5 w-full"></div>
+                        <div className="h-[1px] bg-[#222] w-full"></div>
 
                         {/* Section 2: General Information */}
                         <section>
-                            <div className="flex items-center gap-2 mb-6 text-white/90">
-                                <Settings className="text-purple-500" size={20} />
+                            <div className="flex items-center gap-2 mb-6 text-neutral-300">
+                                <Settings className="text-neutral-400" size={20} />
                                 <h2 className="text-lg font-medium">General Information</h2>
                             </div>
 
                             <div className="space-y-6">
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                     <div className="space-y-1.5">
-                                        <label className="text-xs font-medium text-neutral-400 uppercase tracking-wide">Project Name <span className="text-red-500">*</span></label>
+                                        <label className="text-xs font-medium text-neutral-500 uppercase tracking-wide">Project Name <span className="text-red-900">*</span></label>
                                         <input
                                             type="text"
                                             name="name"
@@ -429,61 +459,61 @@ export default function CreateProjectPage() {
                                             onChange={handleInputChange}
                                             placeholder="e.g. Game Dev Studio"
                                             required
-                                            className="w-full bg-[#121212] border border-white/10 rounded-md px-3 py-2.5 text-sm text-white focus:outline-none focus:ring-1 focus:ring-purple-500 focus:border-purple-500 transition-all placeholder:text-neutral-600"
+                                            className="w-full bg-[#161616] border border-[#2a2a2a] rounded-lg px-4 py-2.5 text-sm text-neutral-200 focus:outline-none focus:border-neutral-600 transition-all placeholder:text-neutral-700 h-12"
                                         />
                                     </div>
                                     <div className="space-y-1.5">
-                                        <label className="text-xs font-medium text-neutral-400 uppercase tracking-wide">Website URL</label>
+                                        <label className="text-xs font-medium text-neutral-500 uppercase tracking-wide">Website URL</label>
                                         <div className="relative">
-                                            <Globe size={16} className="absolute left-3 top-3 text-neutral-500" />
+                                            <Globe size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-neutral-600" />
                                             <input
                                                 type="url"
                                                 name="website_url"
                                                 value={formData.website_url}
                                                 onChange={handleInputChange}
                                                 placeholder="https://game-dev-studio.com"
-                                                className="w-full bg-[#121212] border border-white/10 rounded-md pl-10 pr-3 py-2.5 text-sm text-white focus:outline-none focus:ring-1 focus:ring-purple-500 focus:border-purple-500 transition-all placeholder:text-neutral-600"
+                                                className="w-full bg-[#161616] border border-[#2a2a2a] rounded-lg pl-10 pr-4 py-2.5 text-sm text-neutral-200 focus:outline-none focus:border-neutral-600 transition-all placeholder:text-neutral-700 h-12"
                                             />
                                         </div>
                                     </div>
                                 </div>
 
                                 <div className="space-y-1.5">
-                                    <label className="text-xs font-medium text-neutral-400 uppercase tracking-wide">Description</label>
+                                    <label className="text-xs font-medium text-neutral-500 uppercase tracking-wide">Description</label>
                                     <textarea
                                         name="description"
                                         value={formData.description}
                                         onChange={handleInputChange}
                                         rows={4}
                                         placeholder="What is this project about?"
-                                        className="w-full bg-[#121212] border border-white/10 rounded-md px-3 py-2.5 text-sm text-white focus:outline-none focus:ring-1 focus:ring-purple-500 focus:border-purple-500 transition-all placeholder:text-neutral-600 resize-none"
+                                        className="w-full bg-[#161616] border border-[#2a2a2a] rounded-lg px-4 py-2.5 text-sm text-neutral-200 focus:outline-none focus:border-neutral-600 transition-all placeholder:text-neutral-700 resize-none"
                                     />
                                 </div>
                             </div>
                         </section>
 
-                        <div className="h-[1px] bg-white/5 w-full"></div>
+                        <div className="h-[1px] bg-[#222] w-full"></div>
 
                         {/* Section 3: Integrations & Links */}
                         <section>
-                            <div className="flex items-center gap-2 mb-6 text-white/90">
-                                <Link2 className="text-purple-500" size={20} />
+                            <div className="flex items-center gap-2 mb-6 text-neutral-300">
+                                <Link2 className="text-neutral-400" size={20} />
                                 <h2 className="text-lg font-medium">Connections</h2>
                             </div>
 
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                 {/* GitHub - Prominent */}
                                 <div className="md:col-span-2 space-y-1.5">
-                                    <label className="text-xs font-medium text-neutral-400 uppercase tracking-wide">GitHub Repository</label>
+                                    <label className="text-xs font-medium text-neutral-500 uppercase tracking-wide">GitHub Repository</label>
                                     <div className="relative">
-                                        <Github size={16} className="absolute left-3 top-3 text-neutral-500" />
+                                        <Github size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-neutral-600" />
                                         <input
                                             type="url"
                                             name="github_repo_url"
                                             value={formData.github_repo_url}
                                             onChange={handleInputChange}
                                             placeholder="https://github.com/org/repo (Required for analytics)"
-                                            className="w-full bg-[#121212] border border-white/10 rounded-md pl-10 pr-3 py-2.5 text-sm text-white focus:outline-none focus:ring-1 focus:ring-purple-500 focus:border-purple-500 transition-all placeholder:text-neutral-600"
+                                            className="w-full bg-[#161616] border border-[#2a2a2a] rounded-lg pl-10 pr-4 py-2.5 text-sm text-neutral-200 focus:outline-none focus:border-neutral-600 transition-all placeholder:text-neutral-700 h-12"
                                         />
                                     </div>
                                 </div>
@@ -491,13 +521,13 @@ export default function CreateProjectPage() {
                                 {/* Other Socials */}
                                 {['discord', 'twitter', 'linkedin', 'youtube'].map((platform) => (
                                     <div key={platform} className="space-y-1.5">
-                                        <label className="text-xs font-medium text-neutral-400 uppercase tracking-wide">{platform}</label>
+                                        <label className="text-xs font-medium text-neutral-500 uppercase tracking-wide">{platform}</label>
                                         <input
                                             type="url"
                                             value={(socialLinks as any)[platform]}
                                             onChange={(e) => handleSocialLinkChange(platform, e.target.value)}
                                             placeholder={`https://${platform}.com/...`}
-                                            className="w-full bg-[#121212] border border-white/10 rounded-md px-3 py-2.5 text-sm text-white focus:outline-none focus:ring-1 focus:ring-purple-500 focus:border-purple-500 transition-all placeholder:text-neutral-600"
+                                            className="w-full bg-[#161616] border border-[#2a2a2a] rounded-lg px-4 py-2.5 text-sm text-neutral-200 focus:outline-none focus:border-neutral-600 transition-all placeholder:text-neutral-700 h-12"
                                         />
                                     </div>
                                 ))}
@@ -506,28 +536,25 @@ export default function CreateProjectPage() {
                     </div> {/* End of max-w-xl mx-auto (Centered Form Content) */}
                 </div> {/* End of lg:col-span-8 (Left Column) */}
 
-                {/* *** RIGHT COLUMN: CONTEXT / SUMMARY (4/12 WIDTH) *** - lg:col-span-4 sets the column width.
-                  - Uses sticky positioning to stay next to the scrolling form.
-                */}
+                {/* *** RIGHT COLUMN: CONTEXT / SUMMARY *** */}
                 <div className="lg:col-span-4 space-y-6">
                     {/* Plan Summary Card - Fixed width and placed on the right */}
                     <div className="sticky top-24">
                         <PageWidget 
                             title="Plan & Limitations" 
                             icon={Crown} 
-                            iconColor="text-yellow-500"
                         >
-                            <div className="space-y-4">
-                                <div className="flex items-center justify-between pb-4 border-b border-white/5">
-                                    <h3 className="font-medium text-sm text-white/90">{selectedPlan?.name} Plan</h3>
-                                    <Link href="/dashboard" className="text-xs text-purple-400 hover:text-purple-300 font-medium">Upgrade</Link>
+                            <div className="space-y-5">
+                                <div className="flex items-center justify-between pb-5 border-b border-[#222]">
+                                    <h3 className="font-medium text-sm text-neutral-300">{selectedPlan?.name} Plan</h3>
+                                    <Link href="/dashboard" className="text-xs text-neutral-400 hover:text-white font-medium">Upgrade</Link>
                                 </div>
 
                                 {/* Collaborator Slider */}
                                 <div>
                                     <div className="flex justify-between text-xs mb-1.5">
-                                        <span className="text-neutral-400">Max Team Size (Users)</span>
-                                        <span className="text-white font-medium">{formData.max_collaborators} / {selectedPlan?.max_users}</span>
+                                        <span className="text-neutral-500">Max Team Size (Users)</span>
+                                        <span className="text-neutral-300 font-medium">{formData.max_collaborators} / {selectedPlan?.max_users}</span>
                                     </div>
                                     <input
                                         type="range"
@@ -535,38 +562,38 @@ export default function CreateProjectPage() {
                                         max={selectedPlan?.max_users || 1}
                                         value={formData.max_collaborators}
                                         onChange={(e) => setFormData(prev => ({ ...prev, max_collaborators: parseInt(e.target.value) }))}
-                                        className="w-full h-1 bg-neutral-800 rounded-lg appearance-none cursor-pointer accent-purple-500"
+                                        className="w-full h-1 bg-neutral-800 rounded-lg appearance-none cursor-pointer accent-neutral-400 focus:accent-white"
                                     />
-                                    <p className="text-[10px] text-neutral-500 mt-1">
+                                    <p className="text-[10px] text-neutral-600 mt-2">
                                         You can invite up to {selectedPlan?.max_users} collaborators on this plan.
                                     </p>
                                 </div>
 
                                 {/* Feature List */}
-                                <div className="bg-[#1A1A1A] rounded p-3 text-xs space-y-2 border border-white/5">
-                                    <div className="flex items-center gap-2 text-neutral-300">
+                                <div className="bg-[#161616] rounded-lg p-4 text-xs space-y-3 border border-[#222]">
+                                    <div className="flex items-center gap-2 text-neutral-400">
                                         <CheckCircle2 size={14} className="text-green-500" />
                                         <span>Projects allowed: {selectedPlan?.max_projects}</span>
                                     </div>
-                                    <div className="flex items-center gap-2 text-neutral-300">
+                                    <div className="flex items-center gap-2 text-neutral-400">
                                         <CheckCircle2 size={14} className="text-green-500" />
                                         <span>Full Analytics Dashboard Access</span>
                                     </div>
-                                    <div className="flex items-center gap-2 text-neutral-300">
+                                    <div className="flex items-center gap-2 text-neutral-400">
                                         <CheckCircle2 size={14} className="text-green-500" />
                                         <span>GitHub Integration</span>
                                     </div>
                                 </div>
                                 
-                                {/* Submit Button */}
+                                {/* Submit Button - Matte Style */}
                                 <button
                                     type="submit"
                                     disabled={loading || !formData.name.trim()}
-                                    className="w-full py-2.5 bg-purple-600 hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed text-white text-sm font-medium rounded-md transition-colors shadow-lg shadow-purple-900/20"
+                                    className="w-full py-3 bg-neutral-200 hover:bg-white disabled:opacity-50 disabled:cursor-not-allowed text-black text-sm font-semibold rounded-lg transition-colors shadow-lg shadow-black/30"
                                 >
                                     {loading ? (
                                         <div className="flex items-center justify-center space-x-2">
-                                            <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                                            <div className="w-4 h-4 border-2 border-black border-t-transparent rounded-full animate-spin"></div>
                                             <span>Creating...</span>
                                         </div>
                                     ) : (
@@ -574,7 +601,7 @@ export default function CreateProjectPage() {
                                     )}
                                 </button>
                                 
-                                <p className="text-[10px] text-neutral-500 text-center leading-relaxed">
+                                <p className="text-[10px] text-neutral-700 text-center leading-relaxed">
                                     By creating a project, you agree to our Terms of Service.
                                 </p>
                             </div>
