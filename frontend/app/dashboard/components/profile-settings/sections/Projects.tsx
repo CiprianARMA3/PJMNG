@@ -20,7 +20,23 @@ export default function Projects() {
                 .select("*")
                 .order("created_at", { ascending: false });
 
-            if (data) setProjects(data);
+            if (data) {
+                // Fetch member counts for each project
+                const projectsWithCounts = await Promise.all(
+                    data.map(async (project) => {
+                        const { count } = await supabase
+                            .from("project_users")
+                            .select("*", { count: "exact", head: true })
+                            .eq("project_id", project.id);
+
+                        return {
+                            ...project,
+                            memberCount: count || 0
+                        };
+                    })
+                );
+                setProjects(projectsWithCounts);
+            }
             setLoading(false);
         };
         fetchProjects();
@@ -69,7 +85,7 @@ export default function Projects() {
 
                             {/* Members */}
                             <div className="col-span-2 flex items-center justify-center">
-                                <span className="text-white/70 text-sm">{project.collaborators}</span>
+                                <span className="text-white/70 text-sm">{project.memberCount || 0}</span>
                             </div>
 
                             {/* Status (Placeholder logic) */}
@@ -81,7 +97,7 @@ export default function Projects() {
 
                             {/* Actions */}
                             <div className="col-span-2 flex items-center justify-center space-x-2">
-                                <button 
+                                <button
                                     onClick={() => router.push(`/dashboard/projects/${project.id}`)}
                                     className="bg-white/5 hover:bg-white/10 text-white/90 hover:text-white px-3 py-2 rounded-lg transition-all border border-white/10 hover:border-white/20 flex items-center space-x-1 text-xs"
                                 >
