@@ -6,6 +6,7 @@ import { createClient } from '@/utils/supabase/server';
 import { STRIPE_PRODUCTS, getBaseUrl, SUBSCRIPTION_PLANS } from '@/utils/stripe/config';
 import { stripe } from '@/utils/stripe/server';
 import Stripe from 'stripe';
+import { createAdminClient } from '@/utils/supabase/admin';
 
 const PACK_AMOUNTS = [100000, 250000, 500000, 1000000, 2000000];
 
@@ -126,6 +127,16 @@ export async function createSubscriptionCheckout(
       // 'always_invoice' calculates proration and charges/credits immediately
       proration_behavior: 'always_invoice',
     });
+
+    // ✅ OPTIMISTIC UPDATE: Update DB immediately so UI reflects change without waiting for webhook
+    const supabaseAdmin = createAdminClient();
+    await supabaseAdmin.from('users').update({
+      plan_id: targetPlanId,
+      subscription_status: 'active', // Assume active after update
+      // We don't update current_period_end here as that requires complex calculation; webhook will handle it.
+    }).eq('id', user.id);
+
+    console.log(`✅ Optimistically updated User ${user.id} to plan ${targetPlanId}`);
 
     // Redirect back to dashboard immediately (Webhook will handle DB sync)
     redirect(`${getBaseUrl()}/dashboard?updated=true`);
@@ -258,7 +269,7 @@ export async function getUserBillingInfo() {
   const { data: userData } = await supabase
     .from('users')
     // ADDED current_period_end and subscription_status to the fetch from DB
-    .select('stripe_customer_id, subscription_id, plan_id, current_period_end, subscription_status') 
+    .select('stripe_customer_id, subscription_id, plan_id, current_period_end, subscription_status')
     .eq('id', user.id)
     .single();
 
@@ -301,7 +312,7 @@ export async function getUserBillingInfo() {
   // Fetch status 'all' to include canceled subscriptions that are still active for the period
   const subscriptions = await stripe.subscriptions.list({
     customer: userData.stripe_customer_id,
-    status: 'all', 
+    status: 'all',
     limit: 1,
     expand: ['data.plan.product']
   });
@@ -327,7 +338,7 @@ export async function getUserBillingInfo() {
     }
 
     // Use the reliable current_period_end from the Supabase profile
-    const renewalDate = userData.current_period_end; 
+    const renewalDate = userData.current_period_end;
 
     subscriptionDetails = {
       id: sub.id,
@@ -343,14 +354,14 @@ export async function getUserBillingInfo() {
   // Fallback if Stripe has no record but DB does (unlikely, but safe)
   else if (userData.subscription_id && userData.subscription_status && userData.current_period_end) {
     subscriptionDetails = {
-        id: userData.subscription_id,
-        planName: dbPlanDetails?.name || 'Unknown',
-        amount: 'N/A',
-        interval: 'N/A',
-        currentPeriodEnd: userData.current_period_end,
-        cancelAtPeriodEnd: userData.subscription_status === 'canceled',
-        status: userData.subscription_status,
-        currentPeriodStart: null // Default fallback value
+      id: userData.subscription_id,
+      planName: dbPlanDetails?.name || 'Unknown',
+      amount: 'N/A',
+      interval: 'N/A',
+      currentPeriodEnd: userData.current_period_end,
+      cancelAtPeriodEnd: userData.subscription_status === 'canceled',
+      status: userData.subscription_status,
+      currentPeriodStart: null // Default fallback value
     };
   }
 
@@ -438,7 +449,7 @@ export async function getUpcomingInvoice(targetPlanId: string, targetInterval: '
 
   try {
     let upcoming;
-    
+
     if (subscriptions.data.length > 0) {
       // PRORATION MODE: Preview update to existing subscription
       const currentSub = subscriptions.data[0];
@@ -449,11 +460,11 @@ export async function getUpcomingInvoice(targetPlanId: string, targetInterval: '
         customer: userData.stripe_customer_id,
         subscription: currentSub.id,
         subscription_details: {
-            items: [{
-                id: currentItemId,
-                price: targetPriceId, 
-            }],
-            proration_behavior: 'always_invoice',
+          items: [{
+            id: currentItemId,
+            price: targetPriceId,
+          }],
+          proration_behavior: 'always_invoice',
         }
       });
     } else {
@@ -461,10 +472,10 @@ export async function getUpcomingInvoice(targetPlanId: string, targetInterval: '
       upcoming = await stripe.invoices.createPreview({
         customer: userData.stripe_customer_id,
         subscription_details: {
-            items: [{
-                price: targetPriceId,
-                quantity: 1,
-            }],
+          items: [{
+            price: targetPriceId,
+            quantity: 1,
+          }],
         }
       });
     }
@@ -492,11 +503,11 @@ export async function getUpcomingInvoice(targetPlanId: string, targetInterval: '
 
 
 export interface TokenTransaction {
-    id: number;
-    transaction_date: string;
-    model_key: string;
-    tokens_added: number;
-    source: string;
+  id: number;
+  transaction_date: string;
+  model_key: string;
+  tokens_added: number;
+  source: string;
 }
 
 // --- NEW: Token Top-up History ---
@@ -514,8 +525,8 @@ export async function getProjectTokenTopUpHistory(projectId: string): Promise<To
     .single();
 
   if (projectError || !project) {
-      console.error('Project authorization failed or project not found:', projectError);
-      return [];
+    console.error('Project authorization failed or project not found:', projectError);
+    return [];
   }
 
   // Assuming a table named 'token_transactions' logs the top-up events
@@ -526,16 +537,16 @@ export async function getProjectTokenTopUpHistory(projectId: string): Promise<To
     .order('created_at', { ascending: false });
 
   if (transactionsError) {
-      console.error('Error fetching token transactions:', transactionsError);
-      return [];
+    console.error('Error fetching token transactions:', transactionsError);
+    return [];
   }
 
   // Map the fetched data to the client-side interface
   return transactions.map(t => ({
-      id: t.id,
-      transaction_date: new Date(t.created_at).toISOString(),
-      model_key: t.model_key || 'Unknown Model',
-      tokens_added: t.tokens_added || 0,
-      source: t.source || 'Stripe Payment',
+    id: t.id,
+    transaction_date: new Date(t.created_at).toISOString(),
+    model_key: t.model_key || 'Unknown Model',
+    tokens_added: t.tokens_added || 0,
+    source: t.source || 'Stripe Payment',
   })) as TokenTransaction[];
 }

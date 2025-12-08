@@ -191,16 +191,38 @@ export async function POST(req: Request) {
   if (event.type === 'invoice.payment_succeeded') {
     const invoice = session;
     if (invoice.subscription) {
-      const priceId = invoice.lines.data[0]?.price?.id;
-      // Robust check for period end
-      const periodEnd = invoice.lines.data[0]?.period?.end || invoice.period_end;
+      let priceId = invoice.lines.data[0]?.price?.id;
+      let periodEnd = invoice.lines.data[0]?.period?.end || invoice.period_end;
+      let metadata = invoice.metadata;
+
+      // ✅ ROBUSTNESS FIX: Fetch the subscription to get authoritative metadata & price
+      try {
+        const sub = await stripe.subscriptions.retrieve(invoice.subscription as string);
+        if (sub) {
+          console.log(`✅ Fetched subscription ${sub.id} for invoice ${invoice.id}`);
+          // Prefer subscription metadata as it persists user/plan info
+          metadata = { ...metadata, ...sub.metadata };
+
+          // Ensure we have the correct price ID from the subscription items
+          if ((sub as any).items?.data?.length > 0) {
+            priceId = (sub as any).items.data[0].price.id;
+          }
+
+          // Ensure we have the correct period end
+          if ((sub as any).current_period_end) {
+            periodEnd = (sub as any).current_period_end;
+          }
+        }
+      } catch (e) {
+        console.error("⚠️ Could not fetch subscription for invoice:", e);
+      }
 
       await updateUserSubscription(
         invoice.customer,
         priceId,
         'active',
         periodEnd,
-        invoice.metadata
+        metadata
       );
     }
   }
@@ -240,37 +262,37 @@ export async function POST(req: Request) {
 
         // --- Log Transaction to token_transactions table ---
         const tokenEntries = Object.entries(newTokens).filter(([, tokens]) => Number(tokens) > 0);
-        
+
         const totalTokensPurchased = tokenEntries.reduce((sum, [, tokens]) => sum + Number(tokens), 0);
         // Calculate price per token to split the total payment amount accurately across models
         const pricePerToken = totalTokensPurchased > 0 ? amountPaid / totalTokensPurchased : 0;
-        
+
         for (const [modelKey, tokensAdded] of tokenEntries) {
-            const tokenAmount = Number(tokensAdded);
-            // Calculate the proportional cost for this specific model's tokens
-            const transactionAmount = tokenAmount * pricePerToken; 
-            
-            // Log the transaction
-            const { error: transactionError } = await supabaseAdmin.from('token_transactions').insert({
-                user_id: userId,
-                project_id: projectId,
-                model_key: modelKey,
-                tokens_added: tokenAmount,
-                amount_paid: parseFloat(transactionAmount.toFixed(2)), // Ensure DECIMAL precision for DB
-                currency: currency,
-                source: 'Stripe Token Pack Purchase',
-                stripe_session_id: session.id,
-                metadata: { 
-                    checkout_session_id: session.id,
-                    token_pack_breakdown: newTokens // Log full breakdown for context
-                }
-            });
-            
-            if (transactionError) {
-                console.error(`❌ Error logging token transaction for model ${modelKey}:`, transactionError);
-            } else {
-                console.log(`✅ Logged token transaction for Project ${projectId}, Model ${modelKey}.`);
+          const tokenAmount = Number(tokensAdded);
+          // Calculate the proportional cost for this specific model's tokens
+          const transactionAmount = tokenAmount * pricePerToken;
+
+          // Log the transaction
+          const { error: transactionError } = await supabaseAdmin.from('token_transactions').insert({
+            user_id: userId,
+            project_id: projectId,
+            model_key: modelKey,
+            tokens_added: tokenAmount,
+            amount_paid: parseFloat(transactionAmount.toFixed(2)), // Ensure DECIMAL precision for DB
+            currency: currency,
+            source: 'Stripe Token Pack Purchase',
+            stripe_session_id: session.id,
+            metadata: {
+              checkout_session_id: session.id,
+              token_pack_breakdown: newTokens // Log full breakdown for context
             }
+          });
+
+          if (transactionError) {
+            console.error(`❌ Error logging token transaction for model ${modelKey}:`, transactionError);
+          } else {
+            console.log(`✅ Logged token transaction for Project ${projectId}, Model ${modelKey}.`);
+          }
         }
         // --- End Transaction Logging ---
 
