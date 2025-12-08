@@ -6,11 +6,10 @@ export default function Breadcrumb({ items }: { items: string[] }) {
       {items.map((item, index) => (
         <div key={index} className="flex items-center">
           <span
-            className={`${
-              index === items.length - 1
+            className={`${index === items.length - 1
                 ? "text-white font-medium"
                 : "hover:text-gray-300 cursor-pointer"
-            }`}
+              }`}
           >
             {item}
           </span>
@@ -18,7 +17,7 @@ export default function Breadcrumb({ items }: { items: string[] }) {
             <span className="mx-2 text-gray-600">› </span>
           )}
         </div>
-        
+
       ))}
     </nav>
   );

@@ -35,13 +35,13 @@ const SECTIONS = {
   CreditCard: "Subscriptions",
   // ANALYTICS: "analytics",
   SETTINGS: "settings",
-  SEARCH: "search",
+  // SEARCH: "search",
   PROFILE_SETTINGS: "profile-settings",
 };
 
 const MAIN_MENU = [
   { icon: Home, label: "Dashboard", section: SECTIONS.HOME },
-  { icon: Mail, label: "Messages", section: SECTIONS.MAIL },
+  // { icon: Mail, label: "Messages", section: SECTIONS.MAIL },
   { icon: CreditCard, label: "Subscriptions", section: SECTIONS.CreditCard },
   // { icon: BarChart, label: "Analytics", section: SECTIONS.ANALYTICS },
 ];
@@ -150,12 +150,12 @@ export default function DashboardPage() {
             <SettingsSection />
           </Suspense>
         );
-      case SECTIONS.SEARCH:
-        return (
-          <Suspense fallback={<SectionSkeleton />}>
-            <SearchSection />
-          </Suspense>
-        );
+      // case SECTIONS.SEARCH:
+      //   return (
+      //     <Suspense fallback={<SectionSkeleton />}>
+      //       <SearchSection />
+      //     </Suspense>
+      //   );
       case SECTIONS.PROFILE_SETTINGS:
         return (
           <Suspense fallback={<SectionSkeleton />}>
@@ -214,8 +214,8 @@ export default function DashboardPage() {
                   key={section}
                   onClick={() => setActiveSection(section)}
                   className={`flex items-center gap-2 px-3 py-2 rounded-lg transition-all duration-200 text-sm font-medium ${activeSection === section
-                      ? "text-white bg-white/10"
-                      : "text-white/60 hover:text-white hover:bg-white/5"
+                    ? "text-white bg-white/10"
+                    : "text-white/60 hover:text-white hover:bg-white/5"
                     }`}
                 >
                   <Icon className="w-4 h-4" />
@@ -284,8 +284,8 @@ export default function DashboardPage() {
                       setIsMobileMenuOpen(false);
                     }}
                     className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-200 ${activeSection === section
-                        ? "bg-white/10 text-white"
-                        : "text-white/60 hover:text-white hover:bg-white/5"
+                      ? "bg-white/10 text-white"
+                      : "text-white/60 hover:text-white hover:bg-white/5"
                       }`}
                   >
                     <Icon className="w-5 h-5" />
