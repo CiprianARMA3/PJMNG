@@ -89,9 +89,11 @@ export async function createSubscriptionCheckout(
     .single();
 
   let customerId = userData?.stripe_customer_id;
+  console.log(`[STRIPE-ACTION] User ${user.id} initiating checkout for ${targetPlanId} (${interval})`);
 
   // Create Customer if missing
   if (!customerId) {
+    console.log(`[STRIPE-ACTION] Creating new Stripe customer for ${user.email}`);
     const customer = await stripe.customers.create({
       email: user.email,
       metadata: { supabase_user_id: user.id }
@@ -113,6 +115,9 @@ export async function createSubscriptionCheckout(
     const currentSub = activeSubs.data[0];
     const currentItemId = currentSub.items.data[0].id;
 
+    console.log(`[STRIPE-ACTION] Found active subscription ${currentSub.id}. Upgrading/Downgrading...`);
+    console.log(`[STRIPE-ACTION] Swapping item ${currentItemId} to price ${priceId}`);
+
     // Direct Update via Stripe API (No Checkout UI needed)
     await stripe.subscriptions.update(currentSub.id, {
       items: [{
@@ -130,13 +135,17 @@ export async function createSubscriptionCheckout(
 
     // ✅ OPTIMISTIC UPDATE: Update DB immediately so UI reflects change without waiting for webhook
     const supabaseAdmin = createAdminClient();
-    await supabaseAdmin.from('users').update({
+    const { error: updateError } = await supabaseAdmin.from('users').update({
       plan_id: targetPlanId,
       subscription_status: 'active', // Assume active after update
       // We don't update current_period_end here as that requires complex calculation; webhook will handle it.
     }).eq('id', user.id);
 
-    console.log(`✅ Optimistically updated User ${user.id} to plan ${targetPlanId}`);
+    if (updateError) {
+      console.error(`[STRIPE-ACTION] Optimistic update failed:`, updateError);
+    } else {
+      console.log(`✅ [STRIPE-ACTION] Optimistically updated User ${user.id} to plan ${targetPlanId}`);
+    }
 
     // Redirect back to dashboard immediately (Webhook will handle DB sync)
     redirect(`${getBaseUrl()}/dashboard?updated=true`);

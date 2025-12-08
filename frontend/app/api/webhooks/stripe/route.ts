@@ -46,7 +46,7 @@ export async function POST(req: Request) {
     metadata: any
   ) => {
 
-    console.log(`\n🔔 updateUserSubscription called:`);
+    console.log(`\n🔔 [STRIPE-DEBUG] updateUserSubscription called:`);
     console.log(`   Customer: ${stripeCustomerId}`);
     console.log(`   Price ID: ${priceId}`);
     console.log(`   Status: ${status}`);
@@ -58,40 +58,50 @@ export async function POST(req: Request) {
 
     // Fallback: Fetch from Customer if not in session metadata
     if (!userId) {
+      console.log(`⚠️ [STRIPE-DEBUG] No userId in metadata, attempting fallback lookup...`);
       try {
         const customer = await stripe.customers.retrieve(stripeCustomerId) as any;
         if (!customer.deleted && customer.metadata?.supabase_user_id) {
           userId = customer.metadata.supabase_user_id;
+          console.log(`✅ [STRIPE-DEBUG] Found userId from Customer metadata: ${userId}`);
         } else if (!customer.deleted && customer.email) {
           // Fallback by Email
+          console.log(`ℹ️ [STRIPE-DEBUG] Looking up user by email: ${customer.email}`);
           const { data: userByEmail } = await supabaseAdmin
             .from('users')
             .select('id')
             .eq('email', customer.email)
             .single();
-          if (userByEmail) userId = userByEmail.id;
+          if (userByEmail) {
+            userId = userByEmail.id;
+            console.log(`✅ [STRIPE-DEBUG] Found userId by email: ${userId}`);
+          }
         }
       } catch (e) {
-        console.error("Error fetching customer:", e);
+        console.error("[STRIPE-DEBUG] Error fetching customer:", e);
       }
     }
 
     // Fallback: Search in DB by Stripe Customer ID
     if (!userId) {
+      console.log(`ℹ️ [STRIPE-DEBUG] Looking up user by stripe_customer_id: ${stripeCustomerId}`);
       const { data: users } = await supabaseAdmin
         .from('users')
         .select('id')
         .eq('stripe_customer_id', stripeCustomerId)
         .single();
-      if (users) userId = users.id;
+      if (users) {
+        userId = users.id;
+        console.log(`✅ [STRIPE-DEBUG] Found userId by stripe_customer_id: ${userId}`);
+      }
     }
 
     if (!userId) {
-      console.error(`❌ Fatal: Could not find User for Customer ${stripeCustomerId}`);
+      console.error(`❌ [STRIPE-DEBUG] Fatal: Could not find User for Customer ${stripeCustomerId}`);
       return false;
     }
 
-    console.log(`✅ Found User ID: ${userId}`);
+    console.log(`✅ [STRIPE-DEBUG] Final User ID: ${userId}`);
 
     // 2. Determine Plan ID (PRIORITY: price_id lookup, then metadata)
     let planId: string | null = null;
@@ -100,28 +110,29 @@ export async function POST(req: Request) {
     if (priceId) {
       planId = findPlanByPriceId(priceId);
       if (planId) {
-        console.log(`✅ Plan ID found from price lookup: ${planId} (${SUBSCRIPTION_PLANS[planId]?.name})`);
+        console.log(`✅ [STRIPE-DEBUG] Plan ID found from price lookup: ${planId} (${SUBSCRIPTION_PLANS[planId]?.name})`);
       } else {
-        console.warn(`⚠️ No plan found for price_id: ${priceId}`);
+        console.warn(`⚠️ [STRIPE-DEBUG] No plan found for price_id: ${priceId}`);
+        console.log(`   [STRIPE-DEBUG] Available Plans:`, JSON.stringify(SUBSCRIPTION_PLANS, null, 2));
       }
     }
 
     // Second try: Get from metadata (fallback)
     if (!planId && metadata?.targetPlanId) {
       planId = metadata.targetPlanId;
-      console.log(`📋 Plan ID from metadata: ${planId}`);
+      console.log(`📋 [STRIPE-DEBUG] Plan ID from metadata: ${planId}`);
     }
 
     // Third try: Check metadata.priceId
     if (!planId && metadata?.priceId) {
       planId = findPlanByPriceId(metadata.priceId);
       if (planId) {
-        console.log(`✅ Plan ID found from metadata.priceId: ${planId}`);
+        console.log(`✅ [STRIPE-DEBUG] Plan ID found from metadata.priceId: ${planId}`);
       }
     }
 
     if (!planId) {
-      console.warn(`⚠️ Could not determine plan_id for user ${userId}. Will update without changing plan_id.`);
+      console.warn(`⚠️ [STRIPE-DEBUG] Could not determine plan_id for user ${userId}. Will update without changing plan_id.`);
     }
 
     // 3. Prepare Update Data
@@ -131,7 +142,7 @@ export async function POST(req: Request) {
     if (typeof currentPeriodEnd === 'number' && !isNaN(currentPeriodEnd)) {
       endIso = new Date(currentPeriodEnd * 1000).toISOString();
     } else {
-      console.warn(`⚠️ Invalid currentPeriodEnd (${currentPeriodEnd}) for User ${userId}. Defaulting to +30 days.`);
+      console.warn(`⚠️ [STRIPE-DEBUG] Invalid currentPeriodEnd (${currentPeriodEnd}) for User ${userId}. Defaulting to +30 days.`);
       // Default to 30 days from now to keep the account active if we missed the date
       endIso = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
     }
@@ -145,7 +156,7 @@ export async function POST(req: Request) {
     // CRITICAL: Always set plan_id if we have one
     if (planId) {
       updateData.plan_id = planId;
-      console.log(`📌 Setting plan_id to: ${planId}`);
+      console.log(`📌 [STRIPE-DEBUG] Setting plan_id to: ${planId}`);
     }
 
     if (session.object === 'subscription') {
@@ -154,7 +165,7 @@ export async function POST(req: Request) {
       updateData.subscription_id = session.subscription;
     }
 
-    console.log(`🔄 Updating User ${userId}:`, JSON.stringify(updateData, null, 2));
+    console.log(`🔄 [STRIPE-DEBUG] Updating User ${userId} with data:`, JSON.stringify(updateData, null, 2));
 
     const { error } = await supabaseAdmin
       .from('users')
@@ -162,11 +173,11 @@ export async function POST(req: Request) {
       .eq('id', userId);
 
     if (error) {
-      console.error("❌ DB Update Error:", error);
+      console.error("❌ [STRIPE-DEBUG] DB Update Error:", error);
       return false;
     }
 
-    console.log(`✅ User ${userId} updated successfully!`);
+    console.log(`✅ [STRIPE-DEBUG] User ${userId} updated successfully!`);
     return true;
   };
 
