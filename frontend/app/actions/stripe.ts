@@ -119,7 +119,7 @@ export async function createSubscriptionCheckout(
     console.log(`[STRIPE-ACTION] Swapping item ${currentItemId} to price ${priceId}`);
 
     // Direct Update via Stripe API (No Checkout UI needed)
-    await stripe.subscriptions.update(currentSub.id, {
+    const updatedSub = await stripe.subscriptions.update(currentSub.id, {
       items: [{
         id: currentItemId,
         price: priceId, // Swap to new price
@@ -133,12 +133,31 @@ export async function createSubscriptionCheckout(
       proration_behavior: 'always_invoice',
     });
 
-    // ✅ OPTIMISTIC UPDATE: Update DB immediately so UI reflects change without waiting for webhook
+    // Cast to any to avoid TS issues and safely access properties
+    const subData = updatedSub as any;
+
+    // Safety fallback for date
+    let endIsoString = new Date().toISOString();
+    if (subData?.current_period_end) {
+      endIsoString = new Date(subData.current_period_end * 1000).toISOString();
+    } else if ((currentSub as any).current_period_end) {
+      // Fallback to previous period end if new one is missing
+      endIsoString = new Date((currentSub as any).current_period_end * 1000).toISOString();
+    } else {
+      // Fallback to +30 days
+      endIsoString = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
+    }
+
+    console.log(`[STRIPE-ACTION] Stripe update successful. New period end: ${subData?.current_period_end} -> ${endIsoString}`);
+
+    // ✅ OPTIMISTIC UPDATE: Update DB immediately with ALL details from the Stripe response
     const supabaseAdmin = createAdminClient();
     const { error: updateError } = await supabaseAdmin.from('users').update({
       plan_id: targetPlanId,
-      subscription_status: 'active', // Assume active after update
-      // We don't update current_period_end here as that requires complex calculation; webhook will handle it.
+      subscription_status: subData?.status || 'active',
+      subscription_id: subData?.id || currentSub.id,
+      current_period_end: endIsoString,
+      stripe_customer_id: customerId as string
     }).eq('id', user.id);
 
     if (updateError) {
