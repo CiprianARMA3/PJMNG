@@ -262,7 +262,8 @@ export async function getUserBillingInfo() {
 
   const { data: userData } = await supabase
     .from('users')
-    .select('stripe_customer_id, subscription_id, plan_id')
+    // ADDED current_period_end and subscription_status to the fetch from DB
+    .select('stripe_customer_id, subscription_id, plan_id, current_period_end, subscription_status') 
     .eq('id', user.id)
     .single();
 
@@ -270,7 +271,7 @@ export async function getUserBillingInfo() {
     return { invoices: [], subscription: null, planDetails: null };
   }
 
-  // Fetch plan details from database if plan_id exists
+  // Fetch plan details from database if plan_id exists (for monthly/yearly price comparison)
   let dbPlanDetails = null;
   if (userData?.plan_id) {
     const { data: planData } = await supabase
@@ -300,11 +301,12 @@ export async function getUserBillingInfo() {
     status: inv.status
   }));
 
-  // 2. Fetch Active Subscription
+  // 2. Fetch Active Subscription from Stripe
   let subscriptionDetails = null;
+  // Fetch status 'all' to include canceled subscriptions that are still active for the period
   const subscriptions = await stripe.subscriptions.list({
     customer: userData.stripe_customer_id,
-    status: 'active',
+    status: 'all', 
     limit: 1,
     expand: ['data.plan.product']
   });
@@ -312,7 +314,6 @@ export async function getUserBillingInfo() {
   if (subscriptions.data.length > 0) {
     const sub = subscriptions.data[0] as any;
 
-    // Robust Product Name & Price Fetching
     let productName = 'Unknown Plan';
     let amount = '0';
     let interval = 'month';
@@ -330,41 +331,38 @@ export async function getUserBillingInfo() {
       }
     }
 
-    let formattedDate = 'Unknown';
-    let expirationTimestamp = null;
-    if (sub.current_period_end) {
-      const dateObj = new Date(sub.current_period_end * 1000);
-      if (!isNaN(dateObj.getTime())) {
-        formattedDate = dateObj.toLocaleDateString('en-GB', {
-          day: '2-digit',
-          month: 'short',
-          year: 'numeric'
-        });
-        expirationTimestamp = dateObj.getTime();
-      }
-    }
+    // Use the reliable current_period_end from the Supabase profile
+    const renewalDate = userData.current_period_end; 
 
     subscriptionDetails = {
       id: sub.id,
       planName: productName,
       amount: amount,
       interval: interval,
-      currentPeriodEnd: formattedDate,
-      expirationTimestamp: expirationTimestamp,
+      currentPeriodEnd: renewalDate, // <-- FIXED: Directly use DB-synced date (ISO string)
       cancelAtPeriodEnd: sub.cancel_at_period_end,
       status: sub.status,
-      currentPeriodStart: sub.current_period_start ? new Date(sub.current_period_start * 1000).toLocaleDateString('en-GB', {
-        day: '2-digit',
-        month: 'short',
-        year: 'numeric'
-      }) : 'Unknown'
+    };
+  }
+
+  // Fallback if Stripe has no record but DB does (unlikely, but safe)
+  else if (userData.subscription_id && userData.subscription_status && userData.current_period_end) {
+    subscriptionDetails = {
+        id: userData.subscription_id,
+        planName: dbPlanDetails?.name || 'Unknown',
+        amount: 'N/A',
+        interval: 'N/A',
+        currentPeriodEnd: userData.current_period_end,
+        cancelAtPeriodEnd: userData.subscription_status === 'canceled',
+        status: userData.subscription_status,
+        currentPeriodStart: null // Default fallback value
     };
   }
 
   return {
     invoices: formattedInvoices,
     subscription: subscriptionDetails,
-    planDetails: dbPlanDetails
+    planDetails: dbPlanDetails // Contains monthly_price and yearly_price from the 'plans' table
   };
 }
 
