@@ -494,3 +494,53 @@ export async function getUpcomingInvoice(targetPlanId: string, targetInterval: '
     return null;
   }
 }
+
+
+export interface TokenTransaction {
+    id: number;
+    transaction_date: string;
+    model_key: string;
+    tokens_added: number;
+    source: string;
+}
+
+// --- NEW: Token Top-up History ---
+export async function getProjectTokenTopUpHistory(projectId: string): Promise<TokenTransaction[]> {
+  const supabase = createClient(cookies());
+  const { data: { user } } = await supabase.auth.getUser();
+
+  if (!user) throw new Error('Not authenticated');
+
+  // Authorization check (optional, RLS should handle this, but good practice)
+  const { data: project, error: projectError } = await supabase
+    .from('projects')
+    .select('id')
+    .eq('id', projectId)
+    .single();
+
+  if (projectError || !project) {
+      console.error('Project authorization failed or project not found:', projectError);
+      return [];
+  }
+
+  // Assuming a table named 'token_transactions' logs the top-up events
+  const { data: transactions, error: transactionsError } = await supabase
+    .from('token_transactions')
+    .select('id, created_at, model_key, tokens_added, source') // assuming created_at is the timestamp
+    .eq('project_id', projectId)
+    .order('created_at', { ascending: false });
+
+  if (transactionsError) {
+      console.error('Error fetching token transactions:', transactionsError);
+      return [];
+  }
+
+  // Map the fetched data to the client-side interface
+  return transactions.map(t => ({
+      id: t.id,
+      transaction_date: new Date(t.created_at).toISOString(),
+      model_key: t.model_key || 'Unknown Model',
+      tokens_added: t.tokens_added || 0,
+      source: t.source || 'Stripe Payment',
+  })) as TokenTransaction[];
+}

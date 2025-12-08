@@ -6,6 +6,8 @@ import { useParams, useRouter } from "next/navigation";
 import Menu from "../../components/menu"; 
 import React from "react";
 import { useProjectPermissions } from "@/hooks/useProjectPermissions";
+// Integrated Action and Type (TokenTransaction is used here)
+import { getProjectTokenTopUpHistory, TokenTransaction } from '@/app/actions/stripe';
 
 import { 
   BarChart, Bar, XAxis, YAxis, Tooltip as RechartsTooltip, 
@@ -44,6 +46,7 @@ type TokenLog = {
   project_id: string;
   user_id: string | null;
 };
+// Note: TokenTransaction is imported from '@/app/actions/stripe'
 
 type UserMapData = {
     id: string;
@@ -75,6 +78,16 @@ const formatModelName = (key: string) => {
     .replace('preview', 'Preview');
 };
 
+// --- HELPER: Format Number (used in history table) ---
+const formatNumber = (num: number) => num.toLocaleString('en-US');
+
+// --- HELPER: Format Date (used in history table) ---
+const formatDate = (dateString: string) => {
+    const date = new Date(dateString);
+    return date.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+};
+
+
 // --- COMPONENT: Simple Avatar ---
 const UserAvatar = ({ name, url, size = "w-6 h-6" }: { name: string, url: string | null, size?: string }) => {
     return (
@@ -97,8 +110,6 @@ export default function AIUsagePage() {
 
   const { checkAccess, loading: authLoading } = useProjectPermissions(projectId);
 
-
-
   // --- STATE ---
   const [user, setUser] = useState<any>(null);
   const [project, setProject] = useState<any>(null);
@@ -119,6 +130,10 @@ export default function AIUsagePage() {
   const [chartData, setChartData] = useState<ChartDataPoint[]>([]);
   const [tokenPack, setTokenPack] = useState<TokenPack['remaining_tokens']>({});
   const [totalCredits, setTotalCredits] = useState<number>(0);
+  
+  // NEW STATE for transaction history
+  const [transactions, setTransactions] = useState<TokenTransaction[]>([]); 
+  const [loadingTransactions, setLoadingTransactions] = useState(false);
 
   // Trend State
   const [usageTrend, setUsageTrend] = useState<number>(0); // Percentage
@@ -138,6 +153,8 @@ export default function AIUsagePage() {
   // --- DATA FETCHING ---
   const fetchData = async () => {
     setRefreshing(true);
+    setLoadingTransactions(true); // Start history loading
+    
     try {
         const id = projectId;
         if (!id) return;
@@ -161,15 +178,19 @@ export default function AIUsagePage() {
         endOfPrevWeek.setDate(endOfWeek.getDate() - 7);
 
         // Fetch Data
-        const [logsResponse, packResponse] = await Promise.all([
+        const [logsResponse, packResponse, transactionsResponse] = await Promise.all([
             supabase.from('token_usage_logs').select('*').eq('project_id', id).gte('created_at', startOfPrevWeek.toISOString()).order('created_at', { ascending: false }),
-            supabase.from('token_packs').select('remaining_tokens').eq('project_id', id).maybeSingle() 
+            supabase.from('token_packs').select('remaining_tokens').eq('project_id', id).maybeSingle(),
+            getProjectTokenTopUpHistory(id) // NEW: Fetch transaction history
         ]);
 
         if (logsResponse.error) throw logsResponse.error;
         
         const rawLogs = logsResponse.data || [];
         setLogs(rawLogs);
+        
+        // Set transactions state
+        setTransactions(transactionsResponse); 
 
         // Process Users
         const userIds = [...new Set(rawLogs.map(l => l.user_id).filter(Boolean))] as string[];
@@ -228,17 +249,14 @@ export default function AIUsagePage() {
         console.error("Error fetching AI data:", error);
     } finally {
         setRefreshing(false);
+        setLoadingTransactions(false); // Clear history loading
     }
   };
 
   const handleRefill = async () => {
       setIsRefilling(true);
       try {
-          // This is a simplified logic. In a real app, you'd likely pick WHICH model to refill
-          // or have a specific "available_credits" pool. 
-          // Here we just add to a 'general' pool or the first available key for demo purposes.
-          
-          const targetKey = "gemini-2.5-flash"; // Defaulting to one model for the demo
+          const targetKey = "gemini-2.5-flash"; 
           const currentAmount = tokenPack[targetKey] || 0;
           const newAmount = currentAmount + refillAmount;
           
@@ -253,7 +271,6 @@ export default function AIUsagePage() {
 
           if (error) throw error;
           
-          // Log the transaction (Optional - normally you'd have a transaction table)
           console.log("Tokens added");
           
           await fetchData();
@@ -291,7 +308,7 @@ export default function AIUsagePage() {
     return null;
   }
 
-        await fetchData(); // Wait for data to prevent flash of empty state
+        await fetchData(); 
         setLoading(false);
     };
     init();
@@ -710,14 +727,89 @@ export default function AIUsagePage() {
                 </div>
                 </>
             ) : (
-                // PLACEHOLDER FOR HISTORY TAB
-                <div className="flex flex-col items-center justify-center h-[50vh] text-zinc-500 animate-in fade-in zoom-in-95">
-                    <History size={48} className="mb-4 opacity-20" />
-                    <h2 className="text-lg font-medium text-zinc-300">Transaction History</h2>
-                    <p className="text-sm max-w-sm text-center mt-2">
-                        This view would contain the ledger of all credit additions and manual adjustments made by administrators.
-                    </p>
+                // TRANSACTION HISTORY TABLE (NEW IMPLEMENTATION)
+                <div className="px-6 py-6 animate-in fade-in slide-in-from-bottom-3 duration-500">
+                    <div className="bg-[#0C0C0E] border border-zinc-800 rounded-2xl overflow-hidden">
+                        <div className="p-6 border-b border-zinc-800 flex items-center justify-between">
+                            <h2 className="text-xl font-semibold text-white flex items-center gap-2">
+                                <History className="w-5 h-5 text-yellow-400" /> Token Top-up History
+                            </h2>
+                            <button 
+                                onClick={fetchData} 
+                                disabled={refreshing}
+                                className="p-2 bg-zinc-900/50 border border-zinc-800 rounded-lg text-zinc-500 hover:text-zinc-200 hover:bg-zinc-900 hover:border-zinc-700 transition-all active:scale-95 disabled:opacity-50"
+                            >
+                                <RefreshCw size={14} className={refreshing ? "animate-spin" : ""} />
+                            </button>
+                        </div>
+
+                        {loadingTransactions || refreshing ? (
+                            <div className="flex justify-center items-center py-12">
+                                <RefreshCw className="w-6 h-6 animate-spin text-white/50" />
+                                <span className="ml-3 text-white/50">Loading transactions...</span>
+                            </div>
+                        ) : (
+                            <div className="overflow-x-auto">
+                                <table className="min-w-full divide-y divide-[#1e1e22] text-sm text-white/80">
+                                    <thead className="bg-white/5">
+                                        <tr>
+                                            <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-white/60">
+                                                Date
+                                            </th>
+                                            <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-white/60">
+                                                Tokens Added
+                                            </th>
+                                            <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-white/60">
+                                                Model Key
+                                            </th>
+                                            <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-white/60">
+                                                Source
+                                            </th>
+                                            <th className="px-6 py-3 text-right text-xs font-medium uppercase tracking-wider text-white/60">
+                                                ID
+                                            </th>
+                                        </tr>
+                                    </thead>
+                                    <tbody className="divide-y divide-[#1e1e22]">
+                                        {transactions.length > 0 ? (
+                                            transactions.map((transaction, index) => (
+                                                <tr 
+                                                    key={transaction.id} 
+                                                    className="hover:bg-white/5 transition-colors animate-in fade-in slide-in-from-left-4 duration-300"
+                                                    style={{ animationDelay: `${index * 30}ms` }}
+                                                >
+                                                    <td className="px-6 py-4 whitespace-nowrap">
+                                                        {formatDate(transaction.transaction_date)}
+                                                    </td>
+                                                    <td className="px-6 py-4 whitespace-nowrap font-medium text-emerald-400">
+                                                        +{formatNumber(transaction.tokens_added)}
+                                                    </td>
+                                                    <td className="px-6 py-4 whitespace-nowrap font-mono text-xs">
+                                                        {formatModelName(transaction.model_key)}
+                                                    </td>
+                                                    <td className="px-6 py-4 whitespace-nowrap">
+                                                        {transaction.source}
+                                                    </td>
+                                                    <td className="px-6 py-4 whitespace-nowrap text-right font-mono text-xs text-zinc-500">
+                                                        {String(transaction.id).substring(0, 10)}... {/* FIX: Convert to string */}
+                                                    </td>
+                                                </tr>
+                                            ))
+                                        ) : (
+                                            <tr>
+                                                <td colSpan={5} className="px-6 py-10 text-center text-white/50">
+                                                    <Wallet size={24} className="mx-auto mb-2 opacity-50"/>
+                                                    No token top-up transactions found for this project.
+                                                </td>
+                                            </tr>
+                                        )}
+                                    </tbody>
+                                </table>
+                            </div>
+                        )}
+                    </div>
                 </div>
+                // END OF TRANSACTION HISTORY TABLE
             )}
         </div>
       </main>
