@@ -197,11 +197,6 @@ export async function createTokenPackCheckout(
         product: pack.baseProductId,
         unit_amount: pack.unitAmount,
         tax_behavior: 'exclusive' as const,
-        product_data: {
-          name: `${pack.modelKey} Tokens`,
-          description: `${(pack.amount / 1000).toFixed(0)}k Token Pack (Enterprise Rate)`,
-          metadata: { modelKey: pack.modelKey }
-        }
       },
       quantity: 1,
     };
