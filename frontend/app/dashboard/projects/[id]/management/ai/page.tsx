@@ -46,7 +46,6 @@ type TokenLog = {
   project_id: string;
   user_id: string | null;
 };
-// Note: TokenTransaction is imported from '@/app/actions/stripe'
 
 type UserMapData = {
     id: string;
@@ -78,11 +77,12 @@ const formatModelName = (key: string) => {
     .replace('preview', 'Preview');
 };
 
-// --- HELPER: Format Number (used in history table) ---
+// --- HELPER: Format Number ---
 const formatNumber = (num: number) => num.toLocaleString('en-US');
 
-// --- HELPER: Format Date (used in history table) ---
+// --- HELPER: Format Date ---
 const formatDate = (dateString: string) => {
+    if (!dateString) return 'N/A';
     const date = new Date(dateString);
     return date.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
 };
@@ -150,10 +150,11 @@ export default function AIUsagePage() {
     { id: "gemini-2.5-flash", name: "Gemini 2.5 Flash", icon: Zap, description: "Fast & Efficient" },
   ];
 
-  // --- DATA FETCHING ---
+  // --- DATA FETCHING (REVISED FOR ROBUSTNESS) ---
   const fetchData = async () => {
-    setRefreshing(true);
-    setLoadingTransactions(true); // Start history loading
+    // Only set general refreshing state if fetching all data (initial load or full refresh)
+    if (loading || activeTab === 'overview') setRefreshing(true);
+    if (activeTab === 'history') setLoadingTransactions(true);
     
     try {
         const id = projectId;
@@ -177,19 +178,28 @@ export default function AIUsagePage() {
         const endOfPrevWeek = new Date(endOfWeek);
         endOfPrevWeek.setDate(endOfWeek.getDate() - 7);
 
-        // Fetch Data
+        // --- Execute concurrent data fetches ---
         const [logsResponse, packResponse, transactionsResponse] = await Promise.all([
+            // 1. Token Usage Logs
             supabase.from('token_usage_logs').select('*').eq('project_id', id).gte('created_at', startOfPrevWeek.toISOString()).order('created_at', { ascending: false }),
+            
+            // 2. Token Packs/Credits
             supabase.from('token_packs').select('remaining_tokens').eq('project_id', id).maybeSingle(),
-            getProjectTokenTopUpHistory(id) // NEW: Fetch transaction history
+            
+            // 3. Transaction History (Server Action)
+            getProjectTokenTopUpHistory(id).catch(err => {
+                console.error("Failed to fetch transaction history in server action:", err);
+                return []; // Return empty array on failure
+            })
         ]);
 
         if (logsResponse.error) throw logsResponse.error;
         
+        // --- Process Usage Data ---
         const rawLogs = logsResponse.data || [];
         setLogs(rawLogs);
         
-        // Set transactions state
+        // --- Process Transaction Data ---
         setTransactions(transactionsResponse); 
 
         // Process Users
@@ -249,7 +259,7 @@ export default function AIUsagePage() {
         console.error("Error fetching AI data:", error);
     } finally {
         setRefreshing(false);
-        setLoadingTransactions(false); // Clear history loading
+        setLoadingTransactions(false);
     }
   };
 
@@ -736,10 +746,10 @@ export default function AIUsagePage() {
                             </h2>
                             <button 
                                 onClick={fetchData} 
-                                disabled={refreshing}
+                                disabled={refreshing || loadingTransactions}
                                 className="p-2 bg-zinc-900/50 border border-zinc-800 rounded-lg text-zinc-500 hover:text-zinc-200 hover:bg-zinc-900 hover:border-zinc-700 transition-all active:scale-95 disabled:opacity-50"
                             >
-                                <RefreshCw size={14} className={refreshing ? "animate-spin" : ""} />
+                                <RefreshCw size={14} className={refreshing || loadingTransactions ? "animate-spin" : ""} />
                             </button>
                         </div>
 
@@ -791,7 +801,7 @@ export default function AIUsagePage() {
                                                         {transaction.source}
                                                     </td>
                                                     <td className="px-6 py-4 whitespace-nowrap text-right font-mono text-xs text-zinc-500">
-                                                        {String(transaction.id).substring(0, 10)}... {/* FIX: Convert to string */}
+                                                        {String(transaction.id).substring(0, 10)}... 
                                                     </td>
                                                 </tr>
                                             ))
