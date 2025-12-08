@@ -71,7 +71,12 @@ export default function BillingPage() {
     if (loading) return <div className="p-8 flex justify-center"><Loader2 className="animate-spin text-white w-8 h-8" /></div>;
 
     const daysLeft = getDaysUntilExpiration();
-    const hasActiveSubscription = subscriptionData && subscriptionData.plan_id && subscriptionData.subscription_status === 'active';
+    // Show subscription if plan_id exists and status is valid (active, trialing, or canceled but not yet expired)
+    const hasActiveSubscription = subscriptionData && subscriptionData.plan_id && (
+        subscriptionData.subscription_status === 'active' ||
+        subscriptionData.subscription_status === 'trialing' ||
+        (subscriptionData.subscription_status === 'canceled' && daysLeft !== null && daysLeft > 0)
+    );
     const isSubscriptionCancelled = subscriptionData?.subscription_status === 'canceled' || subscriptionData?.subscription_status === 'canceling';
 
     return (

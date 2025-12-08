@@ -1,9 +1,11 @@
 "use client";
 import { useState, useEffect, useCallback, useTransition, useMemo } from "react";
+import { useRouter } from "next/navigation";
 import { createClient } from "@/utils/supabase/client";
 import PRICING_TABLE from "./pricingTable";
 import { ChevronRight, Loader2, CheckCircle2, ArrowUpCircle, ArrowDownCircle, AlertTriangle, X } from "lucide-react";
 import { createSubscriptionCheckout, getUserBillingInfo } from "@/app/actions/stripe";
+import { getUserSubscriptionData } from "@/app/actions/getUserSubscriptionData";
 import { PLAN_UUIDS } from "@/utils/stripe/config";
 
 interface Plan {
@@ -375,6 +377,7 @@ const PricingCard = ({
 // --- Main Container ---
 
 export default function PricingInterface() {
+  const router = useRouter();
   const [plans, setPlans] = useState<Plan[]>([]);
   const [isMonthly, setIsMonthly] = useState(true);
   const [loading, setLoading] = useState(true);
@@ -420,9 +423,9 @@ export default function PricingInterface() {
         if (plansError) throw plansError;
 
         // 2. Fetch User's Real Subscription Info
-        const billingInfo = await getUserBillingInfo();
-        if (billingInfo?.subscription && !billingInfo.subscription.cancelAtPeriodEnd) {
-          setCurrentPlan(billingInfo.subscription.planName);
+        const subscriptionData = await getUserSubscriptionData();
+        if (subscriptionData?.planName && subscriptionData.subscription_status === 'active') {
+          setCurrentPlan(subscriptionData.planName);
         }
 
         const mappedPlans: Plan[] = (plansData || []).map((p: any) => ({
@@ -452,13 +455,9 @@ export default function PricingInterface() {
 
   // --- Handlers ---
   const handleSelectPlan = (plan: Plan) => {
-    const priceAmount = isMonthly ? plan.monthly_price : plan.yearly_price;
-    setSelectedPlan({
-      name: plan.name,
-      price: `€${priceAmount}/${isMonthly ? 'mo' : 'yr'}`
-    });
-    setIsSuccess(false); // Reset
-    setModalOpen(true);
+    const planId = plan.id;
+    const interval = isMonthly ? 'month' : 'year';
+    router.push(`/dashboard/checkout?planId=${planId}&interval=${interval}`);
   };
 
   const confirmSubscription = async () => {
@@ -544,17 +543,7 @@ export default function PricingInterface() {
       {/* Table */}
       <PRICING_TABLE currentPlanName={currentPlan} />
 
-      {/* --- CONFIRMATION MODAL --- */}
-      <ConfirmationModal
-        isOpen={modalOpen}
-        onClose={() => setModalOpen(false)}
-        onConfirm={confirmSubscription}
-        isLoading={isPending}
-        isSuccess={isSuccess}
-        planName={selectedPlan?.name || ''}
-        price={selectedPlan?.price || ''}
-        isUpgrade={isUpgrade}
-      />
+
     </div>
   );
 }
