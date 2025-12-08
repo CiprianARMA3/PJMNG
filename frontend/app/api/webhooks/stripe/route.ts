@@ -233,8 +233,47 @@ export async function POST(req: Request) {
     if (metadata?.type === 'token_refill') {
       try {
         const projectId = metadata.projectId;
+        const userId = metadata.userId; // User who initiated the checkout
         const newTokens = JSON.parse(metadata.purchased_tokens || '{}');
         const amountPaid = session.amount_total / 100;
+        const currency = session.currency.toUpperCase() || 'EUR';
+
+        // --- Log Transaction to token_transactions table ---
+        const tokenEntries = Object.entries(newTokens).filter(([, tokens]) => Number(tokens) > 0);
+        
+        const totalTokensPurchased = tokenEntries.reduce((sum, [, tokens]) => sum + Number(tokens), 0);
+        // Calculate price per token to split the total payment amount accurately across models
+        const pricePerToken = totalTokensPurchased > 0 ? amountPaid / totalTokensPurchased : 0;
+        
+        for (const [modelKey, tokensAdded] of tokenEntries) {
+            const tokenAmount = Number(tokensAdded);
+            // Calculate the proportional cost for this specific model's tokens
+            const transactionAmount = tokenAmount * pricePerToken; 
+            
+            // Log the transaction
+            const { error: transactionError } = await supabaseAdmin.from('token_transactions').insert({
+                user_id: userId,
+                project_id: projectId,
+                model_key: modelKey,
+                tokens_added: tokenAmount,
+                amount_paid: parseFloat(transactionAmount.toFixed(2)), // Ensure DECIMAL precision for DB
+                currency: currency,
+                source: 'Stripe Token Pack Purchase',
+                stripe_session_id: session.id,
+                metadata: { 
+                    checkout_session_id: session.id,
+                    token_pack_breakdown: newTokens // Log full breakdown for context
+                }
+            });
+            
+            if (transactionError) {
+                console.error(`❌ Error logging token transaction for model ${modelKey}:`, transactionError);
+            } else {
+                console.log(`✅ Logged token transaction for Project ${projectId}, Model ${modelKey}.`);
+            }
+        }
+        // --- End Transaction Logging ---
+
 
         const { data: existingPack } = await supabaseAdmin
           .from('token_packs')
