@@ -414,3 +414,85 @@ export async function getUserInvoices() {
 
   return formattedInvoices;
 }
+
+// --- FIXED FUNCTION ---
+export async function getUpcomingInvoice(targetPlanId: string, targetInterval: 'month' | 'year') {
+  const supabase = createClient(cookies());
+  const { data: { user } } = await supabase.auth.getUser();
+
+  if (!user) throw new Error('Not authenticated');
+
+  // 1. Get User Data
+  const { data: userData } = await supabase
+    .from('users')
+    .select('stripe_customer_id, subscription_id')
+    .eq('id', user.id)
+    .single();
+
+  if (!userData?.stripe_customer_id) return null;
+
+  // 2. Get Target Price ID
+  const targetPlanConfig = SUBSCRIPTION_PLANS[targetPlanId];
+  if (!targetPlanConfig) throw new Error('Invalid Plan');
+  const targetPriceId = targetPlanConfig.prices[targetInterval];
+
+  // 3. Check for existing subscription
+  const subscriptions = await stripe.subscriptions.list({
+    customer: userData.stripe_customer_id,
+    status: 'active',
+    limit: 1,
+  });
+
+  try {
+    let upcoming;
+    
+    if (subscriptions.data.length > 0) {
+      // PRORATION MODE: Preview update to existing subscription
+      const currentSub = subscriptions.data[0];
+      const currentItemId = currentSub.items.data[0].id;
+
+      // UPDATED: Use createPreview with subscription_details
+      upcoming = await stripe.invoices.createPreview({
+        customer: userData.stripe_customer_id,
+        subscription: currentSub.id,
+        subscription_details: {
+            items: [{
+                id: currentItemId,
+                price: targetPriceId, 
+            }],
+            proration_behavior: 'always_invoice',
+        }
+      });
+    } else {
+      // NEW SUBSCRIPTION MODE: Preview new subscription
+      upcoming = await stripe.invoices.createPreview({
+        customer: userData.stripe_customer_id,
+        subscription_details: {
+            items: [{
+                price: targetPriceId,
+                quantity: 1,
+            }],
+        }
+      });
+    }
+
+    return {
+      amountDue: upcoming.amount_due,
+      subtotal: upcoming.subtotal,
+      total: upcoming.total,
+      currency: upcoming.currency,
+      lines: upcoming.lines.data.map((l: any) => ({
+        description: l.description,
+        amount: l.amount,
+        period: {
+          start: new Date(l.period.start * 1000).toLocaleDateString(),
+          end: new Date(l.period.end * 1000).toLocaleDateString()
+        }
+      }))
+    };
+
+  } catch (error) {
+    console.error("Error fetching upcoming invoice:", error);
+    return null;
+  }
+}
