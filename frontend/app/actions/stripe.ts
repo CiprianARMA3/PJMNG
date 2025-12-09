@@ -102,81 +102,35 @@ export async function createSubscriptionCheckout(
     await supabase.from('users').update({ stripe_customer_id: customerId }).eq('id', user.id);
   }
 
+  // Check for existing subscription
   const activeSubs = await stripe.subscriptions.list({
     customer: customerId,
     status: 'active',
     limit: 1
   });
 
+  let previousSubscriptionId = null;
   if (activeSubs.data.length > 0) {
-    // USER HAS A SUBSCRIPTION -> SWAP IT
-    const currentSub = activeSubs.data[0];
-    const currentItemId = currentSub.items.data[0].id;
-
-    console.log(`[STRIPE-ACTION] Found active subscription ${currentSub.id}. Upgrading/Downgrading...`);
-    console.log(`[STRIPE-ACTION] Swapping item ${currentItemId} to price ${priceId}`);
-
-    const updatedSub = await stripe.subscriptions.update(currentSub.id, {
-      items: [{
-        id: currentItemId,
-        price: priceId,
-      }],
-      metadata: {
-        userId: user.id,
-        targetPlanId: targetPlanId,
-        type: 'subscription_update'
-      },
-      proration_behavior: 'always_invoice',
-      billing_cycle_anchor: 'now',
-    });
-
-    const subData = updatedSub as any;
-
-    let endIsoString = new Date().toISOString();
-    if (subData?.current_period_end) {
-      endIsoString = new Date(subData.current_period_end * 1000).toISOString();
-    } else if ((currentSub as any).current_period_end) {
-      endIsoString = new Date((currentSub as any).current_period_end * 1000).toISOString();
-    } else {
-      endIsoString = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
-    }
-
-    console.log(`[STRIPE-ACTION] Stripe update successful. New period end: ${subData?.current_period_end} -> ${endIsoString}`);
-
-    // ✅ OPTIMISTIC UPDATE
-    const supabaseAdmin = createAdminClient();
-    const { error: updateError } = await supabaseAdmin.from('users').update({
-      plan_id: targetPlanId,
-      subscription_status: subData?.status || 'active',
-      subscription_id: subData?.id || currentSub.id,
-      current_period_end: endIsoString,
-      stripe_customer_id: customerId as string
-    }).eq('id', user.id);
-
-    if (updateError) {
-      console.error(`[STRIPE-ACTION] Optimistic update failed:`, updateError);
-    } else {
-      console.log(`✅ [STRIPE-ACTION] Optimistically updated User ${user.id} to plan ${targetPlanId}`);
-    }
-
-    redirect(`${getBaseUrl()}/dashboard?updated=true`);
-    return;
+    previousSubscriptionId = activeSubs.data[0].id;
+    console.log(`[STRIPE-ACTION] Found existing subscription ${previousSubscriptionId}. Will replace via Checkout.`);
   }
 
-  // --- 5. NO EXISTING SUBSCRIPTION -> CREATE CHECKOUT ---
-  console.log(`[STRIPE-ACTION] No existing subscription. Creating new checkout session...`);
+  // --- ALWAYS CREATE CHECKOUT SESSION (Redirects User) ---
+  console.log(`[STRIPE-ACTION] Creating checkout session for ${targetPlanId}...`);
 
   const session = await stripe.checkout.sessions.create({
     customer: customerId,
     line_items: [{ price: priceId, quantity: 1 }],
     mode: 'subscription',
     success_url: `${getBaseUrl()}/dashboard?subscription_success=true`,
-    cancel_url: `${getBaseUrl()}/dashboard/components/subscriptionFolder?canceled=true`,
+    cancel_url: `${getBaseUrl()}/dashboard/checkout?planId=${targetPlanId}&interval=${interval}&canceled=true`,
     metadata: {
       userId: user.id,
       targetPlanId: targetPlanId,
       type: 'subscription_update',
-      priceId: priceId
+      priceId: priceId,
+      // IMPORTANT: Pass the old subscription ID so the webhook can cancel it
+      previous_subscription_id: previousSubscriptionId || ''
     },
     subscription_data: {
       metadata: {
@@ -187,34 +141,40 @@ export async function createSubscriptionCheckout(
     }
   });
 
-  // ✅ CRITICAL FIX: Optimistic DB Update BEFORE redirecting to Stripe
-  // This ensures the DB is updated even if webhook fails
-  console.log(`[STRIPE-ACTION] Performing optimistic DB update for new subscription...`);
+  // ✅ OPTIMISTIC DB UPDATE
+  // We explicitly calculate the date based on the interval to fix the "Annual counts as Monthly" bug.
+  console.log(`[STRIPE-ACTION] Performing optimistic DB update...`);
 
   const supabaseAdmin = createAdminClient();
   const futureEndDate = new Date();
-  futureEndDate.setMonth(futureEndDate.getMonth() + (interval === 'year' ? 12 : 1));
+  
+  if (interval === 'year') {
+    futureEndDate.setFullYear(futureEndDate.getFullYear() + 1);
+  } else {
+    futureEndDate.setMonth(futureEndDate.getMonth() + 1);
+  }
+  
   const endIsoString = futureEndDate.toISOString();
 
   const { error: optimisticError } = await supabaseAdmin.from('users').update({
     plan_id: targetPlanId,
-    subscription_status: 'active',
+    // We set status to 'active' optimistically, but the real status comes from webhook
+    subscription_status: 'active', 
     subscription_id: session.subscription as string || 'pending',
     current_period_end: endIsoString,
     stripe_customer_id: customerId as string
   }).eq('id', user.id);
 
   if (optimisticError) {
-    console.error(`[STRIPE-ACTION] Optimistic update for new subscription failed:`, optimisticError);
-    // Don't throw - still redirect to Stripe so webhook can fix it
+    console.error(`[STRIPE-ACTION] Optimistic update failed:`, optimisticError);
   } else {
-    console.log(`✅ [STRIPE-ACTION] Optimistically updated User ${user.id} for new subscription (Plan: ${targetPlanId})`);
+    console.log(`✅ [STRIPE-ACTION] Optimistically updated User ${user.id} to plan ${targetPlanId}. End date: ${endIsoString}`);
   }
 
   if (session.url) redirect(session.url);
 }
 
-// --- Action: Create Checkout ---
+// --- Action: Create Checkout for Tokens ---
 export async function createTokenPackCheckout(
   projectId: string,
   pack: {
@@ -269,7 +229,6 @@ export async function createTokenPackCheckout(
   }
 
   console.log(`[STRIPE-TOKEN] Creating token pack checkout for Project ${projectId}, User ${user.id}`);
-  console.log(`[STRIPE-TOKEN] Pack details:`, JSON.stringify(pack, null, 2));
 
   const session = await stripe.checkout.sessions.create({
     customer_email: user.email,
@@ -288,8 +247,6 @@ export async function createTokenPackCheckout(
     },
   });
 
-  console.log(`[STRIPE-TOKEN] Checkout session created: ${session.id}`);
-
   if (session.url) redirect(session.url);
 }
 
@@ -300,7 +257,6 @@ export async function verifyTokenPurchase(sessionId: string) {
   console.log(`🔍 [STRIPE-VERIFY] Verifying session: ${sessionId}`);
 
   try {
-    // 1. Retrieve Session
     const session = await stripe.checkout.sessions.retrieve(sessionId);
 
     if (session.payment_status !== 'paid') {
@@ -313,7 +269,6 @@ export async function verifyTokenPurchase(sessionId: string) {
       return { success: false, message: 'Invalid session type' };
     }
 
-    // 2. Check if already processed (Idempotency)
     const { data: existingTx } = await supabaseAdmin
       .from('token_transactions')
       .select('id')
@@ -321,12 +276,8 @@ export async function verifyTokenPurchase(sessionId: string) {
       .single();
 
     if (existingTx) {
-      console.log(`✅ [STRIPE-VERIFY] Transaction already processed.`);
       return { success: true, message: 'Already processed' };
     }
-
-    // 3. Process Update (Same logic as webhook)
-    console.log(`🔄 [STRIPE-VERIFY] Processing manual update...`);
 
     const projectId = metadata.projectId;
     const userId = metadata.userId;
@@ -334,7 +285,6 @@ export async function verifyTokenPurchase(sessionId: string) {
     const amountPaid = session.amount_total ? session.amount_total / 100 : 0;
     const currency = session.currency ? session.currency.toUpperCase() : 'EUR';
 
-    // A. Log Transaction
     const tokenEntries = Object.entries(newTokens).filter(([, tokens]) => Number(tokens) > 0);
     const totalTokensPurchased = tokenEntries.reduce((sum, [, tokens]) => sum + Number(tokens), 0);
     const pricePerToken = totalTokensPurchased > 0 ? amountPaid / totalTokensPurchased : 0;
@@ -359,7 +309,6 @@ export async function verifyTokenPurchase(sessionId: string) {
       });
     }
 
-    // B. Update Wallet
     const { data: packs } = await supabaseAdmin
       .from('token_packs')
       .select('*')
@@ -417,7 +366,7 @@ export async function verifyTokenPurchase(sessionId: string) {
   }
 }
 
-// --- Subscription ---
+// --- Subscription Session ---
 export async function createSubscriptionSession(priceId: string, projectId?: string) {
   const supabase = createClient(cookies());
   const { data: { user } } = await supabase.auth.getUser();
@@ -435,8 +384,7 @@ export async function createSubscriptionSession(priceId: string, projectId?: str
   if (session.url) redirect(session.url);
 }
 
-// --- NEW: Billing & Invoices ---
-
+// --- Billing & Invoices ---
 export async function getUserBillingInfo() {
   const supabase = createClient(cookies());
   const { data: { user } } = await supabase.auth.getUser();
@@ -445,7 +393,6 @@ export async function getUserBillingInfo() {
 
   const { data: userData } = await supabase
     .from('users')
-    // ADDED current_period_end and subscription_status to the fetch from DB
     .select('stripe_customer_id, subscription_id, plan_id, current_period_end, subscription_status')
     .eq('id', user.id)
     .single();
@@ -454,7 +401,6 @@ export async function getUserBillingInfo() {
     return { invoices: [], subscription: null, planDetails: null };
   }
 
-  // Fetch plan details from database if plan_id exists (for monthly/yearly price comparison)
   let dbPlanDetails = null;
   if (userData?.plan_id) {
     const { data: planData } = await supabase
@@ -468,7 +414,6 @@ export async function getUserBillingInfo() {
     }
   }
 
-  // 1. Fetch Invoices
   const invoices = await stripe.invoices.list({
     customer: userData.stripe_customer_id,
     limit: 10,
@@ -484,9 +429,7 @@ export async function getUserBillingInfo() {
     status: inv.status
   }));
 
-  // 2. Fetch Active Subscription from Stripe
   let subscriptionDetails = null;
-  // Fetch status 'all' to include canceled subscriptions that are still active for the period
   const subscriptions = await stripe.subscriptions.list({
     customer: userData.stripe_customer_id,
     status: 'all',
@@ -514,7 +457,6 @@ export async function getUserBillingInfo() {
       }
     }
 
-    // Use the reliable current_period_end from the Supabase profile
     const renewalDate = userData.current_period_end;
 
     subscriptionDetails = {
@@ -522,13 +464,11 @@ export async function getUserBillingInfo() {
       planName: productName,
       amount: amount,
       interval: interval,
-      currentPeriodEnd: renewalDate, // <-- FIXED: Directly use DB-synced date (ISO string)
+      currentPeriodEnd: renewalDate,
       cancelAtPeriodEnd: sub.cancel_at_period_end,
       status: sub.status,
     };
   }
-
-  // Fallback if Stripe has no record but DB does (unlikely, but safe)
   else if (userData.subscription_id && userData.subscription_status && userData.current_period_end) {
     subscriptionDetails = {
       id: userData.subscription_id,
@@ -538,14 +478,14 @@ export async function getUserBillingInfo() {
       currentPeriodEnd: userData.current_period_end,
       cancelAtPeriodEnd: userData.subscription_status === 'canceled',
       status: userData.subscription_status,
-      currentPeriodStart: null // Default fallback value
+      currentPeriodStart: null
     };
   }
 
   return {
     invoices: formattedInvoices,
     subscription: subscriptionDetails,
-    planDetails: dbPlanDetails // Contains monthly_price and yearly_price from the 'plans' table
+    planDetails: dbPlanDetails
   };
 }
 
@@ -560,7 +500,6 @@ export async function cancelUserSubscription(subscriptionId: string) {
   }
 }
 
-// Fetch user invoices from Stripe
 export async function getUserInvoices() {
   const supabase = createClient(cookies());
   const { data: { user } } = await supabase.auth.getUser();
@@ -577,14 +516,13 @@ export async function getUserInvoices() {
     return [];
   }
 
-  // Fetch Invoices from Stripe
   const invoices = await stripe.invoices.list({
     customer: userData.stripe_customer_id,
     limit: 10,
     status: 'paid'
   });
 
-  const formattedInvoices = invoices.data.map(inv => ({
+  return invoices.data.map(inv => ({
     id: inv.id,
     date: new Date(inv.created * 1000).toLocaleDateString(),
     amount: (inv.amount_paid / 100).toFixed(2),
@@ -592,35 +530,30 @@ export async function getUserInvoices() {
     pdfUrl: inv.invoice_pdf,
     status: inv.status
   }));
-
-  return formattedInvoices;
 }
 
-// --- FIXED FUNCTION ---
+// --- UPDATED: Get Upcoming Invoice (Preview) ---
 export async function getUpcomingInvoice(targetPlanId: string, targetInterval: 'month' | 'year') {
   const supabase = createClient(cookies());
   const { data: { user } } = await supabase.auth.getUser();
 
   if (!user) throw new Error('Not authenticated');
 
-  // 1. Get User Data
   const { data: userData } = await supabase
     .from('users')
-    .select('stripe_customer_id, subscription_id')
+    .select('stripe_customer_id')
     .eq('id', user.id)
     .single();
 
   if (!userData?.stripe_customer_id) return null;
 
-  // 2. Get Target Price ID
   const targetPlanConfig = SUBSCRIPTION_PLANS[targetPlanId];
   if (!targetPlanConfig) throw new Error('Invalid Plan');
   const targetPriceId = targetPlanConfig.prices[targetInterval];
 
   try {
-    // ALWAYS PREVIEW AS NEW SUBSCRIPTION
-    // We are using the "Cancel Old + Create New" strategy, so the user will see the full price of the new plan.
-    // Proration credits will be applied to their customer balance by Stripe when we cancel the old sub.
+    // We create a preview of a NEW subscription to show the user what they will be charged
+    // in the subsequent Checkout flow.
     const upcoming = await stripe.invoices.createPreview({
       customer: userData.stripe_customer_id,
       subscription_details: {
@@ -652,7 +585,6 @@ export async function getUpcomingInvoice(targetPlanId: string, targetInterval: '
   }
 }
 
-
 export interface TokenTransaction {
   id: number;
   transaction_date: string;
@@ -661,14 +593,12 @@ export interface TokenTransaction {
   source: string;
 }
 
-// --- NEW: Token Top-up History ---
 export async function getProjectTokenTopUpHistory(projectId: string): Promise<TokenTransaction[]> {
   const supabase = createClient(cookies());
   const { data: { user } } = await supabase.auth.getUser();
 
   if (!user) throw new Error('Not authenticated');
 
-  // Authorization check (optional, RLS should handle this, but good practice)
   const { data: project, error: projectError } = await supabase
     .from('projects')
     .select('id')
@@ -676,14 +606,13 @@ export async function getProjectTokenTopUpHistory(projectId: string): Promise<To
     .single();
 
   if (projectError || !project) {
-    console.error('Project authorization failed or project not found:', projectError);
+    console.error('Project authorization failed:', projectError);
     return [];
   }
 
-  // Assuming a table named 'token_transactions' logs the top-up events
   const { data: transactions, error: transactionsError } = await supabase
     .from('token_transactions')
-    .select('id, created_at, model_key, tokens_added, source') // assuming created_at is the timestamp
+    .select('id, created_at, model_key, tokens_added, source')
     .eq('project_id', projectId)
     .order('created_at', { ascending: false });
 
@@ -692,7 +621,6 @@ export async function getProjectTokenTopUpHistory(projectId: string): Promise<To
     return [];
   }
 
-  // Map the fetched data to the client-side interface
   return transactions.map(t => ({
     id: t.id,
     transaction_date: new Date(t.created_at).toISOString(),
@@ -702,7 +630,6 @@ export async function getProjectTokenTopUpHistory(projectId: string): Promise<To
   })) as TokenTransaction[];
 }
 
-// --- NEW: Verify Subscription (Fallback for Webhooks) ---
 export async function verifyUserSubscription() {
   const supabase = createClient(cookies());
   const { data: { user } } = await supabase.auth.getUser();
@@ -712,7 +639,6 @@ export async function verifyUserSubscription() {
   try {
     const supabaseAdmin = createAdminClient();
 
-    // 1. Get Customer ID
     const { data: userData } = await supabaseAdmin
       .from('users')
       .select('stripe_customer_id')
@@ -723,7 +649,6 @@ export async function verifyUserSubscription() {
       return { success: false, error: 'No Stripe customer found' };
     }
 
-    // 2. Fetch Active Subscription from Stripe
     const subscriptions = await stripe.subscriptions.list({
       customer: userData.stripe_customer_id,
       status: 'active',
@@ -738,10 +663,7 @@ export async function verifyUserSubscription() {
     const sub = subscriptions.data[0];
     const priceId = sub.items.data[0].price.id;
 
-    // 3. Find Plan ID
     let planId: string | null = null;
-
-    // Helper to match Stripe Price ID to Plan IDs (duplicated from webhook for safety)
     const findPlanByPriceId = (pId: string) => {
       for (const [pIdKey, config] of Object.entries(SUBSCRIPTION_PLANS)) {
         if (config.prices.month === pId || config.prices.year === pId) {
@@ -753,21 +675,14 @@ export async function verifyUserSubscription() {
 
     planId = findPlanByPriceId(priceId);
 
-    // Fallback: Check metadata if price lookup fails
     if (!planId && sub.metadata?.targetPlanId) {
       planId = sub.metadata.targetPlanId;
     }
 
-    // Fallback: Check subscription items metadata
     if (!planId && sub.items.data[0]?.price?.id) {
       planId = findPlanByPriceId(sub.items.data[0].price.id);
     }
 
-    if (!planId) {
-      console.warn(`Could not identify plan for price ${priceId}`);
-    }
-
-    // 4. Update DB
     const endIso = (sub as any).current_period_end
       ? new Date((sub as any).current_period_end * 1000).toISOString()
       : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
@@ -779,15 +694,9 @@ export async function verifyUserSubscription() {
       stripe_customer_id: userData.stripe_customer_id
     };
 
-    // CRITICAL: Only update plan_id if we found it. 
     if (planId) {
       updateData.plan_id = planId;
-      console.log(`📌 [STRIPE-VERIFY] Setting plan_id to: ${planId}`);
-    } else {
-      console.warn(`⚠️ [STRIPE-VERIFY] plan_id is NULL. DB might not update plan.`);
     }
-
-    console.log(`🔄 [STRIPE-VERIFY] Updating User ${user.id} with data:`, JSON.stringify(updateData, null, 2));
 
     const { error } = await supabaseAdmin
       .from('users')
@@ -795,13 +704,8 @@ export async function verifyUserSubscription() {
       .eq('id', user.id);
 
     if (error) {
-      console.error(`❌ [STRIPE-VERIFY] DB Update Error:`, error);
       return { success: false, error: error.message };
     }
-
-    // VERIFICATION
-    const { data: verifyUser } = await supabaseAdmin.from('users').select('plan_id').eq('id', user.id).single();
-    console.log(`✅ [STRIPE-VERIFY] User ${user.id} updated! Current DB plan_id: ${verifyUser?.plan_id}`);
 
     return { success: true, planId };
 
