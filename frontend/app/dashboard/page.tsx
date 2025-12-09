@@ -1,9 +1,10 @@
 "use client";
 import { useState, useEffect, Suspense, lazy, useCallback, useMemo } from "react";
 import { createClient } from "@/utils/supabase/client";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import useRequireAuth from "@/hooks/useRequireAuth";
 import Image from 'next/image';
+import { verifyUserSubscription } from "@/app/actions/stripe";
 import {
   Home,
   Mail,
@@ -55,53 +56,75 @@ const SectionSkeleton = () => (
 
 export default function DashboardPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { user: sessionUser, loading } = useRequireAuth();
   const [user, setUser] = useState<any>(null);
   const [activeSection, setActiveSection] = useState(SECTIONS.HOME);
   const [userLoading, setUserLoading] = useState(true);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
-  useEffect(() => {
-    const fetchUser = async () => {
-      if (!sessionUser) {
-        setUserLoading(false);
-        return;
-      }
+  // Function to fetch user data
+  const fetchUser = useCallback(async () => {
+    if (!sessionUser) {
+      setUserLoading(false);
+      return;
+    }
 
-      try {
-        const { data, error } = await supabase
-          .from("users")
-          .select("id, email, name, surname, metadata")
-          .eq("id", sessionUser.id)
-          .single();
+    try {
+      const { data, error } = await supabase
+        .from("users")
+        .select("id, email, name, surname, metadata")
+        .eq("id", sessionUser.id)
+        .single();
 
-        if (error) {
-          console.error("Error fetching user:", error);
-          setUser({
-            fullName: "User",
-            avatar_url: DEFAULT_AVATAR,
-          });
-        } else if (data) {
-          const avatarUrl = data.metadata?.avatar_url || DEFAULT_AVATAR;
-          setUser({
-            ...data,
-            avatar_url: avatarUrl ? `${avatarUrl}?t=${Date.now()}` : DEFAULT_AVATAR,
-            fullName: `${data.name || ""} ${data.surname || ""}`.trim() || "User",
-          });
-        }
-      } catch (error) {
-        console.error("Error in fetchUser:", error);
+      if (error) {
+        console.error("Error fetching user:", error);
         setUser({
           fullName: "User",
           avatar_url: DEFAULT_AVATAR,
         });
-      } finally {
-        setUserLoading(false);
+      } else if (data) {
+        const avatarUrl = data.metadata?.avatar_url || DEFAULT_AVATAR;
+        setUser({
+          ...data,
+          avatar_url: avatarUrl ? `${avatarUrl}?t=${Date.now()}` : DEFAULT_AVATAR,
+          fullName: `${data.name || ""} ${data.surname || ""}`.trim() || "User",
+        });
+      }
+    } catch (error) {
+      console.error("Error in fetchUser:", error);
+      setUser({
+        fullName: "User",
+        avatar_url: DEFAULT_AVATAR,
+      });
+    } finally {
+      setUserLoading(false);
+    }
+  }, [sessionUser]);
+
+  useEffect(() => {
+    fetchUser();
+  }, [fetchUser]);
+
+  // Check for subscription success and verify
+  useEffect(() => {
+    const checkSubscription = async () => {
+      if (searchParams.get('subscription_success') === 'true') {
+        // Remove the param immediately to prevent loop
+        router.replace('/dashboard');
+
+        // Verify subscription server-side
+        await verifyUserSubscription();
+
+        // Re-fetch user data to update UI
+        fetchUser();
       }
     };
 
-    fetchUser();
-  }, [sessionUser]);
+    if (sessionUser) {
+      checkSubscription();
+    }
+  }, [searchParams, router, sessionUser, fetchUser]);
 
   const handleLogout = useCallback(async () => {
     await supabase.auth.signOut();

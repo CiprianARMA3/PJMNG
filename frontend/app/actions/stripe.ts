@@ -131,6 +131,7 @@ export async function createSubscriptionCheckout(
       },
       // 'always_invoice' calculates proration and charges/credits immediately
       proration_behavior: 'always_invoice',
+      billing_cycle_anchor: 'now',
     });
 
     // Cast to any to avoid TS issues and safely access properties
@@ -494,15 +495,16 @@ export async function getUserBillingInfo() {
       }
     }
 
-    // Use the reliable current_period_end from the Supabase profile
-    const renewalDate = userData.current_period_end;
+
 
     subscriptionDetails = {
       id: sub.id,
       planName: productName,
       amount: amount,
       interval: interval,
-      currentPeriodEnd: renewalDate, // <-- FIXED: Directly use DB-synced date (ISO string)
+      currentPeriodEnd: sub.current_period_end
+        ? new Date(sub.current_period_end * 1000).toISOString()
+        : userData.current_period_end,
       cancelAtPeriodEnd: sub.cancel_at_period_end,
       status: sub.status,
     };
@@ -698,7 +700,6 @@ export async function getProjectTokenTopUpHistory(projectId: string): Promise<To
     return [];
   }
 
-  // Map the fetched data to the client-side interface
   return transactions.map(t => ({
     id: t.id,
     transaction_date: new Date(t.created_at).toISOString(),
@@ -706,4 +707,94 @@ export async function getProjectTokenTopUpHistory(projectId: string): Promise<To
     tokens_added: t.tokens_added || 0,
     source: t.source || 'Stripe Payment',
   })) as TokenTransaction[];
+}
+
+// --- NEW: Verify Subscription (Fallback for Webhooks) ---
+export async function verifyUserSubscription() {
+  const supabase = createClient(cookies());
+  const { data: { user } } = await supabase.auth.getUser();
+
+  if (!user) return { success: false, error: 'Not authenticated' };
+
+  try {
+    const supabaseAdmin = createAdminClient();
+
+    // 1. Get Customer ID
+    const { data: userData } = await supabaseAdmin
+      .from('users')
+      .select('stripe_customer_id')
+      .eq('id', user.id)
+      .single();
+
+    if (!userData?.stripe_customer_id) {
+      return { success: false, error: 'No Stripe customer found' };
+    }
+
+    // 2. Fetch Active Subscription from Stripe
+    const subscriptions = await stripe.subscriptions.list({
+      customer: userData.stripe_customer_id,
+      status: 'active',
+      limit: 1,
+      expand: ['data.plan.product']
+    });
+
+    if (subscriptions.data.length === 0) {
+      return { success: false, error: 'No active subscription found in Stripe' };
+    }
+
+    const sub = subscriptions.data[0];
+    const priceId = sub.items.data[0].price.id;
+
+    // 3. Find Plan ID
+    let planId: string | null = null;
+
+    // Helper to match Stripe Price ID to Plan IDs (duplicated from webhook for safety)
+    const findPlanByPriceId = (pId: string) => {
+      for (const [pIdKey, config] of Object.entries(SUBSCRIPTION_PLANS)) {
+        if (config.prices.month === pId || config.prices.year === pId) {
+          return pIdKey;
+        }
+      }
+      return null;
+    };
+
+    planId = findPlanByPriceId(priceId);
+
+    // Fallback: Check metadata if price lookup fails
+    if (!planId && sub.metadata?.targetPlanId) {
+      planId = sub.metadata.targetPlanId;
+    }
+
+    if (!planId) {
+      console.warn(`Could not identify plan for price ${priceId}`);
+      // We still update the status, but plan_id might be null if we can't find it
+    }
+
+    // 4. Update DB
+    const endIso = (sub as any).current_period_end
+      ? new Date((sub as any).current_period_end * 1000).toISOString()
+      : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
+
+    const updateData: any = {
+      subscription_status: sub.status,
+      current_period_end: endIso,
+      subscription_id: sub.id,
+      stripe_customer_id: userData.stripe_customer_id
+    };
+
+    if (planId) {
+      updateData.plan_id = planId;
+    }
+
+    await supabaseAdmin
+      .from('users')
+      .update(updateData)
+      .eq('id', user.id);
+
+    return { success: true, planId };
+
+  } catch (error: any) {
+    console.error('Error verifying subscription:', error);
+    return { success: false, error: error.message };
+  }
 }
