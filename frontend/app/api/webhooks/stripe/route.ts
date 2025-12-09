@@ -133,6 +133,15 @@ export async function POST(req: Request) {
       }
     }
 
+    // Fourth try: Check subscription items if available (for invoice events)
+    if (!planId && session.lines?.data?.[0]?.price?.id) {
+      const lineItemPriceId = session.lines.data[0].price.id;
+      planId = findPlanByPriceId(lineItemPriceId);
+      if (planId) {
+        console.log(`✅ [STRIPE-DEBUG] Plan ID found from invoice line item: ${planId}`);
+      }
+    }
+
     if (!planId) {
       console.warn(`⚠️ [STRIPE-DEBUG] Could not determine plan_id for user ${userId}. Will update without changing plan_id.`);
     }
@@ -159,6 +168,8 @@ export async function POST(req: Request) {
     if (planId) {
       updateData.plan_id = planId;
       console.log(`📌 [STRIPE-DEBUG] Setting plan_id to: ${planId}`);
+    } else {
+      console.warn(`⚠️ [STRIPE-DEBUG] plan_id is NULL. This might cause the DB to not update the plan.`);
     }
 
     if (session.object === 'subscription') {
@@ -179,7 +190,10 @@ export async function POST(req: Request) {
       return false;
     }
 
-    console.log(`✅ [STRIPE-DEBUG] User ${userId} updated successfully!`);
+    // VERIFICATION: Fetch back the user to confirm update
+    const { data: verifyUser } = await supabaseAdmin.from('users').select('plan_id').eq('id', userId).single();
+    console.log(`✅ [STRIPE-DEBUG] User ${userId} updated! Current DB plan_id: ${verifyUser?.plan_id}`);
+
     return true;
   };
 
@@ -395,6 +409,24 @@ export async function POST(req: Request) {
       const subscriptionId = session.subscription;
 
       console.log(`🔍 Fetching subscription details for: ${subscriptionId}`);
+
+      // --- NEW: Handle Upgrade/Downgrade Cleanup ---
+      if (metadata.previous_subscription_id) {
+        const oldSubId = metadata.previous_subscription_id;
+        if (oldSubId !== subscriptionId) {
+          console.log(`🔄 [STRIPE-WEBHOOK] Canceling previous subscription: ${oldSubId}`);
+          try {
+            await stripe.subscriptions.cancel(oldSubId, {
+              prorate: true,
+              invoice_now: true,
+            });
+            console.log(`✅ [STRIPE-WEBHOOK] Previous subscription canceled with proration.`);
+          } catch (err: any) {
+            console.error(`⚠️ [STRIPE-WEBHOOK] Failed to cancel old subscription ${oldSubId}:`, err.message);
+          }
+        }
+      }
+      // ---------------------------------------------
 
       let priceId: string | null = null;
       let currentPeriodEnd = Math.floor(Date.now() / 1000) + 2592000; // Default: 30 days

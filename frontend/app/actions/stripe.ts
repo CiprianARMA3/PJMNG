@@ -102,8 +102,6 @@ export async function createSubscriptionCheckout(
     await supabase.from('users').update({ stripe_customer_id: customerId }).eq('id', user.id);
   }
 
-  // --- 4. CHECK FOR EXISTING SUBSCRIPTION (Upgrade/Downgrade Logic) ---
-  // Instead of creating a new checkout, we check if they already have a sub to update.
   const activeSubs = await stripe.subscriptions.list({
     customer: customerId,
     status: 'active',
@@ -118,40 +116,34 @@ export async function createSubscriptionCheckout(
     console.log(`[STRIPE-ACTION] Found active subscription ${currentSub.id}. Upgrading/Downgrading...`);
     console.log(`[STRIPE-ACTION] Swapping item ${currentItemId} to price ${priceId}`);
 
-    // Direct Update via Stripe API (No Checkout UI needed)
     const updatedSub = await stripe.subscriptions.update(currentSub.id, {
       items: [{
         id: currentItemId,
-        price: priceId, // Swap to new price
+        price: priceId,
       }],
       metadata: {
         userId: user.id,
         targetPlanId: targetPlanId,
         type: 'subscription_update'
       },
-      // 'always_invoice' calculates proration and charges/credits immediately
       proration_behavior: 'always_invoice',
       billing_cycle_anchor: 'now',
     });
 
-    // Cast to any to avoid TS issues and safely access properties
     const subData = updatedSub as any;
 
-    // Safety fallback for date
     let endIsoString = new Date().toISOString();
     if (subData?.current_period_end) {
       endIsoString = new Date(subData.current_period_end * 1000).toISOString();
     } else if ((currentSub as any).current_period_end) {
-      // Fallback to previous period end if new one is missing
       endIsoString = new Date((currentSub as any).current_period_end * 1000).toISOString();
     } else {
-      // Fallback to +30 days
       endIsoString = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
     }
 
     console.log(`[STRIPE-ACTION] Stripe update successful. New period end: ${subData?.current_period_end} -> ${endIsoString}`);
 
-    // ✅ OPTIMISTIC UPDATE: Update DB immediately with ALL details from the Stripe response
+    // ✅ OPTIMISTIC UPDATE
     const supabaseAdmin = createAdminClient();
     const { error: updateError } = await supabaseAdmin.from('users').update({
       plan_id: targetPlanId,
@@ -167,12 +159,13 @@ export async function createSubscriptionCheckout(
       console.log(`✅ [STRIPE-ACTION] Optimistically updated User ${user.id} to plan ${targetPlanId}`);
     }
 
-    // Redirect back to dashboard immediately (Webhook will handle DB sync)
     redirect(`${getBaseUrl()}/dashboard?updated=true`);
     return;
   }
 
   // --- 5. NO EXISTING SUBSCRIPTION -> CREATE CHECKOUT ---
+  console.log(`[STRIPE-ACTION] No existing subscription. Creating new checkout session...`);
+
   const session = await stripe.checkout.sessions.create({
     customer: customerId,
     line_items: [{ price: priceId, quantity: 1 }],
@@ -182,15 +175,41 @@ export async function createSubscriptionCheckout(
     metadata: {
       userId: user.id,
       targetPlanId: targetPlanId,
-      type: 'subscription_update'
+      type: 'subscription_update',
+      priceId: priceId
     },
     subscription_data: {
       metadata: {
         userId: user.id,
-        targetPlanId: targetPlanId
+        targetPlanId: targetPlanId,
+        priceId: priceId
       }
     }
   });
+
+  // ✅ CRITICAL FIX: Optimistic DB Update BEFORE redirecting to Stripe
+  // This ensures the DB is updated even if webhook fails
+  console.log(`[STRIPE-ACTION] Performing optimistic DB update for new subscription...`);
+
+  const supabaseAdmin = createAdminClient();
+  const futureEndDate = new Date();
+  futureEndDate.setMonth(futureEndDate.getMonth() + (interval === 'year' ? 12 : 1));
+  const endIsoString = futureEndDate.toISOString();
+
+  const { error: optimisticError } = await supabaseAdmin.from('users').update({
+    plan_id: targetPlanId,
+    subscription_status: 'active',
+    subscription_id: session.subscription as string || 'pending',
+    current_period_end: endIsoString,
+    stripe_customer_id: customerId as string
+  }).eq('id', user.id);
+
+  if (optimisticError) {
+    console.error(`[STRIPE-ACTION] Optimistic update for new subscription failed:`, optimisticError);
+    // Don't throw - still redirect to Stripe so webhook can fix it
+  } else {
+    console.log(`✅ [STRIPE-ACTION] Optimistically updated User ${user.id} for new subscription (Plan: ${targetPlanId})`);
+  }
 
   if (session.url) redirect(session.url);
 }
@@ -495,16 +514,15 @@ export async function getUserBillingInfo() {
       }
     }
 
-
+    // Use the reliable current_period_end from the Supabase profile
+    const renewalDate = userData.current_period_end;
 
     subscriptionDetails = {
       id: sub.id,
       planName: productName,
       amount: amount,
       interval: interval,
-      currentPeriodEnd: sub.current_period_end
-        ? new Date(sub.current_period_end * 1000).toISOString()
-        : userData.current_period_end,
+      currentPeriodEnd: renewalDate, // <-- FIXED: Directly use DB-synced date (ISO string)
       cancelAtPeriodEnd: sub.cancel_at_period_end,
       status: sub.status,
     };
@@ -599,45 +617,19 @@ export async function getUpcomingInvoice(targetPlanId: string, targetInterval: '
   if (!targetPlanConfig) throw new Error('Invalid Plan');
   const targetPriceId = targetPlanConfig.prices[targetInterval];
 
-  // 3. Check for existing subscription
-  const subscriptions = await stripe.subscriptions.list({
-    customer: userData.stripe_customer_id,
-    status: 'active',
-    limit: 1,
-  });
-
   try {
-    let upcoming;
-
-    if (subscriptions.data.length > 0) {
-      // PRORATION MODE: Preview update to existing subscription
-      const currentSub = subscriptions.data[0];
-      const currentItemId = currentSub.items.data[0].id;
-
-      // UPDATED: Use createPreview with subscription_details
-      upcoming = await stripe.invoices.createPreview({
-        customer: userData.stripe_customer_id,
-        subscription: currentSub.id,
-        subscription_details: {
-          items: [{
-            id: currentItemId,
-            price: targetPriceId,
-          }],
-          proration_behavior: 'always_invoice',
-        }
-      });
-    } else {
-      // NEW SUBSCRIPTION MODE: Preview new subscription
-      upcoming = await stripe.invoices.createPreview({
-        customer: userData.stripe_customer_id,
-        subscription_details: {
-          items: [{
-            price: targetPriceId,
-            quantity: 1,
-          }],
-        }
-      });
-    }
+    // ALWAYS PREVIEW AS NEW SUBSCRIPTION
+    // We are using the "Cancel Old + Create New" strategy, so the user will see the full price of the new plan.
+    // Proration credits will be applied to their customer balance by Stripe when we cancel the old sub.
+    const upcoming = await stripe.invoices.createPreview({
+      customer: userData.stripe_customer_id,
+      subscription_details: {
+        items: [{
+          price: targetPriceId,
+          quantity: 1,
+        }],
+      }
+    });
 
     return {
       amountDue: upcoming.amount_due,
@@ -700,6 +692,7 @@ export async function getProjectTokenTopUpHistory(projectId: string): Promise<To
     return [];
   }
 
+  // Map the fetched data to the client-side interface
   return transactions.map(t => ({
     id: t.id,
     transaction_date: new Date(t.created_at).toISOString(),
@@ -765,9 +758,13 @@ export async function verifyUserSubscription() {
       planId = sub.metadata.targetPlanId;
     }
 
+    // Fallback: Check subscription items metadata
+    if (!planId && sub.items.data[0]?.price?.id) {
+      planId = findPlanByPriceId(sub.items.data[0].price.id);
+    }
+
     if (!planId) {
       console.warn(`Could not identify plan for price ${priceId}`);
-      // We still update the status, but plan_id might be null if we can't find it
     }
 
     // 4. Update DB
@@ -782,14 +779,29 @@ export async function verifyUserSubscription() {
       stripe_customer_id: userData.stripe_customer_id
     };
 
+    // CRITICAL: Only update plan_id if we found it. 
     if (planId) {
       updateData.plan_id = planId;
+      console.log(`📌 [STRIPE-VERIFY] Setting plan_id to: ${planId}`);
+    } else {
+      console.warn(`⚠️ [STRIPE-VERIFY] plan_id is NULL. DB might not update plan.`);
     }
 
-    await supabaseAdmin
+    console.log(`🔄 [STRIPE-VERIFY] Updating User ${user.id} with data:`, JSON.stringify(updateData, null, 2));
+
+    const { error } = await supabaseAdmin
       .from('users')
       .update(updateData)
       .eq('id', user.id);
+
+    if (error) {
+      console.error(`❌ [STRIPE-VERIFY] DB Update Error:`, error);
+      return { success: false, error: error.message };
+    }
+
+    // VERIFICATION
+    const { data: verifyUser } = await supabaseAdmin.from('users').select('plan_id').eq('id', user.id).single();
+    console.log(`✅ [STRIPE-VERIFY] User ${user.id} updated! Current DB plan_id: ${verifyUser?.plan_id}`);
 
     return { success: true, planId };
 
