@@ -29,10 +29,11 @@ export async function checkSubscriptionStatus() {
       .single();
 
     if (error || !userData?.stripe_customer_id) {
+      console.warn('[CHECK-SUB] User has no Stripe Customer ID');
       return { isValid: false, subscription: null, planName: null };
     }
 
-    // 2. Query Stripe for active/trialing subscriptions
+    // 2. Query Stripe for active subscriptions
     const subscriptions = await stripe.subscriptions.list({
       customer: userData.stripe_customer_id,
       status: 'active',
@@ -40,31 +41,57 @@ export async function checkSubscriptionStatus() {
     });
 
     if (subscriptions.data.length === 0) {
+      console.log(`[CHECK-SUB] No active subscription found for ${userData.stripe_customer_id}`);
       return { isValid: false, subscription: null, planName: null };
     }
 
     const subscription = subscriptions.data[0] as any;
     
-    // FIX: Retrieve period end from the first subscription item
-    // In API version 2025-11-17+, 'current_period_end' was moved from the subscription root to the items.
     const firstItem = subscription.items?.data?.[0];
-    const currentPeriodEnd = firstItem?.current_period_end ?? subscription.current_period_end;
 
+    // --- DEBUG LOGS START ---
+    const itemPeriodEnd = firstItem?.current_period_end;
+    const subPeriodEnd = subscription.current_period_end;
+    
+    console.log(`🐛 [CHECK-SUB-DEBUG] Subscription ID: ${subscription.id}, Status: ${subscription.status}`);
+    console.log(`🐛 [CHECK-SUB-DEBUG] Raw Item Period End: ${itemPeriodEnd} (Type: ${typeof itemPeriodEnd})`);
+    console.log(`🐛 [CHECK-SUB-DEBUG] Raw Sub Period End: ${subPeriodEnd} (Type: ${typeof subPeriodEnd})`);
+    // --- DEBUG LOGS END ---
+
+
+    // FIX INTEGRATED: Prioritize item's period end, falling back to top level.
+    const currentPeriodEnd = itemPeriodEnd ?? subPeriodEnd;
+
+    
     console.log(`✅ [CHECK-SUB] Subscription found: ${subscription.id}`);
     console.log(`   Status: ${subscription.status}`);
-    console.log(`   Period End (Item Level): ${currentPeriodEnd}`);
+    console.log(`   Period End (Resolved Value): ${currentPeriodEnd}`);
 
     let periodEndDate: Date;
+    let periodEndDateISO: string;
 
     if (currentPeriodEnd) {
         // Handle standard Unix Timestamp (Seconds)
         periodEndDate = new Date(currentPeriodEnd * 1000);
+        
+        if (isNaN(periodEndDate.getTime())) {
+             // Handle case where conversion results in Invalid Date
+             console.error(`❌ [CHECK-SUB] Failed to create date object from timestamp: ${currentPeriodEnd}`);
+             const d = new Date();
+             d.setDate(d.getDate() + 30);
+             periodEndDate = d;
+        }
+
+        periodEndDateISO = periodEndDate.toISOString();
+        console.log(`🐛 [CHECK-SUB-DEBUG] Final Period End ISO: ${periodEndDateISO}`);
+        
     } else {
         // Fallback if still missing (should not happen with active sub)
-        console.warn('⚠️ [CHECK-SUB] "current_period_end" missing on item. Defaulting to now + 30d.');
+        console.warn('⚠️ [CHECK-SUB] "current_period_end" missing. Defaulting to now + 30d.');
         const d = new Date();
         d.setDate(d.getDate() + 30);
         periodEndDate = d;
+        periodEndDateISO = periodEndDate.toISOString();
     }
 
     // 3. Determine plan name from price
@@ -84,7 +111,8 @@ export async function checkSubscriptionStatus() {
       subscription: {
         id: subscription.id,
         status: subscription.status,
-        currentPeriodEnd: periodEndDate,
+        // Convert Date object to ISO string before sending to frontend
+        currentPeriodEnd: periodEndDateISO, 
         cancelAtPeriodEnd: subscription.cancel_at_period_end,
         amount: firstItem?.price?.unit_amount || 0,
         interval: firstItem?.price?.recurring?.interval || 'month',
@@ -102,12 +130,14 @@ export async function checkSubscriptionStatus() {
  * Require an active subscription or redirect
  */
 export async function requireActiveSubscription(
-  redirectTo: string = '/dashboard/missing-subscription'
+  // The default redirect path, suitable for protecting non-subscription pages.
+  redirectTo: string = '/dashboard/missing-subscription' 
 ): Promise<{ isValid: boolean; subscription: any; planName: string | null }> {
   const result = await checkSubscriptionStatus();
 
   if (!result.isValid) {
-    redirect(redirectTo);
+    // Executes a Next.js redirect to the specified path
+    redirect(redirectTo); 
   }
 
   return result;
