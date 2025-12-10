@@ -404,12 +404,7 @@ export async function verifyTokenPurchase(sessionId: string) {
   }
 }
 
-// --- Billing & Invoices (Updated to return full subscription details and map price to planId) ---
-// frontend/app/actions/stripe.ts
-
-// ... (All other functions remain the same: getTokenPacks, createSubscriptionCheckout, etc.)
-
-// --- Billing & Invoices (Updated to use Invoice date as fallback) ---
+// --- Billing & Invoices (Updated to use Invoice date as fallback and log interval) ---
 export async function getUserBillingInfo() {
   const supabase = createClient(cookies());
   const { data: { user } } = await supabase.auth.getUser();
@@ -428,17 +423,18 @@ export async function getUserBillingInfo() {
 
   console.log(`\n🐛 [DEBUG-START] Fetching billing info for customer: ${userData.stripe_customer_id}`);
 
-  // --- 1. Fetch Invoices and Find Latest Period End ---
+  // --- 1. Fetch Invoices and Find Latest Period End (For Fallback) ---
   const invoices = await stripe.invoices.list({
     customer: userData.stripe_customer_id,
     limit: 10,
     status: 'paid'
   });
 
-  // Find the period_end from the newest paid invoice to use as a strong fallback
   const latestInvoice = invoices.data[0];
   const invoicePeriodEndFallback = 
     latestInvoice?.lines?.data?.[0]?.period?.end || null; 
+    
+  console.log(`🐛 [DEBUG] Latest Invoice Period End Fallback Timestamp: ${invoicePeriodEndFallback}`);
 
   const formattedInvoices = invoices.data.map(inv => {
     // FIX INTEGRATED: Read period end from the line item for the table display
@@ -467,7 +463,7 @@ export async function getUserBillingInfo() {
 
   if (subscriptions.data.length > 0) {
     const sub = subscriptions.data[0] as any;
-    const item = sub.items?.data?.[0];
+    const item = sub.items?.data?.[0]; // This is the Subscription Item object
     const price = item?.price;
 
     let priceId = price?.id || null;
@@ -483,6 +479,7 @@ export async function getUserBillingInfo() {
     if (item && price) {
       amount = ((price.unit_amount || 0) / 100).toFixed(2);
       interval = price.recurring?.interval === 'year' ? 'year' : 'month';
+      console.log(`🐛 [DEBUG] Extracted Price Interval: ${interval}`);
     }
     
     if (planId) {
@@ -491,21 +488,34 @@ export async function getUserBillingInfo() {
     }
 
     // SAFE DATE PARSING (Subscription Renewal Date)
-    const rawPeriodEndTimestamp = sub.current_period_end;
+    // Primary Source: Subscription Item
+    const rawItemPeriodEndTimestamp = item?.current_period_end; 
+    // Secondary Sources: Main Subscription
+    const rawSubPeriodEndTimestamp = sub.current_period_end;
     const rawTrialEndTimestamp = sub.trial_end; 
+
     let periodEndIso: string | null = null;
     
     // Determine the primary timestamp source
     let relevantTimestamp: number | null = null;
 
-    if (sub.status === 'trialing' && rawTrialEndTimestamp) {
+    if (rawItemPeriodEndTimestamp) {
+        // *** PRIMARY FIX: Use the Item's period end, which is present ***
+        relevantTimestamp = rawItemPeriodEndTimestamp;
+        console.log(`🐛 [DEBUG-DATE] Primary source (Item) used: ${relevantTimestamp}`);
+
+    } else if (sub.status === 'trialing' && rawTrialEndTimestamp) {
         relevantTimestamp = rawTrialEndTimestamp;
-    } else if (rawPeriodEndTimestamp) {
-        relevantTimestamp = rawPeriodEndTimestamp;
+        console.log(`🐛 [DEBUG-DATE] Secondary source (Trial End) used: ${relevantTimestamp}`);
+
+    } else if (rawSubPeriodEndTimestamp) {
+        relevantTimestamp = rawSubPeriodEndTimestamp;
+        console.log(`🐛 [DEBUG-DATE] Secondary source (Sub Period End) used: ${relevantTimestamp}`);
+
     } else if (sub.status === 'active' && invoicePeriodEndFallback) {
-        // *** NEW FALLBACK INTEGRATION ***
+        // Fallback for active subs missing all fields
         relevantTimestamp = invoicePeriodEndFallback;
-        console.log(`🐛 [DEBUG-DATE] Using Invoice Period End Fallback: ${relevantTimestamp}`);
+        console.log(`🐛 [DEBUG-DATE] Fallback source (Invoice Period End) used: ${relevantTimestamp}`);
     }
 
 
@@ -520,7 +530,7 @@ export async function getUserBillingInfo() {
              console.error(`❌ [STRIPE-DATE-ERR] Invalid date created from timestamp: ${relevantTimestamp}`);
         }
     } else {
-        console.log(`🐛 [DEBUG-DATE] No valid future date timestamp found. Sending null.`);
+        console.log(`🐛 [DEBUG-DATE] No valid date timestamp found. Sending null.`);
     }
     
     subscriptionDetails = {
@@ -544,8 +554,6 @@ export async function getUserBillingInfo() {
     planDetails: planDetails 
   };
 }
-
-// ... (All other functions remain the same: cancelUserSubscription, getUserInvoices)
 
 // --- Update cancelUserSubscription to include re-enabling auto-renew ---
 export async function cancelUserSubscription(subscriptionId: string, cancel: boolean) {

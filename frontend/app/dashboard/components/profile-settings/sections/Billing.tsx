@@ -326,7 +326,8 @@ export default function BillingPage() {
                                 {subscriptionData.amount && subscriptionData.interval && (
                                     <div className="mt-4 pt-4 border-t border-white/10">
                                         <p className="text-white/80 font-semibold text-lg">
-                                            {getPriceDisplay(subscriptionData)} <span className="text-white/50 font-normal text-sm">/ {subscriptionData.interval}</span>
+                                            {getPriceDisplay(subscriptionData)} <span className="text-white/50 font-normal text-sm"></span>
+                                            {/* in mezzo allo span / {subscriptionData.interval} */}
                                             {isPastDueOrUnpaid && <span className="text-red-400 ml-2">(Payment Required)</span>}
                                         </p>
                                     </div>
