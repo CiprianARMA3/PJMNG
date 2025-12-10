@@ -201,8 +201,6 @@ export async function createSubscriptionCheckout(
     mode: 'subscription',
     success_url: successUrl,
     cancel_url: cancelUrl,
-    // FIX: Removed subscription_data: { cancel_at_period_end: !autoRenew } 
-    // This parameter caused the "unknown parameter" error. 
     // Subscription will default to auto-renew (cancel_at_period_end: false).
     metadata: {
       userId: user.id,
@@ -473,14 +471,25 @@ export async function getUserBillingInfo() {
         productName = planDetails.name;
     }
 
-    // SAFE DATE PARSING
-    const periodEnd = (sub as any).current_period_end 
-      ? new Date((sub as any).current_period_end * 1000) 
-      : null;
+    // SAFE DATE PARSING (This logic is robust and correctly handles undefined)
+    const stripePeriodEndTimestamp = (sub as any).current_period_end;
+    let periodEndIso: string | null = null;
     
-    const periodEndIso = (periodEnd && !isNaN(periodEnd.getTime())) 
-      ? periodEnd.toISOString() 
-      : null;
+    // Check if the timestamp is a number and greater than 0 before conversion
+    if (typeof stripePeriodEndTimestamp === 'number' && stripePeriodEndTimestamp > 0) {
+        const periodEnd = new Date(stripePeriodEndTimestamp * 1000);
+        
+        // Ensure the date object is valid before converting
+        if (!isNaN(periodEnd.getTime())) {
+             periodEndIso = periodEnd.toISOString();
+        } else {
+             // Log error, but proceed with null date
+             console.error(`[STRIPE-DATE-ERR] Invalid date created from timestamp: ${stripePeriodEndTimestamp}`);
+        }
+    } else {
+        // Log warn, but proceed with null date (The warning you see)
+        console.warn(`[STRIPE-DATE-WARN] Missing or invalid current_period_end value: ${stripePeriodEndTimestamp}`);
+    }
 
     subscriptionDetails = {
       id: sub.id,
@@ -489,7 +498,7 @@ export async function getUserBillingInfo() {
       planName: productName,
       amount: amount,
       interval: interval, // month or year
-      currentPeriodEnd: periodEndIso,
+      currentPeriodEnd: periodEndIso, // Now the robustly checked ISO string or null
       cancelAtPeriodEnd: sub.cancel_at_period_end, // The auto-renew flag
       status: sub.status,
     };

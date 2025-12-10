@@ -13,10 +13,10 @@ interface SubscriptionDetail {
     planId: string | null;
     priceId: string | null;
     planName: string;
-    amount: string; // Already formatted as string 'XX.XX'
+    amount: string; // Formatted as string 'XX.XX' (e.g., '9.99')
     interval: 'month' | 'year';
-    currentPeriodEnd: string | null;
-    cancelAtPeriodEnd: boolean; // Must be boolean, not boolean | undefined
+    currentPeriodEnd: string | null; // This is the value that can be null (ISO date string)
+    cancelAtPeriodEnd: boolean; // True if auto-renewal is OFF
     status: string; // e.g., 'active', 'trialing', 'canceled', 'past_due', 'unpaid'
 }
 
@@ -30,11 +30,10 @@ export default function BillingPage() {
     const loadData = async () => {
         try {
             console.log("📊 [BILLING] Loading billing information from Stripe...");
-
-            // Use the single comprehensive action to fetch all data from Stripe
+            // This action fetches data from Stripe; currentPeriodEnd may be null
             const billingInfo = await getUserBillingInfo();
-            const sub = billingInfo.subscription as SubscriptionDetail | null;
-
+            const sub = billingInfo.subscription as SubscriptionDetail | null; 
+            
             if (sub) {
                 console.log("✅ [BILLING] Subscription status:", sub.status);
                 setSubscriptionData(sub);
@@ -78,7 +77,7 @@ export default function BillingPage() {
 
             if (res.success) {
                 console.log("✅ [BILLING] Subscription cancellation scheduled successfully");
-                // FIX: Use non-null assertion (!) to satisfy TypeScript that res.cancelAtPeriodEnd is boolean here.
+                // Use the non-null assertion as the server action guarantees this field is set on success
                 setSubscriptionData(prev => prev ? ({ ...prev, cancelAtPeriodEnd: res.cancelAtPeriodEnd! }) : null);
             } else {
                 console.error("❌ [BILLING] Failed to schedule cancellation:", res.error);
@@ -109,7 +108,6 @@ export default function BillingPage() {
 
             if (res.success) {
                 console.log("✅ [BILLING] Auto-renewal successfully re-enabled");
-                // FIX: Use non-null assertion (!) to satisfy TypeScript that res.cancelAtPeriodEnd is boolean here.
                 setSubscriptionData(prev => prev ? ({ ...prev, cancelAtPeriodEnd: res.cancelAtPeriodEnd! }) : null);
             } else {
                 console.error("❌ [BILLING] Failed to reactivate:", res.error);
@@ -126,10 +124,12 @@ export default function BillingPage() {
 
     // Calculate days until expiration
     const getDaysUntilExpiration = () => {
-        if (!subscriptionData?.currentPeriodEnd) return null;
+        if (!subscriptionData?.currentPeriodEnd) return null; // Returns null if data is missing
 
         const endDate = new Date(subscriptionData.currentPeriodEnd);
         const now = new Date();
+        if (isNaN(endDate.getTime())) return null; // Returns null if date is invalid
+        
         // Check if the subscription is already expired
         if (endDate.getTime() < now.getTime()) return -1; 
         
@@ -138,12 +138,12 @@ export default function BillingPage() {
         return days;
     };
 
-    // Format date
+    // Format date - returns 'N/A' for null/invalid dates
     const formatDate = (date: Date | string | null) => {
-        if (!date) return 'Unknown';
+        if (!date) return 'N/A';
 
         const dateObj = typeof date === 'string' ? new Date(date) : date;
-        if (isNaN(dateObj.getTime())) return 'Invalid Date';
+        if (isNaN(dateObj.getTime())) return 'N/A';
 
         return dateObj.toLocaleDateString('en-GB', {
             day: '2-digit',
@@ -152,10 +152,9 @@ export default function BillingPage() {
         });
     };
 
-    // Get price display
+    // Get price display (uses the formatted string 'amount')
     const getPriceDisplay = (sub: SubscriptionDetail | null) => {
         if (!sub?.amount || !sub?.interval) return 'N/A';
-        // Amount is already a formatted string like '9.99'
         const amountInEuro = sub.amount; 
         const intervalLabel = sub.interval === 'year' ? 'year' : 'month';
         return `€${amountInEuro}/${intervalLabel}`;
@@ -185,10 +184,14 @@ export default function BillingPage() {
     }
 
     const daysLeft = getDaysUntilExpiration();
-    const hasActiveSubscription = subscriptionData && ['active', 'trialing', 'past_due', 'unpaid'].includes(subscriptionData.status);
+    const formattedNextDate = formatDate(subscriptionData?.currentPeriodEnd || null);
+    
+    // Check if subscription data is relevant (not a cancelled or incomplete sub where period end has passed)
+    const hasRelevantSubscription = subscriptionData && !['canceled', 'incomplete', 'trialing_expired'].includes(subscriptionData.status);
     const isTrialing = subscriptionData && subscriptionData.status === 'trialing';
     const isCancelled = subscriptionData && subscriptionData.cancelAtPeriodEnd;
     const isPastDueOrUnpaid = subscriptionData && ['past_due', 'unpaid'].includes(subscriptionData.status);
+    const isSubscriptionActive = subscriptionData && subscriptionData.status === 'active';
 
 
     return (
@@ -199,7 +202,7 @@ export default function BillingPage() {
             </div>
 
             {/* Warning for Past Due / Unpaid Status */}
-            {isPastDueOrUnpaid && (
+            {isPastDueOrUnpaid && subscriptionData && (
                 <div className="bg-orange-500/10 border border-orange-500/20 rounded-xl p-4 flex items-start gap-4 text-orange-400">
                     <AlertCircle className="w-5 h-5 shrink-0 mt-0.5" />
                     <div>
@@ -211,7 +214,7 @@ export default function BillingPage() {
             )}
 
             {/* Subscription Overview Grid */}
-            {subscriptionData && hasActiveSubscription && (
+            {subscriptionData && hasRelevantSubscription && (
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     {/* Current Plan */}
                     <div className="bg-[#141417] border border-[#1e1e22] rounded-xl p-5">
@@ -232,7 +235,7 @@ export default function BillingPage() {
                             <span className="text-xs font-medium uppercase tracking-wider">Status</span>
                         </div>
                         <h3 className="text-lg font-semibold text-white mb-1 capitalize">
-                            {isTrialing ? 'Trialing' : isPastDueOrUnpaid ? subscriptionData.status.replace('_', ' ') : 'Active'}
+                            {isTrialing ? 'Trialing' : isPastDueOrUnpaid ? subscriptionData.status.replace('_', ' ') : isSubscriptionActive ? 'Active' : subscriptionData.status}
                         </h3>
                         <p className="text-white/60 text-sm">
                             {isCancelled ? 'Cancelling at period end' : 'Auto-renewal is active'}
@@ -248,12 +251,15 @@ export default function BillingPage() {
                             </span>
                         </div>
                         <h3 className="text-lg font-semibold text-white mb-1">
-                            {formatDate(subscriptionData.currentPeriodEnd)}
+                            {formattedNextDate}
                         </h3>
-                        {daysLeft !== null && daysLeft > 0 && (
+                        {formattedNextDate !== 'N/A' && daysLeft !== null && daysLeft > 0 && (
                             <p className={`text-sm font-medium ${daysLeft <= 7 ? 'text-orange-400' : 'text-white/60'}`}>
                                 {daysLeft} days remaining
                             </p>
+                        )}
+                        {formattedNextDate === 'N/A' && (
+                             <p className="text-sm font-medium text-red-400">Date unavailable</p>
                         )}
                         {daysLeft === -1 && (
                             <p className="text-sm font-medium text-red-400">Period Ended. Update Plan.</p>
@@ -262,7 +268,7 @@ export default function BillingPage() {
                 </div>
             )}
 
-            {/* Active Subscription Card */}
+            {/* Subscription Details / Action Card */}
             <div className="bg-[#141417] border border-[#1e1e22] rounded-2xl overflow-hidden">
                 <div className="p-6 border-b border-[#1e1e22]">
                     <h2 className="text-xl font-semibold text-white flex items-center gap-2">
@@ -270,7 +276,7 @@ export default function BillingPage() {
                     </h2>
                 </div>
 
-                {subscriptionData && hasActiveSubscription ? (
+                {subscriptionData && hasRelevantSubscription ? (
                     <div className="p-6 space-y-6">
                         {/* Main Subscription Info */}
                         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-white/5 rounded-xl p-6 border border-white/5">
@@ -281,9 +287,11 @@ export default function BillingPage() {
                                         ? 'bg-yellow-500/10 text-yellow-400 border-yellow-500/20'
                                         : isTrialing
                                             ? 'bg-blue-500/10 text-blue-400 border-blue-500/20'
-                                            : 'bg-green-500/10 text-green-400 border-green-500/20'
+                                            : isPastDueOrUnpaid
+                                                ? 'bg-red-500/10 text-red-400 border-red-500/20'
+                                                : 'bg-green-500/10 text-green-400 border-green-500/20'
                                         }`}>
-                                        {isCancelled ? 'Cancelling Soon' : isTrialing ? 'Trialing' : 'Active'}
+                                        {subscriptionData.status.toUpperCase().replace('_', ' ')}
                                     </span>
                                 </div>
 
@@ -294,9 +302,9 @@ export default function BillingPage() {
                                     </div>
                                     <div className="flex items-center gap-2 text-white/60">
                                         <Clock className="w-4 h-4" />
-                                        <span>{isCancelled ? 'Expires' : 'Renews'}: {formatDate(subscriptionData.currentPeriodEnd)}</span>
+                                        <span>{isCancelled ? 'Expires' : 'Renews'}: {formattedNextDate}</span>
                                     </div>
-                                    {daysLeft !== null && daysLeft > 0 && (
+                                    {daysLeft !== null && daysLeft > 0 && formattedNextDate !== 'N/A' && (
                                         <div className={`flex items-center gap-2 font-medium ${daysLeft <= 7 ? 'text-orange-400' : 'text-white/80'}`}>
                                             <AlertCircle className="w-4 h-4" />
                                             <span>{daysLeft} days remaining in period</span>
@@ -365,7 +373,7 @@ export default function BillingPage() {
                                 </div>
                                 <div>
                                     <p className="text-white/50 mb-1">{isCancelled ? 'Period End' : 'Renewal Date'}</p>
-                                    <p className="text-white font-medium">{formatDate(subscriptionData.currentPeriodEnd)}</p>
+                                    <p className="text-white font-medium">{formattedNextDate}</p>
                                 </div>
                             </div>
                         </div>
