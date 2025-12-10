@@ -1,3 +1,5 @@
+// frontend/app/actions/stripe.ts
+
 'use server';
 
 import { redirect } from 'next/navigation';
@@ -10,7 +12,17 @@ import { createAdminClient } from '@/utils/supabase/admin';
 
 const PACK_AMOUNTS = [100000, 250000, 500000, 1000000, 2000000];
 
-// --- Helper: Fetch and Map Prices ---
+// --- Helper: Find Plan ID from Price ID ---
+const getPlanIdFromPrice = (priceId: string): string | null => {
+  for (const [planId, config] of Object.entries(SUBSCRIPTION_PLANS)) {
+    if (config.prices.month === priceId || config.prices.year === priceId) {
+      return planId;
+    }
+  }
+  return null;
+};
+
+// --- Helper: Fetch and Map Prices (KEEP: Token system is untouched) ---
 export async function getTokenPacks(modelKey: string, isEnterprise: boolean) {
   const products = STRIPE_PRODUCTS.TOKENS[modelKey as keyof typeof STRIPE_PRODUCTS.TOKENS];
   if (!products) return [];
@@ -62,17 +74,18 @@ export async function getTokenPacks(modelKey: string, isEnterprise: boolean) {
   return packs;
 }
 
-// --- MAIN: Create Subscription Checkout ---
+// --- MAIN: Create Subscription Checkout (Updated for autoRenew & redirects) ---
 export async function createSubscriptionCheckout(
   targetPlanId: string,
-  interval: 'month' | 'year'
+  interval: 'month' | 'year',
+  autoRenew: boolean = true // New parameter: true to auto-renew (cancel_at_period_end=false)
 ) {
   const supabase = createClient(cookies());
   const { data: { user } } = await supabase.auth.getUser();
 
   if (!user) throw new Error('Not authenticated');
 
-  console.log(`\n🎯 [STRIPE-ACTION] User ${user.id} initiating subscription for ${targetPlanId} (${interval})`);
+  console.log(`\n🎯 [STRIPE-ACTION] User ${user.id} initiating subscription for ${targetPlanId} (${interval}) with autoRenew: ${autoRenew}`);
 
   // 1. Get Plan Config & Price
   const targetPlanConfig = SUBSCRIPTION_PLANS[targetPlanId];
@@ -83,7 +96,7 @@ export async function createSubscriptionCheckout(
 
   console.log(`✅ [STRIPE-ACTION] Plan found: ${targetPlanConfig.name}, Price ID: ${targetPriceId}`);
 
-  // 2. Get or Create Stripe Customer
+  // 2. Get or Create Stripe Customer (KEEPING: Only customer_id stored)
   const { data: userData } = await supabase
     .from('users')
     .select('stripe_customer_id')
@@ -101,80 +114,101 @@ export async function createSubscriptionCheckout(
     customerId = customer.id;
     console.log(`✅ [STRIPE-ACTION] Created Stripe customer: ${customerId}`);
 
-    // Store the customer ID (this is the ONLY subscription-related thing we store)
+    // Store the customer ID (This is the only subscription-related thing stored in the DB)
     await supabase.from('users').update({ stripe_customer_id: customerId }).eq('id', user.id);
     console.log(`✅ [STRIPE-ACTION] Stored stripe_customer_id in DB`);
   } else {
     console.log(`✅ [STRIPE-ACTION] Using existing Stripe customer: ${customerId}`);
   }
 
-  // 3. Check for existing subscriptions in Stripe
+  // 3. Check for existing subscriptions in Stripe (Handling Upgrade/Downgrade/Renewal Toggle)
   console.log(`\n🔍 [STRIPE-ACTION] Checking for existing subscriptions...`);
   const subscriptions = await stripe.subscriptions.list({
     customer: customerId,
-    status: 'all',
+    status: 'all', 
     limit: 10
   });
 
   console.log(`📊 [STRIPE-ACTION] Found ${subscriptions.data.length} subscription(s)`);
 
-  if (subscriptions.data.length > 0) {
-    const activeSubs = subscriptions.data.filter(s => ['active', 'trialing'].includes(s.status));
+  const relevantSubs = subscriptions.data.filter(s => ['active', 'trialing', 'past_due', 'unpaid'].includes(s.status));
+  
+  if (relevantSubs.length > 0) {
+    console.log(`🔄 [STRIPE-ACTION] User has ${relevantSubs.length} relevant subscription(s). Attempting upgrade/downgrade/config update...`);
     
-    if (activeSubs.length > 0) {
-      console.log(`🔄 [STRIPE-ACTION] User has ${activeSubs.length} active subscription(s). Attempting upgrade/downgrade...`);
-      
-      try {
-        const existingSub = activeSubs[0];
-        const currentPriceId = existingSub.items.data[0]?.price.id;
-        
-        console.log(`📌 [STRIPE-ACTION] Current price: ${currentPriceId}, Target price: ${targetPriceId}`);
+    try {
+      // Prioritize the subscription that is not canceled for immediate updates
+      const existingSub = relevantSubs.sort((a, b) => (b.cancel_at_period_end ? 0 : 1) - (a.cancel_at_period_end ? 0 : 1))[0]; 
 
-        if (currentPriceId === targetPriceId) {
-          console.log(`⚠️ [STRIPE-ACTION] Same plan selected. Redirecting to dashboard.`);
-          redirect(`${getBaseUrl()}/dashboard`);
-        }
-
-        // Update subscription (Stripe handles prorations)
-        const updatedSub = await stripe.subscriptions.update(existingSub.id, {
-          items: [
-            {
-              id: existingSub.items.data[0].id,
-              price: targetPriceId,
-            }
-          ],
-          proration_behavior: 'always_invoice' // Charge/credit immediately for any difference
-        });
-
-        console.log(`✅ [STRIPE-ACTION] Subscription updated: ${updatedSub.id}`);
-        console.log(`   Status: ${updatedSub.status}`);
-        
-        // SAFE LOGGING: Prevent crash if current_period_end is missing
-        const updatedEnd = (updatedSub as any).current_period_end 
-          ? new Date((updatedSub as any).current_period_end * 1000).toISOString() 
-          : 'N/A';
-        console.log(`   Current Period End: ${updatedEnd}`);
-        
-        redirect(`${getBaseUrl()}/dashboard?subscription_success=true`);
-      } catch (err: any) {
-        console.error(`❌ [STRIPE-ACTION] Failed to update subscription:`, err.message);
-        throw new Error(`Failed to update subscription: ${err.message}`);
+      if (!existingSub || !existingSub.items.data.length) {
+         throw new Error("No valid subscription item found for update.");
       }
+
+      const currentPriceId = existingSub.items.data[0]?.price.id;
+      
+      console.log(`📌 [STRIPE-ACTION] Current price: ${currentPriceId}, Target price: ${targetPriceId}`);
+
+      // Set the desired renewal state
+      const targetCancelAtPeriodEnd = !autoRenew;
+
+      if (currentPriceId === targetPriceId && existingSub.cancel_at_period_end === targetCancelAtPeriodEnd) {
+        console.log(`⚠️ [STRIPE-ACTION] Same plan and renewal setting selected. Redirecting to dashboard.`);
+        redirect(`${getBaseUrl()}/dashboard/settings?tab=billing`); // Redirect to billing if no effective change
+      }
+
+      // --- Update subscription (Stripe handles prorations) ---
+      const updateParams: Stripe.SubscriptionUpdateParams = {
+          cancel_at_period_end: targetCancelAtPeriodEnd, // Set renewal preference
+      };
+      
+      if (currentPriceId !== targetPriceId) {
+          updateParams.items = [
+              {
+                  id: existingSub.items.data[0].id,
+                  price: targetPriceId,
+              }
+          ];
+          // Prorate immediately for price changes
+          updateParams.proration_behavior = 'always_invoice'; 
+          console.log(`📝 [STRIPE-ACTION] Plan change detected. Setting proration behavior.`);
+      } else {
+           console.log(`📝 [STRIPE-ACTION] Only renewal preference or status update.`);
+      }
+
+      const updatedSub = await stripe.subscriptions.update(existingSub.id, updateParams);
+
+      console.log(`✅ [STRIPE-ACTION] Subscription updated: ${updatedSub.id}`);
+      // Redirect to a specific confirmation page for updates
+      redirect(`${getBaseUrl()}/dashboard/checkout?subscription_update_success=true&planId=${targetPlanId}&interval=${interval}`);
+
+    } catch (err: any) {
+      console.error(`❌ [STRIPE-ACTION] Failed to update subscription:`, err.message);
+      // Redirect to a rejection page for updates
+      redirect(`${getBaseUrl()}/dashboard/checkout?subscription_update_success=false&error=true`);
     }
   }
 
   // 4. NEW SUBSCRIPTION: Create Checkout Session
   console.log(`\n💳 [STRIPE-ACTION] Creating new subscription checkout session...`);
+  
+  // Use clear success/cancel URLs to mirror token purchase flow
+  const successUrl = `${getBaseUrl()}/dashboard/checkout?subscription_success=true&session_id={CHECKOUT_SESSION_ID}&planId=${targetPlanId}&interval=${interval}`;
+  const cancelUrl = `${getBaseUrl()}/dashboard/checkout?subscription_success=false&canceled=true`;
 
   const session = await stripe.checkout.sessions.create({
     customer: customerId,
     line_items: [{ price: targetPriceId, quantity: 1 }],
     mode: 'subscription',
-    success_url: `${getBaseUrl()}/dashboard?subscription_success=true`,
-    cancel_url: `${getBaseUrl()}/dashboard/checkout?planId=${targetPlanId}&interval=${interval}&canceled=true`,
+    success_url: successUrl,
+    cancel_url: cancelUrl,
+    // FIX: Removed subscription_data: { cancel_at_period_end: !autoRenew } 
+    // This parameter caused the "unknown parameter" error. 
+    // Subscription will default to auto-renew (cancel_at_period_end: false).
     metadata: {
       userId: user.id,
       targetPlanId: targetPlanId,
+      interval: interval, 
+      autoRenew: String(autoRenew),
     }
   });
 
@@ -183,7 +217,7 @@ export async function createSubscriptionCheckout(
   if (session.url) redirect(session.url);
 }
 
-// --- Action: Create Checkout for Tokens ---
+// --- Action: Create Checkout for Tokens (KEEP: Token system is untouched) ---
 export async function createTokenPackCheckout(
   projectId: string,
   pack: {
@@ -256,7 +290,7 @@ export async function createTokenPackCheckout(
   if (session.url) redirect(session.url);
 }
 
-// --- Verification Action (Fallback for Webhooks) ---
+// --- Verification Action (Fallback for Webhooks) (KEEP: Token system is untouched) ---
 export async function verifyTokenPurchase(sessionId: string) {
   const supabaseAdmin = createAdminClient();
 
@@ -372,7 +406,7 @@ export async function verifyTokenPurchase(sessionId: string) {
   }
 }
 
-// --- Billing & Invoices ---
+// --- Billing & Invoices (Updated to return full subscription details and map price to planId) ---
 export async function getUserBillingInfo() {
   const supabase = createClient(cookies());
   const { data: { user } } = await supabase.auth.getUser();
@@ -405,28 +439,41 @@ export async function getUserBillingInfo() {
   }));
 
   let subscriptionDetails = null;
+  let planDetails = null;
   const subscriptions = await stripe.subscriptions.list({
     customer: userData.stripe_customer_id,
-    status: 'all',
+    status: 'all', // Fetch all statuses to check for current status
     limit: 1,
   });
 
   if (subscriptions.data.length > 0) {
     const sub = subscriptions.data[0] as any;
+    const item = sub.items?.data?.[0];
+    const price = item?.price;
 
+    let priceId = price?.id || null;
+    let planId: string | null = null;
     let productName = 'Unknown Plan';
     let amount = '0';
-    let interval = 'month';
-
-    if (sub.items && sub.items.data.length > 0) {
-      const item = sub.items.data[0];
-      if (item.price) {
-        amount = ((item.price.unit_amount || 0) / 100).toFixed(2);
-        interval = item.price.recurring?.interval || 'month';
-      }
+    let interval: 'month' | 'year' = 'month';
+    
+    if (priceId) {
+        // Map Stripe Price ID back to our internal UUID
+        planId = getPlanIdFromPrice(priceId);
     }
 
-    // SAFE DATE PARSING (Fixes RangeError)
+    if (item && price) {
+      amount = ((price.unit_amount || 0) / 100).toFixed(2);
+      interval = price.recurring?.interval === 'year' ? 'year' : 'month';
+    }
+    
+    if (planId) {
+        // Get limits and other config data
+        planDetails = SUBSCRIPTION_PLANS[planId];
+        productName = planDetails.name;
+    }
+
+    // SAFE DATE PARSING
     const periodEnd = (sub as any).current_period_end 
       ? new Date((sub as any).current_period_end * 1000) 
       : null;
@@ -437,11 +484,13 @@ export async function getUserBillingInfo() {
 
     subscriptionDetails = {
       id: sub.id,
+      planId: planId, // Internal UUID
+      priceId: priceId, // Stripe Price ID
       planName: productName,
       amount: amount,
-      interval: interval,
+      interval: interval, // month or year
       currentPeriodEnd: periodEndIso,
-      cancelAtPeriodEnd: sub.cancel_at_period_end,
+      cancelAtPeriodEnd: sub.cancel_at_period_end, // The auto-renew flag
       status: sub.status,
     };
   }
@@ -449,21 +498,25 @@ export async function getUserBillingInfo() {
   return {
     invoices: formattedInvoices,
     subscription: subscriptionDetails,
-    planDetails: null
+    planDetails: planDetails // Return the config for limits/name etc.
   };
 }
 
-export async function cancelUserSubscription(subscriptionId: string) {
+// --- Update cancelUserSubscription to include re-enabling auto-renew ---
+export async function cancelUserSubscription(subscriptionId: string, cancel: boolean) {
   try {
-    await stripe.subscriptions.update(subscriptionId, {
-      cancel_at_period_end: true
+    // cancel: true sets cancel_at_period_end: true (Disables auto-renew)
+    // cancel: false sets cancel_at_period_end: false (Enables auto-renew)
+    const updatedSub = await stripe.subscriptions.update(subscriptionId, {
+      cancel_at_period_end: cancel
     });
-    return { success: true };
+    return { success: true, cancelAtPeriodEnd: updatedSub.cancel_at_period_end };
   } catch (error: any) {
     return { success: false, error: error.message };
   }
 }
 
+// --- getUserInvoices (Kept as is) ---
 export async function getUserInvoices() {
   const supabase = createClient(cookies());
   const { data: { user } } = await supabase.auth.getUser();

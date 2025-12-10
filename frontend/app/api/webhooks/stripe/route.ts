@@ -1,3 +1,5 @@
+// frontend/app/api/webhooks/stripe/route.ts
+
 import { headers } from 'next/headers';
 import { NextResponse } from 'next/server';
 import { createAdminClient } from '@/utils/supabase/admin';
@@ -27,7 +29,7 @@ export async function POST(req: Request) {
   const supabaseAdmin = createAdminClient();
   const data = event.data.object as any;
 
-  // Helper: Find user by Stripe customer ID
+  // Helper: Find user by Stripe customer ID (Kept for token processing)
   const findUserByCustomerId = async (customerId: string) => {
     console.log(`🔍 [STRIPE-WEBHOOK] Looking up user for customer ${customerId}`);
     
@@ -46,7 +48,7 @@ export async function POST(req: Request) {
     return user.id;
   };
 
-  // Helper: Map Stripe Price ID to Internal Plan UUID
+  // Helper: Map Stripe Price ID to Internal Plan UUID (Kept for logging/reference)
   const getPlanIdFromPrice = (priceId: string) => {
     for (const [planId, config] of Object.entries(SUBSCRIPTION_PLANS)) {
       if (config.prices.month === priceId || config.prices.year === priceId) {
@@ -56,7 +58,7 @@ export async function POST(req: Request) {
     return null;
   };
 
-  // --- TOKEN PURCHASES (checkout.session.completed) ---
+  // --- TOKEN PURCHASES (checkout.session.completed) (KEEP: Token system is untouched) ---
   if (event.type === 'checkout.session.completed') {
     const session = data;
     const metadata = session.metadata;
@@ -150,70 +152,26 @@ export async function POST(req: Request) {
     return new NextResponse(null, { status: 200 });
   }
 
-  // --- SUBSCRIPTION CREATED / UPDATED ---
-  const handleSubscriptionChange = async (subscription: any) => {
-    const userId = await findUserByCustomerId(subscription.customer);
-    if (!userId) return;
-
-    // 1. Determine Status
-    // Active if 'active' or 'trialing'. Everything else (past_due, unpaid) is inactive.
-    const isActive = subscription.status === 'active' || subscription.status === 'trialing';
-    
-    // IMPORTANT: Your DB column "subscription_status" is TEXT, so we must save a string
-    const statusString = isActive ? 'active' : 'inactive';
-
-    // 2. Determine Plan ID
-    const priceId = subscription.items?.data?.[0]?.price?.id;
-    const planId = priceId ? getPlanIdFromPrice(priceId) : null;
-
-    console.log(`   Status: ${subscription.status} -> DB: ${statusString}`);
-    console.log(`   Plan ID: ${planId}`);
-
-    // 3. Update User
-    const { error } = await supabaseAdmin.from('users').update({
-        plan_id: planId, // Updates plan to correct ID (or null if not found)
-        subscription_status: statusString, 
-        updated_at: new Date().toISOString()
-    }).eq('id', userId);
-
-    if (error) console.error('❌ [STRIPE-WEBHOOK] Failed to update user:', error);
-    else console.log(`✅ [STRIPE-WEBHOOK] User ${userId} updated successfully.`);
-  };
-
+  // --- SUBSCRIPTION CREATED / UPDATED / DELETED (DB updates REMOVED) ---
+  // Subscription status is now fetched on demand from Stripe.
+  
   if (event.type === 'customer.subscription.created') {
-    console.log(`\n📝 [STRIPE-WEBHOOK] Subscription CREATED: ${data.id}`);
-    await handleSubscriptionChange(data);
+    console.log(`\n📝 [STRIPE-WEBHOOK] Subscription CREATED: ${data.id}. Status will be fetched on demand.`);
     return new NextResponse(null, { status: 200 });
   }
 
   if (event.type === 'customer.subscription.updated') {
-    console.log(`\n🔄 [STRIPE-WEBHOOK] Subscription UPDATED: ${data.id}`);
-    await handleSubscriptionChange(data);
+    console.log(`\n🔄 [STRIPE-WEBHOOK] Subscription UPDATED: ${data.id}. Status will be fetched on demand.`);
     return new NextResponse(null, { status: 200 });
   }
 
-  // --- SUBSCRIPTION DELETED ---
   if (event.type === 'customer.subscription.deleted') {
     const subscription = data;
-    console.log(`\n🗑️ [STRIPE-WEBHOOK] Subscription DELETED: ${subscription.id}`);
-
-    const userId = await findUserByCustomerId(subscription.customer);
-    if (userId) {
-      // Set status to 'inactive' and remove plan_id
-      const { error } = await supabaseAdmin.from('users').update({
-          plan_id: null,
-          subscription_status: 'inactive', // String value
-          updated_at: new Date().toISOString()
-      }).eq('id', userId);
-
-      if (error) console.error('❌ [STRIPE-WEBHOOK] Failed to cancel user subscription:', error);
-      else console.log(`✅ [STRIPE-WEBHOOK] User ${userId} subscription cancelled.`);
-    }
-
+    console.log(`\n🗑️ [STRIPE-WEBHOOK] Subscription DELETED: ${subscription.id}. Status will be fetched on demand.`);
     return new NextResponse(null, { status: 200 });
   }
 
-  // --- PAYMENT EVENTS (Logging only) ---
+  // --- PAYMENT EVENTS (Payment Confirmed/Rejected mirror) ---
   if (event.type === 'invoice.payment_failed') {
     console.log(`\n⚠️ [STRIPE-WEBHOOK] Payment FAILED: ${data.id}`);
     return new NextResponse(null, { status: 200 });
