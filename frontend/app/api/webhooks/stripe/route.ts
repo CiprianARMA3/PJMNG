@@ -2,6 +2,7 @@ import { headers } from 'next/headers';
 import { NextResponse } from 'next/server';
 import { createAdminClient } from '@/utils/supabase/admin';
 import { stripe } from '@/utils/stripe/server';
+import { SUBSCRIPTION_PLANS } from '@/utils/stripe/config';
 
 export async function POST(req: Request) {
   console.log("\n🔥 [STRIPE-WEBHOOK] Webhook event received");
@@ -45,6 +46,16 @@ export async function POST(req: Request) {
     return user.id;
   };
 
+  // Helper: Map Stripe Price ID to Internal Plan UUID
+  const getPlanIdFromPrice = (priceId: string) => {
+    for (const [planId, config] of Object.entries(SUBSCRIPTION_PLANS)) {
+      if (config.prices.month === priceId || config.prices.year === priceId) {
+        return planId;
+      }
+    }
+    return null;
+  };
+
   // --- TOKEN PURCHASES (checkout.session.completed) ---
   if (event.type === 'checkout.session.completed') {
     const session = data;
@@ -63,9 +74,7 @@ export async function POST(req: Request) {
         const currency = (session.currency || 'eur').toUpperCase();
 
         console.log(`[STRIPE-TOKEN] Project: ${projectId}, User: ${userId}`);
-        console.log(`[STRIPE-TOKEN] Tokens:`, newTokens);
-        console.log(`[STRIPE-TOKEN] Amount: €${amountPaid}`);
-
+        
         // Log transactions
         const tokenEntries = Object.entries(newTokens).filter(([, tokens]) => Number(tokens) > 0);
         const totalTokensPurchased = tokenEntries.reduce((sum, [, tokens]) => sum + Number(tokens), 0);
@@ -75,7 +84,7 @@ export async function POST(req: Request) {
           const tokenAmount = Number(tokensAdded);
           const transactionAmount = tokenAmount * pricePerToken;
 
-          const { error: txError } = await supabaseAdmin.from('token_transactions').insert({
+          await supabaseAdmin.from('token_transactions').insert({
             user_id: userId,
             project_id: projectId,
             model_key: modelKey,
@@ -89,22 +98,15 @@ export async function POST(req: Request) {
               token_pack_breakdown: newTokens
             }
           });
-
-          if (txError) {
-            console.error(`❌ [STRIPE-TOKEN] Error logging transaction: ${txError.message}`);
-          } else {
-            console.log(`✅ [STRIPE-TOKEN] Logged transaction: ${modelKey} (+${tokenAmount} tokens)`);
-          }
         }
 
-        // Update token packs
+        // Update token packs logic...
         const { data: packs } = await supabaseAdmin
           .from('token_packs')
           .select('*')
           .eq('project_id', projectId);
 
         const existingPack = packs?.length ? packs[0] : null;
-
         const sumTokens = (key: string, oldObj: any, newObj: any) => {
           const oldVal = Number(oldObj?.[key]) || 0;
           const newVal = Number(newObj?.[key]) || 0;
@@ -112,9 +114,7 @@ export async function POST(req: Request) {
         };
 
         if (existingPack) {
-          console.log(`[STRIPE-TOKEN] Updating existing pack: ${existingPack.id}`);
-
-          await supabaseAdmin.from('token_packs').update({
+            await supabaseAdmin.from('token_packs').update({
             tokens_purchased: {
               "gemini-2.5-pro": sumTokens("gemini-2.5-pro", existingPack.tokens_purchased, newTokens),
               "gemini-2.5-flash": sumTokens("gemini-2.5-flash", existingPack.tokens_purchased, newTokens),
@@ -129,12 +129,8 @@ export async function POST(req: Request) {
             updated_at: new Date().toISOString(),
             expires_at: new Date(new Date().setFullYear(new Date().getFullYear() + 1)).toISOString(),
           }).eq('id', existingPack.id);
-
-          console.log(`✅ [STRIPE-TOKEN] Pack updated`);
         } else {
-          console.log(`[STRIPE-TOKEN] Creating new pack: ${projectId}`);
-
-          await supabaseAdmin.from('token_packs').insert({
+            await supabaseAdmin.from('token_packs').insert({
             user_id: userId,
             project_id: projectId,
             price_paid: amountPaid,
@@ -144,10 +140,7 @@ export async function POST(req: Request) {
             remaining_tokens: newTokens,
             metadata: { stripe_session_id: session.id }
           });
-
-          console.log(`✅ [STRIPE-TOKEN] Pack created`);
         }
-
         console.log(`✅ [STRIPE-TOKEN] Token refill completed\n`);
       } catch (error: any) {
         console.error(`❌ [STRIPE-TOKEN] Error:`, error.message);
@@ -157,34 +150,45 @@ export async function POST(req: Request) {
     return new NextResponse(null, { status: 200 });
   }
 
-  // --- SUBSCRIPTION CREATED ---
-  if (event.type === 'customer.subscription.created') {
-    const subscription = data;
-    console.log(`\n📝 [STRIPE-WEBHOOK] Subscription CREATED: ${subscription.id}`);
-    console.log(`   Customer: ${subscription.customer}`);
-    console.log(`   Status: ${subscription.status}`);
-
+  // --- SUBSCRIPTION CREATED / UPDATED ---
+  const handleSubscriptionChange = async (subscription: any) => {
     const userId = await findUserByCustomerId(subscription.customer);
-    if (userId) {
-      // Just confirm the user exists - all data is in Stripe
-      console.log(`✅ [STRIPE-WEBHOOK] Subscription confirmed for user ${userId}`);
-    }
+    if (!userId) return;
 
+    // 1. Determine Status
+    // Active if 'active' or 'trialing'. Everything else (past_due, unpaid) is inactive.
+    const isActive = subscription.status === 'active' || subscription.status === 'trialing';
+    
+    // IMPORTANT: Your DB column "subscription_status" is TEXT, so we must save a string
+    const statusString = isActive ? 'active' : 'inactive';
+
+    // 2. Determine Plan ID
+    const priceId = subscription.items?.data?.[0]?.price?.id;
+    const planId = priceId ? getPlanIdFromPrice(priceId) : null;
+
+    console.log(`   Status: ${subscription.status} -> DB: ${statusString}`);
+    console.log(`   Plan ID: ${planId}`);
+
+    // 3. Update User
+    const { error } = await supabaseAdmin.from('users').update({
+        plan_id: planId, // Updates plan to correct ID (or null if not found)
+        subscription_status: statusString, 
+        updated_at: new Date().toISOString()
+    }).eq('id', userId);
+
+    if (error) console.error('❌ [STRIPE-WEBHOOK] Failed to update user:', error);
+    else console.log(`✅ [STRIPE-WEBHOOK] User ${userId} updated successfully.`);
+  };
+
+  if (event.type === 'customer.subscription.created') {
+    console.log(`\n📝 [STRIPE-WEBHOOK] Subscription CREATED: ${data.id}`);
+    await handleSubscriptionChange(data);
     return new NextResponse(null, { status: 200 });
   }
 
-  // --- SUBSCRIPTION UPDATED ---
   if (event.type === 'customer.subscription.updated') {
-    const subscription = data;
-    console.log(`\n🔄 [STRIPE-WEBHOOK] Subscription UPDATED: ${subscription.id}`);
-    console.log(`   Status: ${subscription.status}`);
-    console.log(`   Current Period End: ${new Date(subscription.current_period_end * 1000).toISOString()}`);
-
-    const userId = await findUserByCustomerId(subscription.customer);
-    if (userId) {
-      console.log(`✅ [STRIPE-WEBHOOK] Update confirmed for user ${userId}`);
-    }
-
+    console.log(`\n🔄 [STRIPE-WEBHOOK] Subscription UPDATED: ${data.id}`);
+    await handleSubscriptionChange(data);
     return new NextResponse(null, { status: 200 });
   }
 
@@ -195,37 +199,28 @@ export async function POST(req: Request) {
 
     const userId = await findUserByCustomerId(subscription.customer);
     if (userId) {
-      console.log(`✅ [STRIPE-WEBHOOK] Deletion confirmed for user ${userId}`);
+      // Set status to 'inactive' and remove plan_id
+      const { error } = await supabaseAdmin.from('users').update({
+          plan_id: null,
+          subscription_status: 'inactive', // String value
+          updated_at: new Date().toISOString()
+      }).eq('id', userId);
+
+      if (error) console.error('❌ [STRIPE-WEBHOOK] Failed to cancel user subscription:', error);
+      else console.log(`✅ [STRIPE-WEBHOOK] User ${userId} subscription cancelled.`);
     }
 
     return new NextResponse(null, { status: 200 });
   }
 
-  // --- PAYMENT FAILED ---
+  // --- PAYMENT EVENTS (Logging only) ---
   if (event.type === 'invoice.payment_failed') {
-    const invoice = data;
-    console.log(`\n⚠️ [STRIPE-WEBHOOK] Payment FAILED: ${invoice.id}`);
-    console.log(`   Customer: ${invoice.customer}`);
-
-    const userId = await findUserByCustomerId(invoice.customer);
-    if (userId) {
-      console.log(`[STRIPE-WEBHOOK] User will see restricted access on next request`);
-    }
-
+    console.log(`\n⚠️ [STRIPE-WEBHOOK] Payment FAILED: ${data.id}`);
     return new NextResponse(null, { status: 200 });
   }
 
-  // --- PAYMENT SUCCEEDED ---
   if (event.type === 'invoice.payment_succeeded') {
-    const invoice = data;
-    console.log(`\n✅ [STRIPE-WEBHOOK] Payment SUCCEEDED: ${invoice.id}`);
-    console.log(`   Customer: ${invoice.customer}`);
-
-    const userId = await findUserByCustomerId(invoice.customer);
-    if (userId) {
-      console.log(`[STRIPE-WEBHOOK] Payment confirmed for user ${userId}`);
-    }
-
+    console.log(`\n✅ [STRIPE-WEBHOOK] Payment SUCCEEDED: ${data.id}`);
     return new NextResponse(null, { status: 200 });
   }
 
