@@ -405,6 +405,11 @@ export async function verifyTokenPurchase(sessionId: string) {
 }
 
 // --- Billing & Invoices (Updated to return full subscription details and map price to planId) ---
+// frontend/app/actions/stripe.ts
+
+// ... (All other functions remain the same: getTokenPacks, createSubscriptionCheckout, etc.)
+
+// --- Billing & Invoices (Updated to use Invoice date as fallback) ---
 export async function getUserBillingInfo() {
   const supabase = createClient(cookies());
   const { data: { user } } = await supabase.auth.getUser();
@@ -421,26 +426,42 @@ export async function getUserBillingInfo() {
     return { invoices: [], subscription: null, planDetails: null };
   }
 
+  console.log(`\n🐛 [DEBUG-START] Fetching billing info for customer: ${userData.stripe_customer_id}`);
+
+  // --- 1. Fetch Invoices and Find Latest Period End ---
   const invoices = await stripe.invoices.list({
     customer: userData.stripe_customer_id,
     limit: 10,
     status: 'paid'
   });
 
-  const formattedInvoices = invoices.data.map(inv => ({
-    id: inv.id,
-    date: new Date(inv.created * 1000).toLocaleDateString(),
-    amount: (inv.amount_paid / 100).toFixed(2),
-    currency: inv.currency.toUpperCase(),
-    pdfUrl: inv.invoice_pdf,
-    status: inv.status
-  }));
+  // Find the period_end from the newest paid invoice to use as a strong fallback
+  const latestInvoice = invoices.data[0];
+  const invoicePeriodEndFallback = 
+    latestInvoice?.lines?.data?.[0]?.period?.end || null; 
 
+  const formattedInvoices = invoices.data.map(inv => {
+    // FIX INTEGRATED: Read period end from the line item for the table display
+    const periodEnd = inv.lines?.data?.[0]?.period?.end || null; 
+
+    return {
+      id: inv.id,
+      date: periodEnd
+        ? new Date(periodEnd * 1000).toLocaleDateString() 
+        : null,
+      amount: (inv.amount_paid / 100).toFixed(2),
+      currency: inv.currency.toUpperCase(),
+      pdfUrl: inv.invoice_pdf || null,
+      status: inv.status
+    };
+  });
+
+  // --- 2. Fetch Subscription Details ---
   let subscriptionDetails = null;
   let planDetails = null;
   const subscriptions = await stripe.subscriptions.list({
     customer: userData.stripe_customer_id,
-    status: 'all', // Fetch all statuses to check for current status
+    status: 'all', 
     limit: 1,
   });
 
@@ -456,7 +477,6 @@ export async function getUserBillingInfo() {
     let interval: 'month' | 'year' = 'month';
     
     if (priceId) {
-        // Map Stripe Price ID back to our internal UUID
         planId = getPlanIdFromPrice(priceId);
     }
 
@@ -466,50 +486,66 @@ export async function getUserBillingInfo() {
     }
     
     if (planId) {
-        // Get limits and other config data
         planDetails = SUBSCRIPTION_PLANS[planId];
         productName = planDetails.name;
     }
 
-    // SAFE DATE PARSING (This logic is robust and correctly handles undefined)
-    const stripePeriodEndTimestamp = (sub as any).current_period_end;
+    // SAFE DATE PARSING (Subscription Renewal Date)
+    const rawPeriodEndTimestamp = sub.current_period_end;
+    const rawTrialEndTimestamp = sub.trial_end; 
     let periodEndIso: string | null = null;
     
-    // Check if the timestamp is a number and greater than 0 before conversion
-    if (typeof stripePeriodEndTimestamp === 'number' && stripePeriodEndTimestamp > 0) {
-        const periodEnd = new Date(stripePeriodEndTimestamp * 1000);
-        
-        // Ensure the date object is valid before converting
-        if (!isNaN(periodEnd.getTime())) {
-             periodEndIso = periodEnd.toISOString();
-        } else {
-             // Log error, but proceed with null date
-             console.error(`[STRIPE-DATE-ERR] Invalid date created from timestamp: ${stripePeriodEndTimestamp}`);
-        }
-    } else {
-        // Log warn, but proceed with null date (The warning you see)
-        console.warn(`[STRIPE-DATE-WARN] Missing or invalid current_period_end value: ${stripePeriodEndTimestamp}`);
+    // Determine the primary timestamp source
+    let relevantTimestamp: number | null = null;
+
+    if (sub.status === 'trialing' && rawTrialEndTimestamp) {
+        relevantTimestamp = rawTrialEndTimestamp;
+    } else if (rawPeriodEndTimestamp) {
+        relevantTimestamp = rawPeriodEndTimestamp;
+    } else if (sub.status === 'active' && invoicePeriodEndFallback) {
+        // *** NEW FALLBACK INTEGRATION ***
+        relevantTimestamp = invoicePeriodEndFallback;
+        console.log(`🐛 [DEBUG-DATE] Using Invoice Period End Fallback: ${relevantTimestamp}`);
     }
 
+
+    // Check if the relevant timestamp is a number and greater than 0 before conversion
+    if (typeof relevantTimestamp === 'number' && relevantTimestamp > 0) {
+        const periodEnd = new Date(relevantTimestamp * 1000); 
+        
+        if (!isNaN(periodEnd.getTime())) {
+             periodEndIso = periodEnd.toISOString();
+             console.log(`🐛 [DEBUG-DATE] Final ISO Date: ${periodEndIso}`);
+        } else {
+             console.error(`❌ [STRIPE-DATE-ERR] Invalid date created from timestamp: ${relevantTimestamp}`);
+        }
+    } else {
+        console.log(`🐛 [DEBUG-DATE] No valid future date timestamp found. Sending null.`);
+    }
+    
     subscriptionDetails = {
       id: sub.id,
-      planId: planId, // Internal UUID
-      priceId: priceId, // Stripe Price ID
+      planId: planId, 
+      priceId: priceId, 
       planName: productName,
       amount: amount,
-      interval: interval, // month or year
-      currentPeriodEnd: periodEndIso, // Now the robustly checked ISO string or null
-      cancelAtPeriodEnd: sub.cancel_at_period_end, // The auto-renew flag
+      interval: interval, 
+      currentPeriodEnd: periodEndIso, // ISO string or null
+      cancelAtPeriodEnd: sub.cancel_at_period_end, 
       status: sub.status,
     };
   }
 
+  console.log(`🐛 [DEBUG-END] Billing Info ready. Subscription date sent to frontend: ${subscriptionDetails?.currentPeriodEnd}`);
+
   return {
     invoices: formattedInvoices,
     subscription: subscriptionDetails,
-    planDetails: planDetails // Return the config for limits/name etc.
+    planDetails: planDetails 
   };
 }
+
+// ... (All other functions remain the same: cancelUserSubscription, getUserInvoices)
 
 // --- Update cancelUserSubscription to include re-enabling auto-renew ---
 export async function cancelUserSubscription(subscriptionId: string, cancel: boolean) {
@@ -525,7 +561,7 @@ export async function cancelUserSubscription(subscriptionId: string, cancel: boo
   }
 }
 
-// --- getUserInvoices (Kept as is) ---
+// --- getUserInvoices (Updated with FIX) ---
 export async function getUserInvoices() {
   const supabase = createClient(cookies());
   const { data: { user } } = await supabase.auth.getUser();
@@ -548,12 +584,20 @@ export async function getUserInvoices() {
     status: 'paid'
   });
 
-  return invoices.data.map(inv => ({
-    id: inv.id,
-    date: new Date(inv.created * 1000).toLocaleDateString(),
-    amount: (inv.amount_paid / 100).toFixed(2),
-    currency: inv.currency.toUpperCase(),
-    pdfUrl: inv.invoice_pdf,
-    status: inv.status
-  }));
+  return invoices.data.map(inv => {
+    // FIX APPLIED HERE: Read period end from the line item
+    const periodEnd = inv.lines?.data?.[0]?.period?.end || null;
+
+    return {
+      id: inv.id,
+      // Use the correctly sourced period end.
+      date: periodEnd
+        ? new Date(periodEnd * 1000).toLocaleDateString()
+        : null, // Return null if date is not available
+      amount: (inv.amount_paid / 100).toFixed(2),
+      currency: inv.currency.toUpperCase(),
+      pdfUrl: inv.invoice_pdf,
+      status: inv.status
+    };
+  });
 }

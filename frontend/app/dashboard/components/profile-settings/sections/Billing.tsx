@@ -5,7 +5,8 @@
 import { useEffect, useState } from "react";
 import { Download, CreditCard, Calendar, CheckCircle, XCircle, Loader2, Clock, TrendingUp, Info, AlertCircle } from "lucide-react";
 import Link from "next/link";
-import { getUserBillingInfo, cancelUserSubscription } from "@/app/actions/stripe";
+// Ensure getUserBillingInfo is imported from the updated actions file
+import { getUserBillingInfo, cancelUserSubscription } from "@/app/actions/stripe"; 
 
 // Define the expected structure from getUserBillingInfo().subscription
 interface SubscriptionDetail {
@@ -15,22 +16,33 @@ interface SubscriptionDetail {
     planName: string;
     amount: string; // Formatted as string 'XX.XX' (e.g., '9.99')
     interval: 'month' | 'year';
-    currentPeriodEnd: string | null; // This is the value that can be null (ISO date string)
+    currentPeriodEnd: string | null; // ISO date string or null
     cancelAtPeriodEnd: boolean; // True if auto-renewal is OFF
     status: string; // e.g., 'active', 'trialing', 'canceled', 'past_due', 'unpaid'
 }
 
+// Define the structure for invoices: 'date' must hold the period_end date 
+interface InvoiceDetail {
+    id: string;
+    // FIX INTEGRATED: Allow null, as the server now sends a formatted string or null if date is unavailable
+    date: string | null; 
+    amount: string; 
+    currency: string;
+    pdfUrl: string | null;
+    status: string; 
+}
+
+
 export default function BillingPage() {
     const [loading, setLoading] = useState(true);
     const [subscriptionData, setSubscriptionData] = useState<SubscriptionDetail | null>(null);
-    const [invoices, setInvoices] = useState<any[]>([]);
+    const [invoices, setInvoices] = useState<InvoiceDetail[]>([]);
     const [cancelling, setCancelling] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
     const loadData = async () => {
         try {
             console.log("📊 [BILLING] Loading billing information from Stripe...");
-            // This action fetches data from Stripe; currentPeriodEnd may be null
             const billingInfo = await getUserBillingInfo();
             const sub = billingInfo.subscription as SubscriptionDetail | null; 
             
@@ -43,7 +55,7 @@ export default function BillingPage() {
             }
 
             console.log("✅ [BILLING] Invoices loaded:", billingInfo.invoices?.length || 0);
-            setInvoices(billingInfo.invoices || []);
+            setInvoices(billingInfo.invoices as InvoiceDetail[] || []); 
 
         } catch (error) {
             console.error("❌ [BILLING] Failed to load billing data:", error);
@@ -72,12 +84,10 @@ export default function BillingPage() {
 
         try {
             console.log(`📝 [BILLING] Setting subscription to cancel at period end: ${subscriptionData.id}`);
-            // Pass true to set cancel_at_period_end = true
             const res = await cancelUserSubscription(subscriptionData.id, true);
 
             if (res.success) {
                 console.log("✅ [BILLING] Subscription cancellation scheduled successfully");
-                // Use the non-null assertion as the server action guarantees this field is set on success
                 setSubscriptionData(prev => prev ? ({ ...prev, cancelAtPeriodEnd: res.cancelAtPeriodEnd! }) : null);
             } else {
                 console.error("❌ [BILLING] Failed to schedule cancellation:", res.error);
@@ -103,7 +113,6 @@ export default function BillingPage() {
         setError(null);
         try {
             console.log(`📝 [BILLING] Re-enabling auto-renewal for: ${subscriptionData.id}`);
-            // Pass false to set cancel_at_period_end = false (re-enables renewal)
             const res = await cancelUserSubscription(subscriptionData.id, false); 
 
             if (res.success) {
@@ -142,9 +151,10 @@ export default function BillingPage() {
     const formatDate = (date: Date | string | null) => {
         if (!date) return 'N/A';
 
-        const dateObj = typeof date === 'string' ? new Date(date) : date;
+        const dateObj = typeof date === 'string' ? new Date(date) : date; 
         if (isNaN(dateObj.getTime())) return 'N/A';
 
+        // **FIX INTEGRATED HERE**: Provide complete formatting options for toLocaleDateString
         return dateObj.toLocaleDateString('en-GB', {
             day: '2-digit',
             month: 'short',
@@ -405,18 +415,22 @@ export default function BillingPage() {
                     <table className="w-full text-left text-sm text-white/70">
                         <thead className="bg-white/5 text-white font-medium uppercase text-xs">
                             <tr>
-                                <th className="px-6 py-4">Date</th>
+                                {/* Updated Header to clearly show this is the billing period end */}
+                                <th className="px-6 py-4">Period End Date</th> 
                                 <th className="px-6 py-4">Amount</th>
                                 <th className="px-6 py-4">Status</th>
                                 <th className="px-6 py-4 text-right">Invoice</th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-[#1e1e22]">
-                            {invoices.map((inv: any) => (
+                            {/* Use InvoiceDetail type hint for mapping */}
+                            {invoices.map((inv: InvoiceDetail) => (
                                 <tr key={inv.id} className="hover:bg-white/5 transition-colors">
-                                    <td className="px-6 py-4">{inv.date}</td>
+                                    {/* FIX APPLIED HERE: Handle null date gracefully */}
+                                    <td className="px-6 py-4">{inv.date || 'N/A'}</td>
                                     <td className="px-6 py-4 font-medium text-white">
-                                        {inv.currency === 'EUR' ? '€' : '$'}{inv.amount}
+                                        {/* Assuming EUR is the default, check currency explicitly */}
+                                        {inv.currency === 'EUR' ? '€' : inv.currency === 'USD' ? '$' : inv.currency}{inv.amount}
                                     </td>
                                     <td className="px-6 py-4">
                                         <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium border ${inv.status === 'paid'
@@ -433,6 +447,9 @@ export default function BillingPage() {
                                                 <Download size={14} />
                                                 PDF
                                             </a>
+                                        )}
+                                        {!inv.pdfUrl && (
+                                            <span className="text-white/30">N/A</span>
                                         )}
                                     </td>
                                 </tr>
