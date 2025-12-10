@@ -1,97 +1,151 @@
-// frontend/app/dashboard/components/profile-settings/sections/Billing.tsx
-
 "use client";
 
 import { useEffect, useState } from "react";
 import { Download, CreditCard, Calendar, CheckCircle, XCircle, Loader2, Clock, TrendingUp, Info, AlertCircle } from "lucide-react";
-import { getUserBillingInfo, cancelUserSubscription } from "@/app/actions/stripe"; 
-// Removed redundant import of getUserSubscriptionData, as the data is now merged inside getUserBillingInfo
+import { getUserBillingInfo, cancelUserSubscription } from "@/app/actions/stripe";
+import { checkSubscriptionStatus } from "@/utils/check-subscription";
 
 export default function BillingPage() {
     const [loading, setLoading] = useState(true);
-    const [billingInfo, setBillingInfo] = useState<any>(null); 
+    const [subscriptionData, setSubscriptionData] = useState<any>(null);
+    const [invoices, setInvoices] = useState<any[]>([]);
     const [cancelling, setCancelling] = useState(false);
+    const [error, setError] = useState<string | null>(null);
 
     useEffect(() => {
         const loadData = async () => {
             try {
-                // Fetch combined Stripe/DB data
-                const info = await getUserBillingInfo();
-                setBillingInfo(info);
+                console.log("📊 [BILLING] Loading billing information...");
+
+                // 1. Check subscription status (queries Stripe directly)
+                const subResult = await checkSubscriptionStatus();
+                console.log("✅ [BILLING] Subscription check result:", subResult);
+
+                if (subResult.isValid && subResult.subscription) {
+                    setSubscriptionData({
+                        ...subResult.subscription,
+                        planName: subResult.planName
+                    });
+                } else {
+                    console.log("⚠️ [BILLING] No active subscription found");
+                    setSubscriptionData(null);
+                }
+
+                // 2. Fetch invoices
+                const billingInfo = await getUserBillingInfo();
+                console.log("✅ [BILLING] Billing info loaded, invoices:", billingInfo.invoices?.length || 0);
+                setInvoices(billingInfo.invoices || []);
+
             } catch (error) {
-                console.error("Failed to load billing", error);
+                console.error("❌ [BILLING] Failed to load billing data:", error);
+                setError("Failed to load billing information");
             } finally {
                 setLoading(false);
             }
         };
+
         loadData();
     }, []);
 
     const handleCancel = async () => {
-        if (!billingInfo?.subscription?.id) return;
-        if (!confirm("Are you sure you want to cancel your subscription? It will remain active until the end of the current billing period.")) return;
+        if (!subscriptionData?.id) {
+            console.error("❌ [BILLING] No subscription ID found");
+            return;
+        }
+
+        if (!confirm("Are you sure you want to cancel your subscription? It will remain active until the end of the current billing period.")) {
+            return;
+        }
 
         setCancelling(true);
-        const res = await cancelUserSubscription(billingInfo.subscription.id);
-        if (res.success) {
-            // Re-fetch data on success
-            const updated = await getUserBillingInfo();
-            setBillingInfo(updated);
-        } else {
-            alert("Error cancelling subscription: " + res.error);
+        try {
+            console.log(`📝 [BILLING] Cancelling subscription: ${subscriptionData.id}`);
+            const res = await cancelUserSubscription(subscriptionData.id);
+
+            if (res.success) {
+                console.log("✅ [BILLING] Subscription cancelled successfully");
+                // Re-fetch data
+                const subResult = await checkSubscriptionStatus();
+                if (subResult.isValid && subResult.subscription) {
+                    setSubscriptionData({
+                        ...subResult.subscription,
+                        planName: subResult.planName
+                    });
+                } else {
+                    setSubscriptionData(null);
+                }
+            } else {
+                console.error("❌ [BILLING] Failed to cancel:", res.error);
+                setError("Error cancelling subscription: " + res.error);
+            }
+        } catch (err) {
+            console.error("❌ [BILLING] Cancel error:", err);
+            setError("Failed to cancel subscription");
+        } finally {
+            setCancelling(false);
         }
-        setCancelling(false);
     };
 
-    const subscriptionData = billingInfo?.subscription;
-    
-    // Calculate days until expiration - relies on the accurate ISO string from the server
+    // Calculate days until expiration
     const getDaysUntilExpiration = () => {
         if (!subscriptionData?.currentPeriodEnd) return null;
-        
-        const endDate = new Date(subscriptionData.currentPeriodEnd); 
+
+        const endDate = new Date(subscriptionData.currentPeriodEnd);
         const now = new Date();
-        
         const diff = endDate.getTime() - now.getTime();
-        // Use Math.ceil to round up, correctly showing days left until the period ends
-        const days = Math.ceil(diff / (1000 * 60 * 60 * 24)); 
+        const days = Math.ceil(diff / (1000 * 60 * 60 * 24));
         return days;
     };
 
-    // Format date - uses the accurate ISO string from the server
-    const formatDate = (dateString: string | null) => {
-        if (!dateString) return 'Unknown';
-        const date = new Date(dateString);
-        if (isNaN(date.getTime())) return 'Invalid Date'; // Safety check
-        // The date is formatted correctly here regardless of the input ISO string
-        return date.toLocaleDateString('en-GB', {
+    // Format date
+    const formatDate = (date: Date | string | null) => {
+        if (!date) return 'Unknown';
+
+        const dateObj = typeof date === 'string' ? new Date(date) : date;
+        if (isNaN(dateObj.getTime())) return 'Invalid Date';
+
+        return dateObj.toLocaleDateString('en-GB', {
             day: '2-digit',
             month: 'short',
             year: 'numeric'
         });
     };
-    
-    // Helper to get correct plan price display using Stripe data
+
+    // Get price display
     const getPriceDisplay = (sub: any) => {
         if (!sub?.amount || !sub?.interval) return 'N/A';
+        const amountInEuro = (sub.amount / 100).toFixed(2);
         const intervalLabel = sub.interval === 'year' ? 'year' : 'month';
-        return `€${sub.amount}/${intervalLabel}`;
+        return `€${amountInEuro}/${intervalLabel}`;
     };
 
+    if (loading) {
+        return (
+            <div className="p-8 flex justify-center">
+                <Loader2 className="animate-spin text-white w-8 h-8" />
+            </div>
+        );
+    }
 
-    if (loading) return <div className="p-8 flex justify-center"><Loader2 className="animate-spin text-white w-8 h-8" /></div>;
+    if (error) {
+        return (
+            <div className="max-w-6xl mx-auto space-y-8">
+                <div>
+                    <h1 className="text-3xl font-bold text-white mb-2">Billing & Subscription</h1>
+                    <p className="text-white/60">Manage your subscription plan, view payment history, and billing information.</p>
+                </div>
 
-    const dbPlanDetails = billingInfo?.planDetails; // DB details for monthly/yearly breakdown
-    const invoices = billingInfo?.invoices || [];
+                <div className="bg-red-500/10 border border-red-500/20 rounded-xl p-6 text-red-400">
+                    <p className="font-medium">{error}</p>
+                </div>
+            </div>
+        );
+    }
+
     const daysLeft = getDaysUntilExpiration();
-    
-    // Status check relies on Stripe subscription status
-    const hasActiveSubscription = subscriptionData && (
-        subscriptionData.status === 'active' ||
-        subscriptionData.status === 'trialing' ||
-        (subscriptionData.status === 'canceled' && daysLeft !== null && daysLeft > 0)
-    );
-    const isSubscriptionCancelled = subscriptionData?.cancelAtPeriodEnd || subscriptionData?.status === 'canceled'; 
+    const hasActiveSubscription = subscriptionData && subscriptionData.status === 'active';
+    const isTrialing = subscriptionData && subscriptionData.status === 'trialing';
+    const isCancelled = subscriptionData && subscriptionData.cancelAtPeriodEnd;
 
     return (
         <div className="max-w-6xl mx-auto space-y-8">
@@ -101,7 +155,7 @@ export default function BillingPage() {
             </div>
 
             {/* Subscription Overview Grid */}
-            {hasActiveSubscription && (
+            {subscriptionData && (
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     {/* Current Plan */}
                     <div className="bg-[#141417] border border-[#1e1e22] rounded-xl p-5">
@@ -111,7 +165,7 @@ export default function BillingPage() {
                         </div>
                         <h3 className="text-2xl font-bold text-white mb-1">{subscriptionData.planName || 'Unknown'}</h3>
                         <p className="text-white/60 text-sm">
-                            {subscriptionData ? getPriceDisplay(subscriptionData) : 'N/A'}
+                            {getPriceDisplay(subscriptionData)}
                         </p>
                     </div>
 
@@ -122,10 +176,10 @@ export default function BillingPage() {
                             <span className="text-xs font-medium uppercase tracking-wider">Status</span>
                         </div>
                         <h3 className="text-lg font-semibold text-white mb-1 capitalize">
-                            {subscriptionData.status}
+                            {isTrialing ? 'Trialing' : hasActiveSubscription ? 'Active' : 'Inactive'}
                         </h3>
                         <p className="text-white/60 text-sm">
-                            {isSubscriptionCancelled ? 'Subscription cancelled' : 'Active subscription'}
+                            {isCancelled ? 'Cancelling at period end' : 'Active subscription'}
                         </p>
                     </div>
 
@@ -134,7 +188,7 @@ export default function BillingPage() {
                         <div className="flex items-center gap-2 text-green-400 mb-2">
                             <Clock className="w-4 h-4" />
                             <span className="text-xs font-medium uppercase tracking-wider">
-                                {isSubscriptionCancelled ? 'Expires On' : 'Renews On'}
+                                {isCancelled ? 'Expires On' : 'Renews On'}
                             </span>
                         </div>
                         <h3 className="text-lg font-semibold text-white mb-1">
@@ -157,29 +211,31 @@ export default function BillingPage() {
                     </h2>
                 </div>
 
-                {hasActiveSubscription ? (
+                {subscriptionData ? (
                     <div className="p-6 space-y-6">
                         {/* Main Subscription Info */}
                         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-white/5 rounded-xl p-6 border border-white/5">
                             <div className="flex-1">
                                 <div className="flex items-center gap-3 mb-3">
                                     <h3 className="text-2xl font-bold text-white">{subscriptionData.planName || 'Unknown Plan'}</h3>
-                                    <span className={`px-3 py-1 rounded-full text-xs font-medium border ${isSubscriptionCancelled
+                                    <span className={`px-3 py-1 rounded-full text-xs font-medium border ${isCancelled
                                         ? 'bg-yellow-500/10 text-yellow-400 border-yellow-500/20'
-                                        : 'bg-green-500/10 text-green-400 border-green-500/20'
+                                        : isTrialing
+                                            ? 'bg-blue-500/10 text-blue-400 border-blue-500/20'
+                                            : 'bg-green-500/10 text-green-400 border-green-500/20'
                                         }`}>
-                                        {isSubscriptionCancelled ? 'Cancels Soon' : 'Active'}
+                                        {isCancelled ? 'Cancelling Soon' : isTrialing ? 'Trialing' : 'Active'}
                                     </span>
                                 </div>
 
                                 <div className="space-y-2 text-sm">
                                     <div className="flex items-center gap-2 text-white/60">
                                         <Calendar className="w-4 h-4" />
-                                        <span>Plan Name: {subscriptionData.planName}</span>
+                                        <span>Plan: {subscriptionData.planName}</span>
                                     </div>
                                     <div className="flex items-center gap-2 text-white/60">
                                         <Clock className="w-4 h-4" />
-                                        <span>{isSubscriptionCancelled ? 'Expires' : 'Renews'}: {formatDate(subscriptionData.currentPeriodEnd)}</span>
+                                        <span>{isCancelled ? 'Expires' : 'Renews'}: {formatDate(subscriptionData.currentPeriodEnd)}</span>
                                     </div>
                                     {daysLeft !== null && (
                                         <div className={`flex items-center gap-2 font-medium ${daysLeft <= 7 ? 'text-orange-400' : 'text-white/80'}`}>
@@ -189,31 +245,21 @@ export default function BillingPage() {
                                     )}
                                 </div>
 
-                                {/* Display the actual current charge and interval */}
+                                {/* Display current charge */}
                                 {subscriptionData.amount && subscriptionData.interval && (
                                     <div className="mt-4 pt-4 border-t border-white/10">
                                         <p className="text-white/80 font-semibold text-lg">
-                                            €{subscriptionData.amount} <span className="text-white/50 font-normal text-sm">per {subscriptionData.interval}</span>
+                                            €{(subscriptionData.amount / 100).toFixed(2)} <span className="text-white/50 font-normal text-sm">per {subscriptionData.interval}</span>
                                         </p>
-                                        {/* Display the alternative price from DB if available */}
-                                        {dbPlanDetails && (
-                                            <p className="text-white/60 text-sm mt-1">
-                                                {/* FIX: Use the OPPOSITE price and ensure toFixed(2) */}
-                                                {subscriptionData.interval === 'month' 
-                                                    ? `Billed €${(dbPlanDetails.yearly_price * 1).toFixed(2)} if paid yearly`
-                                                    : `Billed €${(dbPlanDetails.monthly_price * 1).toFixed(2)} if paid monthly`
-                                                }
-                                            </p>
-                                        )}
                                     </div>
                                 )}
                             </div>
 
-                            {!isSubscriptionCancelled && (
+                            {!isCancelled && hasActiveSubscription && (
                                 <button
                                     onClick={handleCancel}
                                     disabled={cancelling}
-                                    className="px-5 py-2.5 bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/20 rounded-lg text-sm font-medium transition-colors"
+                                    className="px-5 py-2.5 bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/20 rounded-lg text-sm font-medium transition-colors disabled:opacity-50"
                                 >
                                     {cancelling ? "Processing..." : "Cancel Subscription"}
                                 </button>

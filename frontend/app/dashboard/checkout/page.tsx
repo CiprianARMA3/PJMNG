@@ -3,10 +3,9 @@
 import { useEffect, useState, useTransition } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { createClient } from "@/utils/supabase/client";
-import { createSubscriptionCheckout, getUpcomingInvoice } from "@/app/actions/stripe"; // Import getUpcomingInvoice
+import { createSubscriptionCheckout } from "@/app/actions/stripe";
 import { Loader2, CheckCircle2, ShieldCheck, ArrowLeft, CreditCard } from "lucide-react";
 import { PLAN_UUIDS } from "@/utils/stripe/config";
-import { getUserSubscriptionData } from "@/app/actions/getUserSubscriptionData";
 
 interface Plan {
     id: string;
@@ -16,14 +15,11 @@ interface Plan {
     features: string[];
 }
 
-// Map Plan Names to Config UUIDs (Reverse of what we usually do, but needed for checkout action)
 const PLAN_MAPPING: Record<string, string> = {
     'Individual': PLAN_UUIDS.INDIVIDUAL,
     'Developers': PLAN_UUIDS.DEVELOPERS,
     'Enterprise': PLAN_UUIDS.ENTERPRISE
 };
-
-const PLAN_ORDER = ["Individual", "Developers", "Enterprise"];
 
 export default function CheckoutPage() {
     const searchParams = useSearchParams();
@@ -37,24 +33,16 @@ export default function CheckoutPage() {
     const [loading, setLoading] = useState(true);
     const [isPending, startTransition] = useTransition();
     const [error, setError] = useState<string | null>(null);
-    const [currentPlanName, setCurrentPlanName] = useState<string | null>(null);
-
-    // NEW STATE FOR STRIPE INVOICE PREVIEW
-    const [invoicePreview, setInvoicePreview] = useState<any>(null);
-    const [fetchingPrice, setFetchingPrice] = useState(true);
-
 
     useEffect(() => {
-        const fetchPlanAndInvoice = async () => {
+        const fetchPlan = async () => {
             if (!planId) {
                 setError("No plan specified");
                 setLoading(false);
-                setFetchingPrice(false);
                 return;
             }
 
             try {
-                // 1. Fetch Plan Details
                 const { data: planData, error: planError } = await supabase
                     .from("plans")
                     .select("*")
@@ -63,40 +51,25 @@ export default function CheckoutPage() {
 
                 if (planError) throw planError;
                 setPlan(planData);
-
-                // 2. Fetch Current Subscription
-                const subData = await getUserSubscriptionData();
-                if (subData?.planName && subData.subscription_status === 'active') {
-                    setCurrentPlanName(subData.planName);
-                }
-
-                // 3. Fetch Real Stripe Invoice Preview
-                const planName = planData.name;
-                const configId = PLAN_MAPPING[planName];
-
-                if (configId) {
-                    const preview = await getUpcomingInvoice(configId, interval);
-                    setInvoicePreview(preview);
-                }
+                console.log(`✅ [CHECKOUT] Plan loaded: ${planData.name}`);
 
             } catch (err) {
-                console.error("Error fetching data:", err);
-                setError("Failed to load plan or invoice details");
+                console.error("Error fetching plan:", err);
+                setError("Failed to load plan details");
             } finally {
                 setLoading(false);
-                setFetchingPrice(false);
             }
         };
 
-        fetchPlanAndInvoice();
-    }, [planId, interval, supabase]); // Added interval to dependencies
+        fetchPlan();
+    }, [planId, supabase]);
 
     const handleConfirm = () => {
         if (!plan) return;
 
         startTransition(async () => {
             try {
-                // The createSubscriptionCheckout action handles the redirect
+                console.log(`📝 [CHECKOUT] Initiating subscription for ${plan.name}...`);
                 await createSubscriptionCheckout(PLAN_MAPPING[plan.name], interval);
             } catch (err) {
                 console.error("Checkout error:", err);
@@ -108,7 +81,6 @@ export default function CheckoutPage() {
     if (loading) {
         return (
             <div role="status" className="flex justify-center items-center h-screen bg-[#0a0a0a]">
-                {/* Spinner SVG */}
                 <svg aria-hidden="true" className="inline w-8 h-8 text-neutral-400 animate-spin fill-white" viewBox="0 0 100 101" fill="none" xmlns="http://www.w3.org/2000/svg">
                     <path d="M100 50.5908C100 78.2051 77.6142 100.591 50 100.591C22.3858 100.591 0 78.2051 0 50.5908C0 22.9766 22.3858 0.59082 50 0.59082C77.6142 0.59082 100 22.9766 100 50.5908ZM9.08144 50.5908C9.08144 73.1895 27.4013 91.5094 50 91.5094C72.5987 91.5094 90.9186 73.1895 90.9186 50.5908C90.9186 27.9921 72.5987 9.67226 50 9.67226C27.4013 9.67226 9.08144 27.9921 9.08144 50.5908Z" fill="currentColor" />
                     <path d="M93.9676 39.0409C96.393 38.4038 97.8624 35.9116 97.0079 33.5539C95.2932 28.8227 92.871 24.3692 89.8167 20.348C85.8452 15.1192 80.8826 10.7238 75.2124 7.41289C69.5422 4.10194 63.2754 1.94025 56.7698 1.05124C51.7666 0.367541 46.6976 0.446843 41.7345 1.27873C39.2613 1.69328 37.813 4.19778 38.4501 6.62326C39.0873 9.04874 41.5694 10.4717 44.0505 10.1071C47.8511 9.54855 51.7191 9.52689 55.5402 10.0491C60.8642 10.7766 65.9928 12.5457 70.6331 15.2552C75.2735 17.9648 79.3347 21.5619 82.5849 25.841C84.9175 28.9121 86.7997 32.2913 88.1811 35.8758C89.083 38.2158 91.5421 39.6781 93.9676 39.0409Z" fill="currentFill" />
@@ -138,26 +110,8 @@ export default function CheckoutPage() {
         );
     }
 
-    // Determine Upgrade/Downgrade status for labels
-    let isDowngrade = false;
-    let isUpgrade = false;
-
-    if (currentPlanName && plan) {
-        const currentRank = PLAN_ORDER.indexOf(currentPlanName);
-        const newRank = PLAN_ORDER.indexOf(plan.name);
-        if (newRank < currentRank) isDowngrade = true;
-        if (newRank > currentRank) isUpgrade = true;
-    }
-
-    // Use invoice preview for pricing
     const price = interval === "month" ? plan.monthly_price : plan.yearly_price;
-    const finalAmountDue = fetchingPrice || !invoicePreview
-        ? price.toFixed(2) // Fallback to static price if fetching or failed
-        : (invoicePreview.amountDue / 100).toFixed(2);
-
     const billingPeriod = interval === "month" ? "Monthly" : "Yearly";
-    const isProrated = invoicePreview && invoicePreview.amountDue !== invoicePreview.total;
-
 
     return (
         <div className="min-h-screen bg-[#0a0a0a] py-12 px-4 sm:px-6 lg:px-8">
@@ -175,13 +129,11 @@ export default function CheckoutPage() {
                     <div className="md:col-span-2 space-y-6">
                         <div className="bg-[#141417] rounded-2xl border border-white/10 overflow-hidden">
                             <div className="p-6 border-b border-white/5">
-                                <h2 className="text-xl font-bold text-white">
-                                    {isDowngrade ? 'Downgrade Summary' : isUpgrade ? 'Upgrade Summary' : 'Order Summary'}
-                                </h2>
+                                <h2 className="text-xl font-bold text-white">Order Summary</h2>
                             </div>
 
                             <div className="p-6 space-y-6">
-                                {/* Plan Info & Initial Price */}
+                                {/* Plan Info */}
                                 <div className="flex justify-between items-start">
                                     <div>
                                         <h3 className="text-lg font-semibold text-white">{plan.name} Plan</h3>
@@ -189,35 +141,17 @@ export default function CheckoutPage() {
                                     </div>
                                     <div className="text-right">
                                         <p className="text-2xl font-bold text-white">
-                                            {fetchingPrice ? <Loader2 className="w-6 h-6 animate-spin text-purple-500" /> : `€${finalAmountDue}`}
+                                            €{price.toFixed(2)}
                                         </p>
-                                        <p className="text-zinc-400 text-sm">{fetchingPrice ? 'Calculating...' : 'due today'}</p>
+                                        <p className="text-zinc-400 text-sm">per {billingPeriod.toLowerCase()}</p>
                                     </div>
                                 </div>
 
-                                {/* Stripe Invoice Details (Lines) */}
-                                {fetchingPrice && (
-                                    <div className="flex justify-center items-center py-4 text-zinc-400">
-                                        <Loader2 className="w-5 h-5 animate-spin mr-2" />
-                                        Fetching payment details...
-                                    </div>
-                                )}
-
-                                {invoicePreview?.lines?.length > 0 && (
-                                    <div className="bg-white/5 rounded-lg p-4 space-y-3 border border-white/10">
-                                        <p className="text-xs font-semibold text-zinc-500 uppercase">Stripe Invoice Preview Details</p>
-                                        {invoicePreview.lines.map((line: any, i: number) => (
-                                            <div key={i} className="flex justify-between text-sm">
-                                                <span className="text-zinc-300 max-w-[70%] truncate">
-                                                    {line.description || (line.amount < 0 ? 'Proration Credit/Refund' : 'Subscription Charge')}
-                                                </span>
-                                                <span className={`font-medium ${line.amount < 0 ? "text-green-400" : "text-white"}`}>
-                                                    {line.amount < 0 ? '-' : ''}€{Math.abs(line.amount / 100).toFixed(2)}
-                                                </span>
-                                            </div>
-                                        ))}
-                                    </div>
-                                )}
+                                <div className="bg-blue-500/10 rounded-lg p-4 border border-blue-500/20">
+                                    <p className="text-sm text-blue-300">
+                                        ✓ Subscription will renew automatically every {billingPeriod.toLowerCase()}.
+                                    </p>
+                                </div>
 
                                 <div className="border-t border-white/5 pt-6">
                                     <h4 className="text-sm font-medium text-white mb-4">Plan Features</h4>
@@ -238,37 +172,16 @@ export default function CheckoutPage() {
                                 </div>
                             </div>
 
-                            {/* Final Total Section */}
+                            {/* Total Section */}
                             <div className="bg-white/5 p-6 border-t border-white/5">
-                                {fetchingPrice ? (
-                                    <div className="flex justify-center items-center py-4">
-                                        <Loader2 className="w-5 h-5 animate-spin text-purple-400 mr-2" />
-                                        <span className="text-zinc-400">Finalizing total...</span>
-                                    </div>
-                                ) : (
-                                    <>
-                                        {isProrated && (
-                                            <p className="text-xs text-zinc-500 mb-4">
-                                                The total is calculated based on plan change prorations applied by Stripe.
-                                            </p>
-                                        )}
-
-                                        <div className="flex justify-between items-center pt-4 border-t border-white/10">
-                                            <span className="text-lg font-bold text-white">
-                                                Total due today
-                                            </span>
-                                            <span className="text-2xl font-bold text-purple-400">
-                                                €{finalAmountDue}
-                                            </span>
-                                        </div>
-
-                                        {isDowngrade && finalAmountDue === '0.00' && (
-                                            <p className="text-xs text-zinc-500 mt-2">
-                                                Your new rate of €{price.toFixed(2)}/{interval} will apply starting from your next billing cycle.
-                                            </p>
-                                        )}
-                                    </>
-                                )}
+                                <div className="flex justify-between items-center">
+                                    <span className="text-lg font-bold text-white">
+                                        Total due today
+                                    </span>
+                                    <span className="text-2xl font-bold text-purple-400">
+                                        €{price.toFixed(2)}
+                                    </span>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -276,48 +189,36 @@ export default function CheckoutPage() {
                     {/* Checkout Action */}
                     <div className="md:col-span-1">
                         <div className="bg-[#141417] rounded-2xl border border-white/10 p-6 sticky top-8">
-                            <h3 className="font-semibold text-white mb-4">
-                                {isDowngrade ? 'Confirm Change' : 'Complete Purchase'}
-                            </h3>
+                            <h3 className="font-semibold text-white mb-4">Complete Purchase</h3>
 
                             <div className="space-y-4">
-                                {/* Only show secure payment for non-downgrades or non-zero charges */}
-                                {!isDowngrade || finalAmountDue !== '0.00' ? (
-                                    <div className="flex items-center gap-3 p-3 bg-white/5 rounded-lg border border-white/10">
-                                        <div className="w-8 h-8 bg-[#1a1a1d] rounded-full flex items-center justify-center border border-white/10 text-zinc-400">
-                                            <CreditCard className="w-4 h-4" />
-                                        </div>
-                                        <div>
-                                            <p className="text-sm font-medium text-white">Secure Payment</p>
-                                            <p className="text-xs text-zinc-400">Processed by Stripe</p>
-                                        </div>
+                                <div className="flex items-center gap-3 p-3 bg-white/5 rounded-lg border border-white/10">
+                                    <div className="w-8 h-8 bg-[#1a1a1d] rounded-full flex items-center justify-center border border-white/10 text-zinc-400">
+                                        <CreditCard className="w-4 h-4" />
                                     </div>
-                                ) : (
-                                    <div className="flex items-center justify-center p-3 bg-green-500/10 rounded-lg border border-green-500/20">
-                                        <span className="text-sm font-medium text-green-400">No charge today</span>
+                                    <div>
+                                        <p className="text-sm font-medium text-white">Secure Payment</p>
+                                        <p className="text-xs text-zinc-400">Processed by Stripe</p>
                                     </div>
-                                )}
+                                </div>
 
                                 <button
                                     onClick={handleConfirm}
-                                    disabled={isPending || fetchingPrice}
-                                    className={`w-full py-3 rounded-xl font-bold shadow-lg transition-all disabled:opacity-70 disabled:cursor-not-allowed flex items-center justify-center gap-2 ${isDowngrade
-                                        ? 'bg-zinc-700 hover:bg-zinc-600 text-white shadow-zinc-900/20'
-                                        : 'bg-purple-600 hover:bg-purple-500 text-white shadow-purple-900/20'
-                                        }`}
+                                    disabled={isPending}
+                                    className="w-full py-3 rounded-xl font-bold shadow-lg transition-all disabled:opacity-70 disabled:cursor-not-allowed flex items-center justify-center gap-2 bg-purple-600 hover:bg-purple-500 text-white shadow-purple-900/20"
                                 >
-                                    {isPending || fetchingPrice ? (
+                                    {isPending ? (
                                         <>
                                             <Loader2 className="w-5 h-5 animate-spin" />
-                                            {fetchingPrice ? 'Loading...' : 'Processing...'}
+                                            Processing...
                                         </>
                                     ) : (
-                                        isDowngrade ? "Confirm Downgrade" : (isUpgrade ? "Confirm Upgrade" : "Confirm & Pay")
+                                        "Confirm & Pay"
                                     )}
                                 </button>
 
                                 <p className="text-xs text-center text-zinc-500 mt-4">
-                                    By confirming, you agree to our Terms of Service. {isDowngrade ? 'Your plan will change at the end of the billing cycle.' : 'You can cancel your subscription at any time.'}
+                                    By confirming, you agree to our Terms of Service. You can cancel your subscription at any time.
                                 </p>
                             </div>
                         </div>
