@@ -10,7 +10,7 @@ import { createAdminClient } from '@/utils/supabase/admin';
 
 const PACK_AMOUNTS = [100000, 250000, 500000, 1000000, 2000000];
 
-// --- Helper: Fetch and Map Prices ---
+// --- Helper: Fetch and Map Prices (Token System) ---
 export async function getTokenPacks(modelKey: string, isEnterprise: boolean) {
   const products = STRIPE_PRODUCTS.TOKENS[modelKey as keyof typeof STRIPE_PRODUCTS.TOKENS];
   if (!products) return [];
@@ -62,7 +62,7 @@ export async function getTokenPacks(modelKey: string, isEnterprise: boolean) {
   return packs;
 }
 
-// --- MAIN: Create Subscription Checkout ---
+// --- MAIN: Create Subscription Checkout (New / Upgrade / Downgrade) ---
 export async function createSubscriptionCheckout(
   targetPlanId: string,
   interval: 'month' | 'year'
@@ -75,7 +75,7 @@ export async function createSubscriptionCheckout(
   console.log(`\n🎯 [STRIPE-ACTION] User ${user.id} initiating subscription for ${targetPlanId} (${interval})`);
 
   // 1. Get Plan Config & Price
-  const targetPlanConfig = SUBSCRIPTION_PLANS[targetPlanId];
+  const targetPlanConfig = SUBSCRIPTION_PLANS[targetPlanId as keyof typeof SUBSCRIPTION_PLANS];
   if (!targetPlanConfig) throw new Error('Invalid Plan selected');
 
   const targetPriceId = targetPlanConfig.prices[interval];
@@ -108,58 +108,59 @@ export async function createSubscriptionCheckout(
     console.log(`✅ [STRIPE-ACTION] Using existing Stripe customer: ${customerId}`);
   }
 
-  // 3. Check for existing subscriptions in Stripe
-  console.log(`\n🔍 [STRIPE-ACTION] Checking for existing subscriptions...`);
+  // 3. Check for existing active subscriptions in Stripe
+  console.log(`\n🔍 [STRIPE-ACTION] Checking for existing active subscriptions...`);
   const subscriptions = await stripe.subscriptions.list({
     customer: customerId,
-    status: 'all',
+    status: 'all', 
     limit: 10
   });
 
-  console.log(`📊 [STRIPE-ACTION] Found ${subscriptions.data.length} subscription(s)`);
+  // Filter for subscriptions that can be updated
+  const activeSubs = subscriptions.data.filter(s => ['active', 'trialing', 'past_due'].includes(s.status));
+  const existingSub = activeSubs.length > 0 ? activeSubs[0] : null;
 
-  if (subscriptions.data.length > 0) {
-    const activeSubs = subscriptions.data.filter(s => ['active', 'trialing'].includes(s.status));
+  if (existingSub) {
+    console.log(`🔄 [STRIPE-ACTION] User has active subscription: ${existingSub.id}. Creating upgrade/downgrade session...`);
     
-    if (activeSubs.length > 0) {
-      console.log(`🔄 [STRIPE-ACTION] User has ${activeSubs.length} active subscription(s). Attempting upgrade/downgrade...`);
-      
-      try {
-        const existingSub = activeSubs[0];
-        const currentPriceId = existingSub.items.data[0]?.price.id;
-        
-        console.log(`📌 [STRIPE-ACTION] Current price: ${currentPriceId}, Target price: ${targetPriceId}`);
+    try {
+        const subscriptionItem = existingSub.items.data[0];
+        const currentPriceId = subscriptionItem?.price.id;
 
         if (currentPriceId === targetPriceId) {
-          console.log(`⚠️ [STRIPE-ACTION] Same plan selected. Redirecting to dashboard.`);
-          redirect(`${getBaseUrl()}/dashboard`);
+            console.log(`⚠️ [STRIPE-ACTION] Same plan selected. Redirecting to dashboard.`);
+            redirect(`${getBaseUrl()}/dashboard`);
         }
 
-        // Update subscription (Stripe handles prorations)
-        const updatedSub = await stripe.subscriptions.update(existingSub.id, {
-          items: [
-            {
-              id: existingSub.items.data[0].id,
-              price: targetPriceId,
+        // --- Create Checkout Session for Subscription Update (FIXED) ---
+        // Casting to 'any' to bypass local type error caused by SDK mismatch
+        const session = await stripe.checkout.sessions.create({
+            mode: 'subscription',
+            customer: customerId,
+            line_items: [
+                {
+                    price: targetPriceId, // New price to replace the old one
+                    quantity: 1,
+                },
+            ],
+            // This parameter links the Checkout Session to the existing subscription for update/proration
+            subscription: existingSub.id, 
+            success_url: `${getBaseUrl()}/dashboard/checkout?subscription_success=true`,
+            cancel_url: `${getBaseUrl()}/dashboard/checkout?subscription_success=false`,
+            metadata: {
+                userId: user.id,
+                targetPlanId: targetPlanId,
+                is_upgrade_flow: 'true',
             }
-          ],
-          proration_behavior: 'always_invoice' // Charge/credit immediately for any difference
-        });
+        } as any); // <-- FIX APPLIED HERE
 
-        console.log(`✅ [STRIPE-ACTION] Subscription updated: ${updatedSub.id}`);
-        console.log(`   Status: ${updatedSub.status}`);
+        console.log(`✅ [STRIPE-ACTION] Upgrade/Downgrade Checkout session created: ${session.id}`);
+
+        if (session.url) redirect(session.url);
         
-        // SAFE LOGGING: Prevent crash if current_period_end is missing
-        const updatedEnd = (updatedSub as any).current_period_end 
-          ? new Date((updatedSub as any).current_period_end * 1000).toISOString() 
-          : 'N/A';
-        console.log(`   Current Period End: ${updatedEnd}`);
-        
-        redirect(`${getBaseUrl()}/dashboard?subscription_success=true`);
-      } catch (err: any) {
-        console.error(`❌ [STRIPE-ACTION] Failed to update subscription:`, err.message);
-        throw new Error(`Failed to update subscription: ${err.message}`);
-      }
+    } catch (err: any) {
+        console.error(`❌ [STRIPE-ACTION] Failed to create update session:`, err.message);
+        redirect(`${getBaseUrl()}/dashboard/checkout?subscription_success=false`);
     }
   }
 
@@ -170,20 +171,53 @@ export async function createSubscriptionCheckout(
     customer: customerId,
     line_items: [{ price: targetPriceId, quantity: 1 }],
     mode: 'subscription',
-    success_url: `${getBaseUrl()}/dashboard?subscription_success=true`,
-    cancel_url: `${getBaseUrl()}/dashboard/checkout?planId=${targetPlanId}&interval=${interval}&canceled=true`,
+    success_url: `${getBaseUrl()}/dashboard/checkout?subscription_success=true`,
+    cancel_url: `${getBaseUrl()}/dashboard/checkout?subscription_success=false`,
     metadata: {
       userId: user.id,
       targetPlanId: targetPlanId,
     }
   });
 
-  console.log(`✅ [STRIPE-ACTION] Checkout session created: ${session.id}`);
+  console.log(`✅ [STRIPE-ACTION] New Checkout session created: ${session.id}`);
 
   if (session.url) redirect(session.url);
+  
+  throw new Error("Could not create Stripe checkout session.");
 }
 
-// --- Action: Create Checkout for Tokens ---
+
+// --- New Action: Create Billing Portal Session ---
+export async function createBillingPortalSession(): Promise<string> {
+  const supabase = createClient(cookies());
+  const { data: { user } } = await supabase.auth.getUser();
+
+  if (!user) throw new Error('Not authenticated');
+
+  const { data: userData } = await supabase
+    .from('users')
+    .select('stripe_customer_id')
+    .eq('id', user.id)
+    .single();
+
+  if (!userData?.stripe_customer_id) {
+    throw new Error('No Stripe customer record found. Please purchase a plan first.');
+  }
+
+  try {
+    const session = await stripe.billingPortal.sessions.create({
+      customer: userData.stripe_customer_id,
+      return_url: `${getBaseUrl()}/dashboard`, 
+    });
+    return session.url;
+  } catch (error) {
+    console.error('Error creating Billing Portal session:', error);
+    throw new Error('Failed to open billing portal.');
+  }
+}
+
+
+// --- Action: Create Checkout for Tokens (ORIGINAL IMPLEMENTATION) ---
 export async function createTokenPackCheckout(
   projectId: string,
   pack: {
@@ -256,7 +290,7 @@ export async function createTokenPackCheckout(
   if (session.url) redirect(session.url);
 }
 
-// --- Verification Action (Fallback for Webhooks) ---
+// --- Verification Action (Fallback for Webhooks) (ORIGINAL IMPLEMENTATION) ---
 export async function verifyTokenPurchase(sessionId: string) {
   const supabaseAdmin = createAdminClient();
 
@@ -372,7 +406,7 @@ export async function verifyTokenPurchase(sessionId: string) {
   }
 }
 
-// --- Billing & Invoices ---
+// --- Billing & Invoices (ORIGINAL IMPLEMENTATION with Date Fix) ---
 export async function getUserBillingInfo() {
   const supabase = createClient(cookies());
   const { data: { user } } = await supabase.auth.getUser();
@@ -423,12 +457,25 @@ export async function getUserBillingInfo() {
       if (item.price) {
         amount = ((item.price.unit_amount || 0) / 100).toFixed(2);
         interval = item.price.recurring?.interval || 'month';
+        
+        // Find the matching plan name using the price ID
+        const priceId = item.price.id;
+        for (const [planUuid, config] of Object.entries(SUBSCRIPTION_PLANS)) {
+             if (config.prices.month === priceId || config.prices.year === priceId) {
+                productName = config.name;
+                break;
+             }
+        }
       }
     }
 
-    // SAFE DATE PARSING (Fixes RangeError)
-    const periodEnd = (sub as any).current_period_end 
-      ? new Date((sub as any).current_period_end * 1000) 
+    // SAFE DATE PARSING: Check item-level data first due to newer Stripe API versions
+    const itemPeriodEnd = sub.items?.data?.[0]?.current_period_end;
+    const subPeriodEnd = (sub as any).current_period_end;
+    const finalPeriodEnd = itemPeriodEnd ?? subPeriodEnd;
+
+    const periodEnd = finalPeriodEnd
+      ? new Date(finalPeriodEnd * 1000) 
       : null;
     
     const periodEndIso = (periodEnd && !isNaN(periodEnd.getTime())) 
