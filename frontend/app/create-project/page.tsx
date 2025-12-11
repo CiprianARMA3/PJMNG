@@ -14,7 +14,8 @@ import {
   Globe, 
   CheckCircle2, 
   LayoutTemplate, 
-  MoreHorizontal
+  MoreHorizontal,
+  PieChart // Added for the usage visual
 } from "lucide-react"; 
 import Link from 'next/link';
 
@@ -26,7 +27,7 @@ interface Plan {
   name: string;
   monthly_price: number;
   max_projects: number;
-  max_users: number; // -1 for unlimited
+  max_users: number; // -1 or 9999 for unlimited
 }
 
 interface UserWithPlan {
@@ -45,10 +46,11 @@ const getPlanLimits = (planName: string) => {
     return { max_users: 9999, max_projects: 9999, label: 'Enterprise' }; // "Unlimited"
   }
   if (lower.includes('developer')) {
-    return { max_users: 50, max_projects: 50, label: 'Developer' };
+    // Developer: 50 Users, 10 Projects
+    return { max_users: 50, max_projects: 10, label: 'Developer' };
   }
-  // Default to Individual/Standard
-  return { max_users: 1, max_projects: 3, label: 'Individual' };
+  // Default to Individual/Standard: 1 User, 5 Projects
+  return { max_users: 1, max_projects: 5, label: 'Individual' };
 };
 
 // --- MATTE BACKGROUND COMPONENT ---
@@ -92,6 +94,7 @@ export default function CreateProjectPage() {
   const [selectedPlan, setSelectedPlan] = useState<Plan | null>(null);
   const [user, setUser] = useState<UserWithPlan | null>(null);
   const [userLoading, setUserLoading] = useState(true);
+  const [projectCount, setProjectCount] = useState(0); // Track current usage
   
   const [formData, setFormData] = useState({
     name: "",
@@ -131,6 +134,15 @@ export default function CreateProjectPage() {
       const { data: { user: authUser } } = await supabase.auth.getUser();
       if (!authUser) { router.push('/auth/login'); return; }
 
+      // 1. Get Project Count
+      const { count, error } = await supabase
+        .from("projects")
+        .select("id", { count: 'exact', head: true })
+        .eq("created_by", authUser.id);
+      
+      if (!error) setProjectCount(count || 0);
+
+      // 2. Get Subscription
       const subData = await getUserSubscriptionData();
       const isActive = subData && subData.plan_id && ['active', 'trialing'].includes(subData.subscription_status || '');
 
@@ -221,11 +233,16 @@ export default function CreateProjectPage() {
       const { data: { user: authUser } } = await supabase.auth.getUser();
       if (!authUser) throw new Error("Not authenticated");
 
-      // Check project limit
-      const { data: existingProjects } = await supabase.from("projects").select("id").eq("created_by", authUser.id);
+      // Re-Check project limit on server-side before submitting
+      const { count: currentCount } = await supabase
+        .from("projects")
+        .select("id", { count: 'exact', head: true })
+        .eq("created_by", authUser.id);
       
-      // Infinite check: 9999 is our "unlimited" flag
-      if (existingProjects && selectedPlan.max_projects < 9000 && existingProjects.length >= selectedPlan.max_projects) {
+      const safeCount = currentCount || 0;
+
+      // Infinite check: 9000+ is our "unlimited" flag
+      if (selectedPlan.max_projects < 9000 && safeCount >= selectedPlan.max_projects) {
         alert(`Project limit (${selectedPlan.max_projects}) reached. Please upgrade your plan.`);
         return router.push('/dashboard/subscriptions');
       }
@@ -294,6 +311,18 @@ export default function CreateProjectPage() {
     }
   };
 
+  // --- Helpers for Display ---
+  const isUnlimitedProjects = selectedPlan?.max_projects && selectedPlan.max_projects >= 9000;
+  const isUnlimitedUsers = selectedPlan?.max_users && selectedPlan.max_users >= 9000;
+  
+  const remainingProjects = isUnlimitedProjects 
+    ? "Unlimited" 
+    : Math.max(0, (selectedPlan?.max_projects || 0) - projectCount);
+
+  const projectPercentage = isUnlimitedProjects 
+    ? 0 
+    : Math.min(100, (projectCount / (selectedPlan?.max_projects || 1)) * 100);
+
   // --- Loading State ---
  if (userLoading) {
     return (
@@ -320,8 +349,6 @@ export default function CreateProjectPage() {
       </div>
     );
   }
-
-  const isUnlimited = selectedPlan.max_users >= 9000;
 
   return (
     <div className="min-h-screen relative font-sans">
@@ -358,7 +385,7 @@ export default function CreateProjectPage() {
                                 <h2 className="text-lg font-medium text-neutral-300">Project Identity</h2>
                             </div>
                             
-                            <div className="bg-[#111111] border border-[#222] rounded-xl overflow-hidden relative group shadow-lg">
+                            <div className="bg-[#111111] border border-[#2a2a2a] rounded-xl overflow-hidden relative group shadow-lg">
                                 {/* Banner */}
                                 <div 
                                     className="h-40 w-full bg-[#1A1A1A] relative cursor-pointer hover:bg-[#1f1f1f] transition-colors"
@@ -496,15 +523,52 @@ export default function CreateProjectPage() {
                                     <Link href="/dashboard" className="text-xs text-neutral-400 hover:text-white font-medium">Upgrade</Link>
                                 </div>
 
+                                {/* Project Usage Visualization */}
+                                <div className="bg-[#161616] p-4 rounded-lg border border-[#222]">
+                                    <div className="flex justify-between items-center mb-3">
+                                        <div className="flex items-center gap-2">
+                                            <PieChart size={14} className="text-neutral-400" />
+                                            <span className="text-xs font-medium text-neutral-300">Project Usage</span>
+                                        </div>
+                                        <span className="text-[10px] text-neutral-500 font-mono">
+                                            {projectCount} / {isUnlimitedProjects ? "∞" : selectedPlan?.max_projects}
+                                        </span>
+                                    </div>
+                                    
+                                    {/* Progress Bar */}
+                                    <div className="w-full h-1.5 bg-[#222] rounded-full overflow-hidden mb-3">
+                                        <div 
+                                            className={`h-full rounded-full transition-all duration-500 ${
+                                                isUnlimitedProjects ? "bg-blue-500 w-full opacity-20" 
+                                                : projectPercentage >= 100 ? "bg-red-500" 
+                                                : projectPercentage >= 80 ? "bg-yellow-500" 
+                                                : "bg-green-500"
+                                            }`}
+                                            style={{ width: isUnlimitedProjects ? '100%' : `${projectPercentage}%` }}
+                                        />
+                                    </div>
+
+                                    <div className="flex justify-between text-[10px] text-neutral-500">
+                                        <div className="flex flex-col">
+                                            <span>Current</span>
+                                            <span className="text-white font-medium text-xs mt-0.5">{projectCount}</span>
+                                        </div>
+                                        <div className="flex flex-col text-right">
+                                            <span>Remaining</span>
+                                            <span className="text-white font-medium text-xs mt-0.5">{remainingProjects}</span>
+                                        </div>
+                                    </div>
+                                </div>
+
                                 {/* Team Size */}
-                                <div>
+                                <div className="pt-2">
                                     <div className="flex justify-between text-xs mb-1.5">
                                         <span className="text-neutral-500">Max Team Size</span>
                                         <span className="text-neutral-300 font-medium">
-                                            {isUnlimited ? "Unlimited" : `${formData.max_collaborators} / ${selectedPlan?.max_users}`}
+                                            {isUnlimitedUsers ? "Unlimited" : `${formData.max_collaborators} / ${selectedPlan?.max_users}`}
                                         </span>
                                     </div>
-                                    {!isUnlimited && (
+                                    {!isUnlimitedUsers && (
                                         <input
                                             type="range"
                                             min="1"
@@ -515,31 +579,34 @@ export default function CreateProjectPage() {
                                         />
                                     )}
                                     <p className="text-[10px] text-neutral-600 mt-2">
-                                        {isUnlimited 
+                                        {isUnlimitedUsers 
                                           ? "You can invite as many collaborators as you need." 
                                           : `You can invite up to ${selectedPlan?.max_users} collaborators.`}
                                     </p>
                                 </div>
 
-                                <div className="bg-[#161616] rounded-lg p-4 text-xs space-y-3 border border-[#222]">
-                                    <div className="flex items-center gap-2 text-neutral-400">
+                                {/* Quick List */}
+                                <div className="space-y-3 pt-2">
+                                    <div className="flex items-center gap-2 text-xs text-neutral-400">
                                         <CheckCircle2 size={14} className="text-green-500" />
                                         <span>
-                                            Projects allowed: {selectedPlan?.max_projects >= 9000 ? "Unlimited" : selectedPlan?.max_projects}
+                                            Max Projects: {isUnlimitedProjects ? "Unlimited" : selectedPlan?.max_projects}
                                         </span>
                                     </div>
-                                    <div className="flex items-center gap-2 text-neutral-400">
+                                    <div className="flex items-center gap-2 text-xs text-neutral-400">
                                         <CheckCircle2 size={14} className="text-green-500" />
-                                        <span>Analytics Dashboard</span>
+                                        <span>Full Analytics Dashboard</span>
                                     </div>
                                 </div>
                                 
                                 <button
                                     type="submit"
-                                    disabled={loading || !formData.name.trim()}
+                                    disabled={loading || !formData.name.trim() || (!isUnlimitedProjects && projectCount >= (selectedPlan?.max_projects || 0))}
                                     className="w-full py-3 bg-neutral-200 hover:bg-white disabled:opacity-50 disabled:cursor-not-allowed text-black text-sm font-semibold rounded-lg transition-colors shadow-lg"
                                 >
-                                    {loading ? "Creating..." : "Create Project"}
+                                    {loading ? "Creating..." : 
+                                      (!isUnlimitedProjects && projectCount >= (selectedPlan?.max_projects || 0)) ? "Limit Reached" : "Create Project"
+                                    }
                                 </button>
                             </div>
                         </PageWidget>
