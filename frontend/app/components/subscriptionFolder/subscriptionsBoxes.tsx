@@ -4,7 +4,7 @@ import { useRouter } from "next/navigation";
 import { createClient } from "@/utils/supabase/client";
 import PRICING_TABLE from "./pricingTable";
 import { ChevronRight, Loader2, CheckCircle2, ArrowUpCircle, ArrowDownCircle, AlertTriangle, X } from "lucide-react";
-import { createSubscriptionCheckout, getUserBillingInfo } from "@/app/actions/stripe";
+import { createSubscriptionCheckout } from "@/app/actions/stripe";
 import { getUserSubscriptionData } from "@/app/actions/getUserSubscriptionData";
 import { PLAN_UUIDS } from "@/utils/stripe/config";
 
@@ -29,7 +29,7 @@ const PLAN_ORDER = ["Individual", "Developers", "Enterprise"];
 
 const supabase = createClient();
 
-// --- MODAL COMPONENT WITH DOUBLE CONFIRMATION ---
+// --- MODAL COMPONENT WITH DOUBLE CONFIRMATION (RESTORED FULL VERSION) ---
 function ConfirmationModal({
   isOpen,
   onClose,
@@ -49,7 +49,7 @@ function ConfirmationModal({
   price: string;
   isUpgrade: boolean;
 }) {
-  const [step, setStep] = useState<'initial' | 'final'>(('initial'));
+  const [step, setStep] = useState<'initial' | 'final'>('initial');
   const [confirmText, setConfirmText] = useState('');
 
   // Reset state when modal closes or opens
@@ -228,12 +228,7 @@ function ConfirmationModal({
 // --- SUB COMPONENTS ---
 
 const CheckIcon = () => (
-  <svg
-    xmlns="http://www.w3.org/2000/svg"
-    width="18"
-    className="mr-3 bg-purple-600/20 fill-purple-400 rounded-full p-[3px] flex-shrink-0 mt-0.5"
-    viewBox="0 0 24 24"
-  >
+  <svg xmlns="http://www.w3.org/2000/svg" width="18" className="mr-3 bg-purple-600/20 fill-purple-400 rounded-full p-[3px] flex-shrink-0 mt-0.5" viewBox="0 0 24 24">
     <path d="M9.707 19.121a.997.997 0 0 1-1.414 0l-5.646-5.647a1.5 1.5 0 0 1 0-2.121l.707-.707a1.5 1.5 0 0 1 2.121 0L9 14.171l9.525-9.525a1.5 1.5 0 0 1 2.121 0l.707.707a1.5 1.5 0 0 1 0 2.121z" />
   </svg>
 );
@@ -245,50 +240,44 @@ const LoadingSpinner = () => (
   </div>
 );
 
-const ToggleButton = ({
-  active,
-  onClick,
-  children
-}: {
-  active: boolean;
-  onClick: () => void;
-  children: React.ReactNode;
-}) => (
-  <button
-    onClick={onClick}
-    className={`w-full text-[14px] font-medium py-2 px-4 rounded-full cursor-pointer transition-all duration-300 ${active
-      ? "bg-purple-600 text-white shadow-md shadow-purple-900/20"
-      : "bg-transparent text-white/60 hover:text-white"
-      }`}
-  >
+const ToggleButton = ({ active, onClick, children }: { active: boolean; onClick: () => void; children: React.ReactNode; }) => (
+  <button onClick={onClick} className={`w-full text-[14px] font-medium py-2 px-4 rounded-full cursor-pointer transition-all duration-300 ${active ? "bg-purple-600 text-white shadow-md shadow-purple-900/20" : "bg-transparent text-white/60 hover:text-white"}`}>
     {children}
   </button>
 );
 
 const FeatureItem = ({ feature }: { feature: string }) => (
-  <li className="flex items-start text-[14px] text-zinc-300 font-medium leading-relaxed">
-    <CheckIcon />
-    <span>{feature}</span>
-  </li>
+  <li className="flex items-start text-[14px] text-zinc-300 font-medium leading-relaxed"><CheckIcon /><span>{feature}</span></li>
 );
 
-// --- Pricing Card ---
+// --- Pricing Card (UPDATED) ---
 const PricingCard = ({
   plan,
   isMonthly,
   currentPlanName,
+  currentInterval, // Added Prop
   onSelect
 }: {
   plan: Plan;
   isMonthly: boolean;
   currentPlanName: string | null;
+  currentInterval: 'month' | 'year' | null; // Added Type
   onSelect: () => void;
 }) => {
   // Normalize names for comparison
   const planName = plan.name;
   const currentName = currentPlanName || "";
 
-  const isCurrentPlan = currentName.toLowerCase() === planName.toLowerCase();
+  // 1. Name matches
+  const isPlanNameMatch = currentName.toLowerCase() === planName.toLowerCase();
+
+  // 2. Exact match check (Name + Interval match)
+  // If isMonthly toggle is TRUE, we check if user has 'month'.
+  // If isMonthly toggle is FALSE, we check if user has 'year'.
+  const isExactCurrentPlan = isPlanNameMatch && (
+    (isMonthly && currentInterval === 'month') ||
+    (!isMonthly && currentInterval === 'year')
+  );
 
   // Determine Rank
   const currentRank = PLAN_ORDER.indexOf(currentName); // -1 if no plan
@@ -299,11 +288,17 @@ const PricingCard = ({
   let buttonStyle = "bg-purple-600 hover:bg-purple-700 text-white cursor-pointer shadow-lg shadow-purple-900/20 border border-purple-500";
   let isDisabled = false;
 
-  if (isCurrentPlan) {
+  if (isExactCurrentPlan) {
+    // Case 1: Exact Match (Same Plan + Same Interval)
     buttonText = "Current Plan";
     buttonStyle = "bg-green-500/10 text-green-400 cursor-default border border-green-500/20";
     isDisabled = true;
+  } else if (isPlanNameMatch) {
+    // Case 2: Same Plan, Different Interval (Switching)
+    buttonText = "Switch to " + (isMonthly ? "Monthly" : "Yearly");
+    buttonStyle = "bg-white text-black hover:bg-zinc-200 cursor-pointer border border-white";
   } else if (currentRank !== -1) {
+    // Case 3: Different Plan (Upgrade/Downgrade)
     if (planRank > currentRank) {
       buttonText = "Upgrade";
       buttonStyle = "bg-white text-black hover:bg-zinc-200 cursor-pointer border border-white";
@@ -315,24 +310,24 @@ const PricingCard = ({
 
   return (
     <div
-      className={`relative bg-[#0A0A0A] border rounded-3xl p-6 hover:scale-[1.02] transition-all duration-300 flex flex-col h-full ${plan.recommended && !isCurrentPlan
+      className={`relative bg-[#0A0A0A] border rounded-3xl p-6 hover:scale-[1.02] transition-all duration-300 flex flex-col h-full ${plan.recommended && !isExactCurrentPlan
         ? "border-purple-500/50 shadow-[0_0_30px_-5px_rgba(168,85,247,0.15)]"
-        : isCurrentPlan
+        : isExactCurrentPlan
           ? "border-green-500/30 bg-green-900/5"
           : "border-white/10 hover:border-white/20 hover:bg-white/5"
         }`}
     >
       <div className="flex flex-col h-full">
 
-        {/* Active Badge */}
-        {isCurrentPlan && (
+        {/* Active Badge - Only for Exact Match */}
+        {isExactCurrentPlan && (
           <div className="absolute -top-3 right-6 bg-green-500 text-black text-[11px] font-bold px-3 py-1 rounded-full flex items-center gap-1 shadow-lg shadow-green-500/20 z-10">
             <CheckCircle2 size={12} /> ACTIVE
           </div>
         )}
 
         {/* Recommended Badge */}
-        {plan.recommended && !isCurrentPlan && (
+        {plan.recommended && !isExactCurrentPlan && (
           <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-purple-600 text-white text-[11px] font-bold px-3 py-1 rounded-full shadow-lg shadow-purple-600/30 z-10">
             RECOMMENDED
           </div>
@@ -356,6 +351,7 @@ const PricingCard = ({
           className={`w-full py-2.5 rounded-xl text-sm font-semibold transition-all flex items-center justify-center gap-2 mb-8 ${buttonStyle} ${isDisabled ? 'opacity-100' : ''}`}
         >
           <>
+            {buttonText.startsWith("Switch") && <ArrowUpCircle size={16} />}
             {buttonText === "Upgrade" && <ArrowUpCircle size={16} />}
             {buttonText === "Downgrade" && <ArrowDownCircle size={16} />}
             {buttonText}
@@ -382,11 +378,12 @@ export default function PricingInterface() {
   const [isMonthly, setIsMonthly] = useState(true);
   const [loading, setLoading] = useState(true);
   const [currentPlan, setCurrentPlan] = useState<string | null>(null);
+  const [currentInterval, setCurrentInterval] = useState<'month' | 'year' | null>(null); // Added State
 
-  // MODAL STATE
+  // MODAL STATE (Keeping original modal logic)
   const [isPending, startTransition] = useTransition();
   const [modalOpen, setModalOpen] = useState(false);
-  const [isSuccess, setIsSuccess] = useState(false); // Success state
+  const [isSuccess, setIsSuccess] = useState(false);
   const [selectedPlan, setSelectedPlan] = useState<{ name: string, price: string } | null>(null);
 
   const parseFeatures = useCallback((features: any): string[] => {
@@ -397,14 +394,11 @@ export default function PricingInterface() {
     } else if (typeof features === "object" && features !== null) {
       parsedFeatures = features;
     }
-
-    // Extract description from 'features' object
     if (parsedFeatures.features && typeof parsedFeatures.features === "object") {
       Object.values(parsedFeatures.features).forEach((section: any) => {
         if (section.description) featuresList.push(section.description);
       });
     }
-    // Extract first 2 capabilities
     if (parsedFeatures.ai_capabilities && Array.isArray(parsedFeatures.ai_capabilities)) {
       featuresList.push(...parsedFeatures.ai_capabilities.slice(0, 2));
     }
@@ -426,6 +420,12 @@ export default function PricingInterface() {
         const subscriptionData = await getUserSubscriptionData();
         if (subscriptionData?.planName && subscriptionData.subscription_status === 'active') {
           setCurrentPlan(subscriptionData.planName);
+          setCurrentInterval(subscriptionData.interval); // Set Interval
+
+          // Optional: Auto-switch toggle to match user
+          if (subscriptionData.interval === 'year') {
+            setIsMonthly(false);
+          }
         }
 
         const mappedPlans: Plan[] = (plansData || []).map((p: any) => ({
@@ -437,7 +437,6 @@ export default function PricingInterface() {
           recommended: p.name === "Developers",
         }));
 
-        // Sort based on defined constant order
         const sortedPlans = mappedPlans.sort(
           (a, b) => PLAN_ORDER.indexOf(a.name) - PLAN_ORDER.indexOf(b.name)
         );
@@ -455,6 +454,11 @@ export default function PricingInterface() {
 
   // --- Handlers ---
   const handleSelectPlan = (plan: Plan) => {
+    // If using the Modal logic:
+    // setSelectedPlan({ name: plan.name, price: isMonthly ? `€${plan.monthly_price}` : `€${plan.yearly_price}` });
+    // setModalOpen(true);
+
+    // If using direct Checkout redirect (as per previous logic):
     const planId = plan.id;
     const interval = isMonthly ? 'month' : 'year';
     router.push(`/dashboard/checkout?planId=${planId}&interval=${interval}`);
@@ -462,7 +466,6 @@ export default function PricingInterface() {
 
   const confirmSubscription = async () => {
     if (!selectedPlan) return;
-
     startTransition(async () => {
       try {
         const planId = PLAN_MAPPING[selectedPlan.name];
@@ -470,16 +473,11 @@ export default function PricingInterface() {
           await createSubscriptionCheckout(planId, isMonthly ? 'month' : 'year');
         }
       } catch (error: any) {
-        // Handle "Success" redirect
         if (error.message === 'NEXT_REDIRECT') {
           setIsSuccess(true);
-          // Wait 2 seconds then reload
-          setTimeout(() => {
-            window.location.reload();
-          }, 2000);
+          setTimeout(() => { window.location.reload(); }, 2000);
           return;
         }
-
         alert(error.message);
         setModalOpen(false);
       }
@@ -498,6 +496,18 @@ export default function PricingInterface() {
 
   return (
     <div className="max-w-7xl mx-auto p-4 md:p-8 animate-in fade-in duration-700">
+
+      {/* Confirmation Modal (Inserted back) */}
+      <ConfirmationModal
+        isOpen={modalOpen}
+        onClose={() => setModalOpen(false)}
+        onConfirm={confirmSubscription}
+        isLoading={isPending}
+        isSuccess={isSuccess}
+        planName={selectedPlan?.name || ''}
+        price={selectedPlan?.price || ''}
+        isUpgrade={isUpgrade}
+      />
 
       {/* Toggle */}
       <div className="flex justify-center mb-12">
@@ -525,6 +535,7 @@ export default function PricingInterface() {
             plan={plan}
             isMonthly={isMonthly}
             currentPlanName={currentPlan}
+            currentInterval={currentInterval} // Pass current interval
             onSelect={() => handleSelectPlan(plan)}
           />
         ))}
@@ -542,8 +553,6 @@ export default function PricingInterface() {
 
       {/* Table */}
       <PRICING_TABLE currentPlanName={currentPlan} />
-
-
     </div>
   );
 }

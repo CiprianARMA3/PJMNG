@@ -152,51 +152,7 @@ const FeatureValue = memo(({ value }: { value: string | boolean | number }) => {
 });
 FeatureValue.displayName = 'FeatureValue';
 
-const SubscribeButton = ({ 
-  tier, 
-  currentPlanName,
-  onSelect
-}: { 
-  tier: PricingTier; 
-  currentPlanName: string | null;
-  onSelect: () => void;
-}) => {
-  const planName = tier.name;
-  const currentName = currentPlanName || "";
-  const isCurrent = currentName.toLowerCase() === planName.toLowerCase();
-  
-  const currentRank = PLAN_ORDER.indexOf(currentName);
-  const tierRank = PLAN_ORDER.indexOf(planName);
 
-  let buttonText = tier.ctaText;
-  let buttonClass = 'bg-zinc-800 hover:bg-zinc-700 text-white border border-zinc-700';
-  
-  if (isCurrent) {
-    buttonText = "Current Plan";
-    buttonClass = 'bg-green-500/10 text-green-400 border border-green-500/20 cursor-default hover:bg-green-500/10';
-  } else if (currentRank !== -1) {
-    if (tierRank > currentRank) {
-      buttonText = "Upgrade";
-      buttonClass = 'bg-white text-black hover:bg-zinc-200 border border-white font-semibold';
-    } else {
-      buttonText = "Downgrade";
-      buttonClass = 'bg-transparent text-zinc-300 border border-zinc-700 hover:bg-zinc-800 hover:text-white';
-    }
-  } else if (tier.name === 'Developers') {
-     buttonClass = 'bg-purple-600 hover:bg-purple-700 text-white border border-purple-500 shadow-lg shadow-purple-900/20';
-  }
-
-  return (
-    <button
-      onClick={onSelect}
-      disabled={isCurrent}
-      className={`w-full py-2.5 px-4 rounded-lg flex items-center justify-center gap-2 transition-all font-medium text-sm ${buttonClass} ${isCurrent ? 'opacity-100' : ''}`}
-    >
-      <span>{buttonText}</span>
-      {!isCurrent && <ArrowRight className="w-4 h-4" />}
-    </button>
-  );
-};
 
 // --- DATA ---
 const defaultTiers: PricingTier[] = [
@@ -439,11 +395,7 @@ const PricingTable: React.FC<PricingTableProps> = ({ tiers = defaultTiers, class
               </div>
               
               <div className="w-full mt-auto">
-                 <SubscribeButton 
-                    tier={tier} 
-                    currentPlanName={currentPlanName || null}
-                    onSelect={() => handleSelectPlan(tier)}
-                 />
+
               </div>
             </div>
           );
