@@ -193,9 +193,9 @@ export default function DashboardPage() {
                 <div className="absolute bottom-0 right-0 w-2.5 h-2.5 bg-green-500 border-2 border-[#111] rounded-full"></div>
               </div>
               
-              <span className="hidden md:block text-xs font-medium text-zinc-300 pr-2 group-hover:text-white transition-colors max-w-[80px] truncate">
-                {user.name || "User"}
-              </span>
+            <span className="hidden md:block text-xs font-medium text-zinc-300 pr-2 group-hover:text-white transition-colors max-w-[80px] truncate">
+              {user?.name} {user?.surname ? `${user.surname.charAt(0).toUpperCase()}.` : ""}
+            </span>
             </button>
             
             {/* Quick Logout (Visible on Hover of Profile area) */}
