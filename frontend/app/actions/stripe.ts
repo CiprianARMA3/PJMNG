@@ -555,6 +555,138 @@ export async function getUserBillingInfo() {
   };
 }
 
+// frontend/app/actions/stripe.ts
+
+export async function getCheckoutPreview(planId: string, interval: 'month' | 'year') {
+  const supabase = createClient(cookies());
+  const { data: { user } } = await supabase.auth.getUser();
+
+  if (!user) throw new Error('Not authenticated');
+
+  // 1. Resolve Price ID
+  const config = SUBSCRIPTION_PLANS[planId as keyof typeof SUBSCRIPTION_PLANS];
+  if (!config || !config.prices[interval]) {
+    throw new Error('Invalid plan configuration');
+  }
+  const targetPriceId = config.prices[interval];
+
+  // 2. Get Customer
+  const { data: userData } = await supabase
+    .from('users')
+    .select('stripe_customer_id')
+    .eq('id', user.id)
+    .single();
+
+  const customerId = userData?.stripe_customer_id;
+
+  // 3. Check for Existing Subscription (Using SDK for listing works fine)
+  let activeSub: Stripe.Subscription | null = null;
+  if (customerId) {
+    try {
+      const subscriptions = await stripe.subscriptions.list({
+        customer: customerId,
+        status: 'active',
+        limit: 1,
+      });
+      activeSub = subscriptions.data[0] || null;
+    } catch (e) {
+      console.warn("Failed to list subscriptions via SDK:", e);
+    }
+  }
+
+  // SCENARIO A: Upgrade/Downgrade (Proration Calculation)
+  if (activeSub && customerId) {
+    const currentItem = activeSub.items.data[0];
+    
+    // If they are already on this price
+    if (currentItem?.price.id === targetPriceId) {
+        return {
+            amount: 0,
+            currency: currentItem.price.currency,
+            mode: 'no_change',
+            message: 'You are already subscribed to this plan.'
+        };
+    }
+
+    if (!currentItem) {
+        // Edge case: Sub exists but has no items? Fallback to new sub logic.
+        // Proceed to Scenario B.
+    } else {
+        try {
+          // FIX: Use URLSearchParams to ensure proper encoding of brackets [ ]
+          const params = new URLSearchParams();
+          params.append('customer', customerId);
+          params.append('subscription', activeSub.id);
+          params.append('subscription_items[0][id]', currentItem.id);
+          params.append('subscription_items[0][price]', targetPriceId);
+          params.append('subscription_proration_behavior', 'always_invoice');
+
+          const response = await fetch(`https://api.stripe.com/v1/invoices/upcoming?${params.toString()}`, {
+            method: 'GET',
+            headers: {
+              'Authorization': `Bearer ${process.env.STRIPE_SECRET_KEY}`,
+              'Content-Type': 'application/x-www-form-urlencoded',
+            },
+            cache: 'no-store'
+          });
+
+          if (!response.ok) {
+             const errorBody = await response.text();
+             console.error(`Stripe Preview Error (${response.status}):`, errorBody);
+             throw new Error(`Stripe API error: ${response.status}`);
+          }
+
+          const preview = await response.json();
+
+          return {
+            amount: preview.amount_due / 100, // Stripe returns cents
+            currency: preview.currency,
+            mode: 'update',
+            details: 'Prorated amount due today (New Plan Cost - Unused Current Plan)'
+          };
+        } catch (err: any) {
+          console.error("Proration preview failed:", err);
+          return {
+            amount: 0,
+            currency: 'eur',
+            mode: 'error',
+            message: 'Unable to calculate upgrade cost. Please try again.'
+          };
+        }
+    }
+  }
+
+  // SCENARIO B: New Subscription OR Fallback
+  // We fetch price directly to avoid SDK issues
+  try {
+    const res = await fetch(`https://api.stripe.com/v1/prices/${targetPriceId}`, {
+        headers: { 
+            'Authorization': `Bearer ${process.env.STRIPE_SECRET_KEY}` 
+        },
+        cache: 'no-store' 
+    });
+    
+    if (res.ok) {
+        const price = await res.json();
+        return {
+            amount: (price.unit_amount || 0) / 100,
+            currency: price.currency,
+            mode: 'new',
+            details: 'Standard subscription rate'
+        };
+    }
+  } catch (e) {
+      console.error("Price fetch failed:", e);
+  }
+
+  return {
+    amount: 0,
+    currency: 'eur',
+    mode: 'error',
+    message: 'Could not load pricing.'
+  };
+}
+
 // --- Update cancelUserSubscription to include re-enabling auto-renew ---
 export async function cancelUserSubscription(subscriptionId: string, cancel: boolean) {
   try {
@@ -568,7 +700,6 @@ export async function cancelUserSubscription(subscriptionId: string, cancel: boo
     return { success: false, error: error.message };
   }
 }
-
 // --- getUserInvoices (Updated with FIX) ---
 export async function getUserInvoices() {
   const supabase = createClient(cookies());
@@ -609,3 +740,4 @@ export async function getUserInvoices() {
     };
   });
 }
+

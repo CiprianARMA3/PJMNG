@@ -4,10 +4,9 @@
 
 import { useEffect, useState, useTransition } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
-// Removed unused: createClient from "@/utils/supabase/client"
-import { createSubscriptionCheckout } from "@/app/actions/stripe";
-import { Loader2, CheckCircle2, ShieldCheck, ArrowLeft, CreditCard } from "lucide-react";
-// Import SUBSCRIPTION_PLANS directly for client-side lookup
+// Import the new preview action
+import { createSubscriptionCheckout, getCheckoutPreview } from "@/app/actions/stripe";
+import { Loader2, CheckCircle2, ShieldCheck, ArrowLeft, CreditCard, Info } from "lucide-react";
 import { SUBSCRIPTION_PLANS } from "@/utils/stripe/config";
 
 // Interface reflecting the data structure from SUBSCRIPTION_PLANS
@@ -20,6 +19,15 @@ interface PlanConfig {
     limits: { projects: number };
 }
 
+// Interface for the fetched price data
+interface PriceDetails {
+    amount: number;
+    currency: string;
+    mode: string;
+    details?: string;
+    message?: string;
+}
+
 export default function CheckoutPage() {
     const searchParams = useSearchParams();
     const router = useRouter();
@@ -28,12 +36,13 @@ export default function CheckoutPage() {
     const interval = (searchParams.get("interval") as "month" | "year") || "month";
 
     const [planConfig, setPlanConfig] = useState<PlanConfig | null>(null);
+    const [priceDetails, setPriceDetails] = useState<PriceDetails | null>(null);
     const [loading, setLoading] = useState(true);
     const [isPending, startTransition] = useTransition();
     const [error, setError] = useState<string | null>(null);
 
     useEffect(() => {
-        const loadPlan = () => {
+        const loadPlanAndPrice = async () => {
             if (!urlPlanId) {
                 setError("No plan specified (Plan ID is missing).");
                 setLoading(false);
@@ -55,11 +64,26 @@ export default function CheckoutPage() {
             }
 
             setPlanConfig(config);
-            console.log(`✅ [CHECKOUT] Plan loaded from config: ${config.name} (${interval})`);
-            setLoading(false);
+
+            try {
+                // Fetch accurate pricing from Stripe (Handles both New & Upgrades)
+                const data = await getCheckoutPreview(urlPlanId, interval);
+                setPriceDetails({
+                    amount: data.amount,
+                    currency: data.currency.toUpperCase(),
+                    mode: data.mode,
+                    details: data.details,
+                    message: data.message
+                });
+            } catch (err) {
+                console.error("Failed to fetch price preview:", err);
+                setError("Unable to calculate pricing details. Please check your connection.");
+            } finally {
+                setLoading(false);
+            }
         };
 
-        loadPlan();
+        loadPlanAndPrice();
     }, [urlPlanId, interval]);
 
     const handleConfirm = () => {
@@ -68,14 +92,10 @@ export default function CheckoutPage() {
         startTransition(async () => {
             try {
                 console.log(`📝 [CHECKOUT] Initiating subscription for ${planConfig.name} (${interval})...`);
-                // Call server action. It handles customer creation/update and redirects to Stripe.
-                await createSubscriptionCheckout(urlPlanId, interval, true); // autoRenew is set to true by default
-                
-                // Note: The redirection to Stripe happens inside the server action. 
-                // This client-side code will not execute further unless the server action fails.
+                await createSubscriptionCheckout(urlPlanId, interval, true); 
             } catch (err: any) {
                 console.error("Checkout error:", err);
-                setError(err.message || "Failed to initiate secure checkout session. Please try again.");
+                setError(err.message || "Failed to initiate secure checkout session.");
             }
         });
     };
@@ -89,7 +109,7 @@ export default function CheckoutPage() {
         );
     }
 
-    if (error || !planConfig) {
+    if (error || !planConfig || !priceDetails) {
         return (
             <div className="min-h-screen bg-[#0a0a0a] flex flex-col items-center justify-center p-4">
                 <div className="bg-[#141417] p-8 rounded-2xl border border-white/10 text-center max-w-md w-full">
@@ -97,45 +117,25 @@ export default function CheckoutPage() {
                         <ShieldCheck className="w-6 h-6" />
                     </div>
                     <h2 className="text-xl font-bold text-white mb-2">Checkout Error</h2>
-                    <p className="text-zinc-400 mb-6">{error || "Plan configuration error."}</p>
+                    <p className="text-zinc-400 mb-6">{error || "Unable to load checkout details."}</p>
                     <button
-                        onClick={() => router.push('/pricing')}
+                        onClick={() => router.push('/pricing')} // Adjust route as needed
                         className="w-full py-2.5 bg-white text-black rounded-xl font-medium hover:bg-zinc-200 transition-colors"
                     >
-                        Go to Plans
+                        Return to Plans
                     </button>
                 </div>
             </div>
         );
     }
     
-    // Ensure we have a price amount (this assumes prices are stored in cents/multiplied by 100)
-    // NOTE: If the prices in SUBSCRIPTION_PLANS are Stripe price IDs, we can't display the € amount here.
-    // If your plans table had price data and you switched, you must ensure the local config provides the price.
-    // Since the original code was loading price, I'll assume your config should expose the price as a number
-    // or you need to fetch it separately. Given the constraints, I will use a placeholder or assume a price is available.
-    
-    // *** CRITICAL ASSUMPTION ***
-    // The original file used price.toFixed(2), meaning the price was a number (e.g., 9.99).
-    // The current config only stores STRIPE_PRICE_IDs (strings). 
-    // I MUST ADD A MOCK/PLACEHOLDER PRICE FOR DISPLAY, or you must update your config.ts to include the amount.
-    // Since I don't know the amount, I will use a mock value and log a warning.
-    
-    const priceId = planConfig.prices[interval];
-    // To fix price display without changing config.ts structure:
-    // I will mock the price based on interval, as I cannot fetch it from Stripe here.
-    // The actual payment will use the correct priceId, but the display will be a guess.
-    
-    let displayPrice: number;
-    if (planConfig.name === 'Individual') {
-        displayPrice = interval === 'month' ? 10 : 100; // Mock prices
-    } else if (planConfig.name === 'Developers') {
-        displayPrice = interval === 'month' ? 30 : 300; // Mock prices
-    } else {
-        displayPrice = interval === 'month' ? 100 : 1000; // Mock prices
-    }
-    
     const billingPeriod = interval === "month" ? "Monthly" : "Yearly";
+    
+    // Formatting currency safely
+    const formattedPrice = new Intl.NumberFormat('en-IE', { 
+        style: 'currency', 
+        currency: priceDetails.currency 
+    }).format(priceDetails.amount);
 
     return (
         <div className="min-h-screen bg-[#0a0a0a] py-12 px-4 sm:px-6 lg:px-8">
@@ -154,11 +154,11 @@ export default function CheckoutPage() {
                         <div className="bg-[#141417] rounded-2xl border border-white/10 overflow-hidden">
                             <div className="p-6 border-b border-white/5">
                                 <h2 className="text-xl font-bold text-white">Order Summary</h2>
-                                {/* Display warning if price is mocked */}
-                                {priceId && (
-                                    <p className="text-xs text-orange-400 mt-1">
-                                        Note: Price displayed (€{displayPrice.toFixed(2)}) is an estimate. Actual payment will be based on Stripe Price ID: {priceId}.
-                                    </p>
+                                {priceDetails.mode === 'update' && (
+                                    <div className="mt-3 flex gap-2 text-blue-400 bg-blue-500/10 p-3 rounded-lg text-sm">
+                                        <Info className="w-4 h-4 mt-0.5 flex-shrink-0" />
+                                        <p>This is a prorated amount. You are only paying the difference between your old plan and the new one for the remainder of this billing cycle.</p>
+                                    </div>
                                 )}
                             </div>
 
@@ -171,9 +171,11 @@ export default function CheckoutPage() {
                                     </div>
                                     <div className="text-right">
                                         <p className="text-2xl font-bold text-white">
-                                            €{displayPrice.toFixed(2)}
+                                            {formattedPrice}
                                         </p>
-                                        <p className="text-zinc-400 text-sm">per {billingPeriod.toLowerCase()}</p>
+                                        <p className="text-zinc-400 text-sm">
+                                            {priceDetails.mode === 'update' ? 'due today' : `per ${billingPeriod.toLowerCase()}`}
+                                        </p>
                                     </div>
                                 </div>
 
@@ -184,7 +186,7 @@ export default function CheckoutPage() {
                                 </div>
 
                                 <div className="border-t border-white/5 pt-6">
-                                    <h4 className="text-sm font-medium text-white mb-4">Plan Features (from config limits)</h4>
+                                    <h4 className="text-sm font-medium text-white mb-4">Plan Features</h4>
                                     <ul className="space-y-3">
                                         <li className="flex items-center text-zinc-300 text-sm">
                                             <CheckCircle2 className="w-4 h-4 text-green-500 mr-3 flex-shrink-0" />
@@ -193,10 +195,6 @@ export default function CheckoutPage() {
                                         <li className="flex items-center text-zinc-300 text-sm">
                                             <CheckCircle2 className="w-4 h-4 text-green-500 mr-3 flex-shrink-0" />
                                             <span>Full access to {planConfig.name} features</span>
-                                        </li>
-                                        <li className="flex items-center text-zinc-300 text-sm">
-                                            <CheckCircle2 className="w-4 h-4 text-green-500 mr-3 flex-shrink-0" />
-                                            <span>Cancel auto-renewal anytime in billing settings</span>
                                         </li>
                                     </ul>
                                 </div>
@@ -209,7 +207,7 @@ export default function CheckoutPage() {
                                         Total due today
                                     </span>
                                     <span className="text-2xl font-bold text-purple-400">
-                                        €{displayPrice.toFixed(2)}
+                                        {formattedPrice}
                                     </span>
                                 </div>
                             </div>
@@ -219,7 +217,7 @@ export default function CheckoutPage() {
                     {/* Checkout Action */}
                     <div className="md:col-span-1">
                         <div className="bg-[#141417] rounded-2xl border border-white/10 p-6 sticky top-8">
-                            <h3 className="font-semibold text-white mb-4">Confirm & Redirect to Payment</h3>
+                            <h3 className="font-semibold text-white mb-4">Confirm & Pay</h3>
 
                             <div className="space-y-4">
                                 <div className="flex items-center gap-3 p-3 bg-white/5 rounded-lg border border-white/10">
@@ -234,18 +232,24 @@ export default function CheckoutPage() {
 
                                 <button
                                     onClick={handleConfirm}
-                                    disabled={isPending}
+                                    disabled={isPending || priceDetails.mode === 'no_change'}
                                     className="w-full py-3 rounded-xl font-bold shadow-lg transition-all disabled:opacity-70 disabled:cursor-not-allowed flex items-center justify-center gap-2 bg-purple-600 hover:bg-purple-500 text-white shadow-purple-900/20"
                                 >
                                     {isPending ? (
                                         <>
                                             <Loader2 className="w-5 h-5 animate-spin" />
-                                            Redirecting to Stripe...
+                                            Processing...
                                         </>
                                     ) : (
-                                        "Confirm & Pay"
+                                        priceDetails.mode === 'no_change' ? "Current Plan" : "Confirm & Pay"
                                     )}
                                 </button>
+                                
+                                {priceDetails.message && (
+                                    <p className="text-xs text-center text-yellow-500 mt-2">
+                                        {priceDetails.message}
+                                    </p>
+                                )}
 
                                 <p className="text-xs text-center text-zinc-500 mt-4">
                                     By confirming, you agree to our Terms of Service. You will be redirected to Stripe to finalize the payment.
