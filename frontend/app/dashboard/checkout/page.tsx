@@ -247,7 +247,8 @@ export default function CheckoutPage() {
                                 
                                 {priceDetails.message && (
                                     <p className="text-xs text-center text-yellow-500 mt-2">
-                                        {priceDetails.message}
+                                        {/* {priceDetails.message} */}
+                                        For payment issues contact both Stripe and Kapry.DEV Administration.
                                     </p>
                                 )}
 
