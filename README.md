@@ -1,6 +1,6 @@
 # Kapry.dev (PJMNG) 🚀
 
-![Project Banner](public/logo-light.png)
+![Project Banner](frontend/public/logo-light.png)
 
 **The AI-Powered Operating System for Software Teams.**
 
