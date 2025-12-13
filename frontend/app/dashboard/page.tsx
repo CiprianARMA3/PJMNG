@@ -11,7 +11,8 @@ import {
   Settings,
   LogOut,
   ChevronRight,
-  User as UserIcon
+  User as UserIcon,
+  Bell
 } from "lucide-react";
 import Breadcrumb from "./components/Breadcrumb";
 import { signOut } from "../actions/auth";
@@ -37,6 +38,7 @@ const SECTIONS = {
 const MAIN_MENU = [
   { icon: Home, label: "Dashboard", section: SECTIONS.HOME },
   { icon: CreditCard, label: "Subscriptions", section: SECTIONS.CreditCard },
+  { icon: Bell, label: "Blog", section: SECTIONS.MAIL },
 ];
 
 // Loading fallback

@@ -1,8 +1,9 @@
+// frontend/app/dashboard/components/dashboard-sections/HomeSection.tsx
 "use client";
 
 import { useEffect, useState } from "react";
 import { createClient } from "@/utils/supabase/client";
-import { Loader2 } from "lucide-react";
+import { Loader2, FolderOpen } from "lucide-react";
 import ProjectTemplate, { ProjectData } from "../projects/Project"; 
 import AddProjectButton from "../projects/component/addMore"; 
 
@@ -24,7 +25,6 @@ export default function HomeSection({ user, userName }: HomeSectionProps) {
         const { data, error } = await supabase
           .from("projects")
           .select("*")
-          // .eq("created_by", user.id)
           .order("created_at", { ascending: false });
 
         if (error) throw error;
@@ -42,24 +42,29 @@ export default function HomeSection({ user, userName }: HomeSectionProps) {
   if (loading) {
     return (
       <div className="flex h-64 items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-white/20" />
+        <div className="flex flex-col items-center gap-3">
+          <Loader2 className="h-6 w-6 animate-spin text-neutral-600" />
+          <span className="text-xs text-neutral-500 font-medium">Loading workspace...</span>
+        </div>
       </div>
     );
   }
 
   return (
-    <div>
-      <div className="flex justify-between items-end mb-8 border-b border-white/5 pb-4">
+    <div className="space-y-8 animate-in fade-in duration-500">
+      {/* Header */}
+      <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-semibold mb-2 text-white">
-            Welcome back, <span className="text-purple-400">{userName}</span>!
+          <h1 className="text-xl font-medium text-white/90 mb-1">
+            Welcome back, {userName}
           </h1>
-          <p className="text-gray-400">Here are your active projects:</p>
+          <p className="text-sm text-neutral-500">Here are your active projects.</p>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 animate-in fade-in duration-500 pb-10">
-        {/* 1. Render Projects */}
+      {/* Projects Grid */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 pb-12">
+        {/* Render Active Projects */}
         {projects.map((project) => (
           <ProjectTemplate 
             key={project.id} 
@@ -68,14 +73,8 @@ export default function HomeSection({ user, userName }: HomeSectionProps) {
           />
         ))}
 
-        {/* 2. Render Button as the Next Item */}
-        {/* - min-h matches the project card height so it centers vertically 
-            - ml-4 adds that specific left margin you requested
-            - no border, no background
-        */}
-        <div className="flex items-center justify-start min-h-[300px] ml-4">
-           <AddProjectButton />
-        </div>
+        {/* Render "Create New" Card as the last item */}
+        <AddProjectButton />
       </div>
     </div>
   );

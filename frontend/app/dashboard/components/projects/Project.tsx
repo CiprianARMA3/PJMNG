@@ -1,3 +1,4 @@
+// frontend/app/dashboard/components/projects/Project.tsx
 "use client";
 
 import { useEffect, useState } from "react";
@@ -11,7 +12,9 @@ import {
   Facebook, 
   Linkedin, 
   Instagram, 
-  ExternalLink 
+  ExternalLink,
+  Calendar,
+  Link as LinkIcon
 } from "lucide-react";
 import { FaDiscord } from "react-icons/fa";
 import { useRouter } from "next/navigation";
@@ -28,7 +31,7 @@ const getPlatformIcon = (key: string) => {
   if (normalized.includes("linkedin")) return Linkedin;
   if (normalized.includes("instagram")) return Instagram;
   if (normalized.includes("website")) return Globe;
-  return ExternalLink;
+  return LinkIcon;
 };
 
 export interface ProjectData {
@@ -37,7 +40,7 @@ export interface ProjectData {
   description: string | null;
   created_at: string;
   created_by: string;
-  collaborators: number; // We will override this with a fresh fetch
+  collaborators: number; 
   github_repo_url: string | null;
   metadata: {
     "project-banner"?: string | null;
@@ -106,7 +109,7 @@ export default function ProjectTemplate({ project, creatorName }: ProjectTemplat
   // Metadata Extraction
   const meta = project.metadata || {};
   const bannerUrl = meta["project-banner"] || "/default-banner.webp"; 
-  const iconUrl = meta["project-icon"] || "/default-avatar.png";
+  const iconUrl = meta["project-icon"]; // Allow fallback logic in rendering
   
   // Extract all links dynamically
   const metadataLinks = Object.entries(meta)
@@ -117,12 +120,11 @@ export default function ProjectTemplate({ project, creatorName }: ProjectTemplat
       Icon: getPlatformIcon(key)
     }));
 
-  // Also check direct github_repo_url if not in metadata
   if (project.github_repo_url && !metadataLinks.some(l => l.key === 'github-link')) {
     metadataLinks.push({ key: 'github-repo', url: project.github_repo_url, Icon: Github });
   }
 
-  // Formatted Date: "07 Dec 2025"
+  // Formatted Date
   const formattedDate = new Date(project.created_at).toLocaleDateString('en-GB', {
       day: '2-digit',
       month: 'short',
@@ -132,90 +134,106 @@ export default function ProjectTemplate({ project, creatorName }: ProjectTemplat
   return (
     <div 
       onClick={handleCardClick}
-      className="container max-w-lg mx-auto bg-white/5 backdrop-blur-lg border border-white/10 rounded-2xl shadow-lg overflow-hidden cursor-pointer hover:border-white/20 hover:shadow-2xl hover:shadow-purple-500/5 transition-all duration-300 group relative"
+      className="group relative flex flex-col w-full bg-[#111] border border-[#222] hover:border-[#333] rounded-xl overflow-hidden cursor-pointer transition-all duration-300 shadow-sm hover:shadow-lg"
     >
-      {/* Banner Section */}
-      <div className="relative mb-16">
-        <div className="h-32 w-full relative group-hover:brightness-110 transition-all duration-500">
-          <div className="absolute top-2 right-2 z-20" onClick={stopPropagation}>
-            <button className="p-2 rounded-full bg-black/20 hover:bg-black/40 text-white/80 hover:text-white transition-all hover:rotate-90 backdrop-blur-md">
-              <Settings size={20} />
-            </button>
-          </div>
-
-          <div className="absolute inset-0">
-            <img src={bannerUrl} alt={`${project.name} Banner`} className="object-cover w-full h-full absolute inset-0" />
-            <div className="absolute inset-0 bg-gradient-to-t from-[#121212] via-[#121212]/40 to-transparent"></div>
-          </div>
-        </div>
+      {/* Banner Area */}
+      <div className="relative h-28 w-full overflow-hidden bg-[#161616]">
+        <img 
+            src={bannerUrl} 
+            alt={`${project.name} Banner`} 
+            className="w-full h-full object-cover opacity-60 group-hover:opacity-80 group-hover:scale-105 transition-all duration-500" 
+        />
+        <div className="absolute inset-0 bg-gradient-to-t from-[#111] to-transparent" />
         
-        {/* Project Logo and Name */}
-        <div className="absolute -bottom-16 left-6 flex items-end z-10">
-          <div className="relative border-4 border-[#121212] rounded-full p-1 bg-[#1e1e1e] shadow-lg">
-            <div className="w-[80px] h-[80px] relative rounded-full overflow-hidden">
-                <img src={iconUrl} alt={project.name} className="object-cover w-full h-full" />
-            </div>
-          </div>
-          
-          <div className="ml-[20px] mb-2 mt-[-50px]">
-            <p className="project-title text-white text-2xl font-semibold drop-shadow-md tracking-tight group-hover:text-purple-400 transition-colors">
-              {project.name}
-            </p>
-          </div>
+        {/* Settings Action */}
+        <div className="absolute top-3 right-3 z-20 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+            <button 
+                onClick={stopPropagation}
+                className="p-1.5 bg-[#1a1a1a] hover:bg-[#222] text-neutral-400 hover:text-white border border-[#333] rounded-lg transition-colors"
+            >
+                <Settings size={14} />
+            </button>
         </div>
       </div>
 
-      {/* Content Area */}
-      <div className="px-6 pb-6 pt-2">
-        <div className="mb-6 text-white/70 min-h-[3rem]">
-          <p className="text-sm line-clamp-2 leading-relaxed">
-            {project.description || "No description provided."}
-          </p>
-        </div>
-
-        <div className="grid grid-cols-3 gap-2 text-white/80 mb-6 border-b border-white/5 pb-4">
-          <div className="flex flex-col items-center justify-center p-2 rounded-lg bg-white/5 border border-white/5">
-            <p className="font-semibold text-[10px] uppercase text-white/40 mb-1">Created</p>
-            <p className="text-xs font-medium text-center">{formattedDate}</p>
-          </div>
-          
-          <div className="flex flex-col items-center justify-center p-2 rounded-lg bg-white/5 border border-white/5">
-            <p className="font-semibold text-[10px] uppercase text-white/40 mb-1">Members</p>
-            <div className="flex items-center gap-1.5">
-              <Users size={14} className="text-white/60" />
-              <span className="text-md font-medium">{memberCount}</span>
+      {/* Content Body */}
+      <div className="flex-1 px-5 pb-5 -mt-8 relative z-10 flex flex-col">
+        {/* Header: Icon + Title */}
+        <div className="flex items-end gap-3 mb-4">
+            <div className="w-14 h-14 rounded-xl bg-[#1a1a1a] border border-[#2a2a2a] p-1 shadow-lg group-hover:border-[#333] transition-colors overflow-hidden">
+                 {iconUrl ? (
+                     <img src={iconUrl} alt="Icon" className="w-full h-full object-cover rounded-lg" />
+                 ) : (
+                    <div className="w-full h-full flex items-center justify-center bg-[#111] rounded-lg text-neutral-600 font-bold text-lg">
+                        {project.name.substring(0, 2).toUpperCase()}
+                    </div>
+                 )}
             </div>
-          </div>
-
-          <div className="flex flex-col items-center justify-center p-2 rounded-lg bg-white/5 border border-white/5" onClick={stopPropagation}>
-            <p className="font-semibold text-[10px] uppercase text-white/40 mb-1">Links</p>
-            <div className="flex gap-2 justify-center flex-wrap">
-              {metadataLinks.length > 0 ? (
-                metadataLinks.slice(0, 3).map((link) => (
-                  <a 
-                    key={link.key} 
-                    href={link.url} 
-                    target="_blank" 
-                    rel="noopener noreferrer" 
-                    className="text-white/60 hover:text-white hover:scale-110 transition-all"
-                    title={link.key}
-                  >
-                     <link.Icon size={16} />
-                  </a>
-                ))
-              ) : (
-                <span className="text-[10px] text-white/30 italic">None</span>
-              )}
+            <div className="mb-1 min-w-0 flex-1">
+                <h3 className="text-lg font-medium text-white truncate group-hover:text-neutral-200 transition-colors">
+                    {project.name}
+                </h3>
             </div>
-          </div>
         </div>
 
-        <div className="flex justify-between items-center text-xs">
-          <span className="text-white/40">Created by</span>
-          <span className="font-medium text-white/80 bg-white/5 px-2 py-1 rounded-md border border-white/5">
-            {creator}
-          </span>
+        {/* Description */}
+        <p className="text-xs text-neutral-500 line-clamp-2 mb-6 h-8 leading-relaxed">
+            {project.description || "No description provided for this project."}
+        </p>
+
+        {/* Stats Row */}
+        <div className="grid grid-cols-2 gap-3 mb-5">
+            <div className="bg-[#161616] border border-[#222] rounded-lg p-2.5 flex items-center gap-3">
+                 <Calendar size={14} className="text-neutral-600" />
+                 <div className="flex flex-col">
+                    <span className="text-[10px] text-neutral-500 uppercase font-medium">Created</span>
+                    <span className="text-xs text-neutral-300">{formattedDate}</span>
+                 </div>
+            </div>
+            
+            <div className="bg-[#161616] border border-[#222] rounded-lg p-2.5 flex items-center gap-3">
+                 <Users size={14} className="text-neutral-600" />
+                 <div className="flex flex-col">
+                    <span className="text-[10px] text-neutral-500 uppercase font-medium">Team</span>
+                    <span className="text-xs text-neutral-300">{memberCount} Members</span>
+                 </div>
+            </div>
         </div>
+
+        {/* Footer: Links & Creator */}
+        <div className="mt-auto pt-4 border-t border-[#222] flex items-center justify-between">
+            {/* Social Links */}
+            <div className="flex items-center gap-2" onClick={stopPropagation}>
+                 {metadataLinks.length > 0 ? (
+                    metadataLinks.slice(0, 3).map((link) => (
+                      <a 
+                        key={link.key} 
+                        href={link.url} 
+                        target="_blank" 
+                        rel="noopener noreferrer" 
+                        className="p-1.5 rounded-md hover:bg-[#222] text-neutral-500 hover:text-white transition-colors"
+                        title={link.key}
+                      >
+                         <link.Icon size={14} />
+                      </a>
+                    ))
+                 ) : (
+                    <span className="text-[10px] text-neutral-600 italic px-1">No links</span>
+                 )}
+                 {metadataLinks.length > 3 && (
+                     <span className="text-[10px] text-neutral-600">+{metadataLinks.length - 3}</span>
+                 )}
+            </div>
+
+            {/* Creator Badge */}
+            <div className="text-[10px] text-neutral-500 flex items-center gap-1.5">
+                <span>by</span>
+                <span className="font-medium text-neutral-400 bg-[#161616] px-1.5 py-0.5 rounded border border-[#222]">
+                    {creator}
+                </span>
+            </div>
+        </div>
+
       </div>
     </div>
   );

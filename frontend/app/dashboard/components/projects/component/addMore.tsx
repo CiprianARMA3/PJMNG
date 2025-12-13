@@ -1,6 +1,17 @@
+// frontend/app/dashboard/components/projects/component/addMore.tsx
+
 "use client";
 
-import { Plus, ChevronDown, FolderPlus, Users, X, ArrowRight, Loader2, AlertCircle } from "lucide-react";
+import { 
+    Plus, 
+    FolderPlus, 
+    Users, 
+    X, 
+    ArrowRight, 
+    Loader2, 
+    AlertCircle,
+    ChevronDown 
+} from "lucide-react";
 import { useState, useRef, useEffect } from "react";
 import Link from "next/link"; 
 import { createClient } from "@/utils/supabase/client";
@@ -51,7 +62,7 @@ export default function AddProjectButton() {
 
     // 1. Client-side Validation
     if (!isValidUUID(cleanCode)) {
-      setError("Invalid code format. It must be a valid UUID (e.g., 550e8400-...).");
+      setError("Invalid code format. It must be a valid UUID.");
       return;
     }
 
@@ -67,13 +78,11 @@ export default function AddProjectButton() {
       }
 
       // 3. Call the RPC function
-      // We explicitly pass the named parameter 'code_input'
       const { data: projectId, error: rpcError } = await supabase.rpc('join_project_via_invite', {
         code_input: cleanCode
       });
 
       if (rpcError) {
-        // Log the full error structure to console for debugging
         console.error("RPC Error Details:", JSON.stringify(rpcError, null, 2));
         throw new Error(rpcError.message || "Server error while joining.");
       }
@@ -87,7 +96,6 @@ export default function AddProjectButton() {
       setIsJoinModalOpen(false);
 
     } catch (err: any) {
-      // Make the error message user-friendly
       let msg = err.message;
       if (msg.includes("input syntax for type uuid")) {
         msg = "The code format is incorrect.";
@@ -102,45 +110,74 @@ export default function AddProjectButton() {
 
   return (
     <>
-      {/* --- DROPDOWN TRIGGER --- */}
-      <div className="relative" ref={dropdownRef}>
+      {/* --- TRIGGER CARD --- */}
+      <div className="relative w-full h-full" ref={dropdownRef}>
         <button
+          onClick={() => setIsOpen(!isOpen)} 
           className={`
-            flex items-center justify-center gap-2 px-4 py-2
-            bg-white/5 backdrop-blur-lg border border-white/10 rounded-full text-white 
-            hover:bg-white/10 hover:border-white/20 shadow-lg transition-all duration-200
-            ${isOpen ? 'bg-white/10 border-white/20' : ''}
+            group relative flex flex-col items-center justify-center w-full h-full min-h-[220px] 
+            bg-[#111]/30 border border-dashed border-[#222] rounded-xl 
+            transition-all duration-300 cursor-pointer overflow-hidden
+            ${isOpen ? 'bg-[#111] border-[#444]' : 'hover:bg-[#111] hover:border-[#444]'}
           `}
-          onClick={() => setIsOpen(!isOpen)}
         >
-          <Plus size={20} />
-          <span className="text-sm font-medium">Add Project</span>
-          <ChevronDown size={16} className={`transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`} />
+          {/* Subtle background glow effect on hover */}
+          <div className="absolute inset-0 bg-gradient-to-tr from-transparent via-white/[0.02] to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+
+          <div className="relative z-10 flex flex-col items-center gap-4 text-center p-6">
+            {/* Icon Container */}
+            <div className={`
+                w-12 h-12 rounded-full bg-[#161616] border border-[#2a2a2a] 
+                flex items-center justify-center transition-all duration-300 shadow-sm
+                ${isOpen ? 'border-[#444] scale-110' : 'group-hover:border-[#444] group-hover:scale-110'}
+            `}>
+              <Plus className={`w-5 h-5 text-neutral-500 transition-colors ${isOpen ? 'text-white' : 'group-hover:text-white'}`} />
+            </div>
+
+            {/* Text */}
+            <div className="space-y-1">
+              <h3 className={`text-sm font-medium text-neutral-300 transition-colors ${isOpen ? 'text-white' : 'group-hover:text-white'}`}>
+                Add Project
+              </h3>
+              <p className="text-xs text-neutral-500 group-hover:text-neutral-400 transition-colors max-w-[180px]">
+                Create a new workspace or join an existing team.
+              </p>
+            </div>
+          </div>
+          
+          {/* Dropdown Chevron Indicator */}
+          <div className={`absolute bottom-4 opacity-0 transition-all duration-300 transform ${isOpen ? 'opacity-100 translate-y-0' : 'group-hover:opacity-100 translate-y-1'}`}>
+             <ChevronDown size={16} className="text-neutral-600" />
+          </div>
         </button>
 
         {/* --- DROPDOWN MENU --- */}
         {isOpen && (
-          <div className="absolute left-0 top-full mt-2 w-64 bg-[#1a1a1a] backdrop-blur-xl border border-white/10 rounded-xl shadow-2xl z-[100] overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+          <div className="absolute top-[70%] left-1/2 -translate-x-1/2 w-[100%] bg-[#141414] border border-[#333] rounded-xl shadow-[0_20px_40px_-10px_rgba(0,0,0,0.7)] z-[100] overflow-hidden animate-in fade-in zoom-in-95 duration-200">
             <Link
               href="/create-project" 
-              className="w-full px-4 py-3 text-left text-white hover:bg-white/10 transition-all duration-150 border-b border-white/5 flex items-start gap-3"
+              className="w-full px-4 py-3 text-left text-neutral-300 hover:text-white hover:bg-[#1a1a1a] transition-all duration-150 border-b border-[#222] flex items-start gap-3 group/item"
               onClick={() => setIsOpen(false)}
             >
-              <FolderPlus size={18} className="text-purple-400 mt-1" />
+              <div className="p-1.5 bg-[#1a1a1a] rounded-lg border border-[#2a2a2a] group-hover/item:border-[#333]">
+                <FolderPlus size={16} className="text-neutral-400 group-hover/item:text-white" />
+              </div>
               <div>
                 <div className="font-medium text-sm">Create Project</div>
-                <div className="text-xs text-white/50 mt-0.5">Start a new workspace</div>
+                <div className="text-[11px] text-neutral-500 mt-0.5">Start a new workspace</div>
               </div>
             </Link>
             
             <button
               onClick={openJoinModal}
-              className="w-full px-4 py-3 text-left text-white hover:bg-white/10 transition-all duration-150 flex items-start gap-3"
+              className="w-full px-4 py-3 text-left text-neutral-300 hover:text-white hover:bg-[#1a1a1a] transition-all duration-150 flex items-start gap-3 group/item"
             >
-              <Users size={18} className="text-zinc-400 mt-1" />
+              <div className="p-1.5 bg-[#1a1a1a] rounded-lg border border-[#2a2a2a] group-hover/item:border-[#333]">
+                 <Users size={16} className="text-neutral-400 group-hover/item:text-white" />
+              </div>
               <div>
                 <div className="font-medium text-sm">Join Project</div>
-                <div className="text-xs text-white/50 mt-0.5">Enter an invite code</div>
+                <div className="text-[11px] text-neutral-500 mt-0.5">Enter an invite code</div>
               </div>
             </button>
           </div>
@@ -149,56 +186,58 @@ export default function AddProjectButton() {
 
       {/* --- JOIN MODAL --- */}
       {isJoinModalOpen && (
-        <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
-          <div className="bg-[#18181b] border border-zinc-800 rounded-xl shadow-2xl w-full max-w-sm p-6 relative animate-in zoom-in-95 duration-200">
+        <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/80 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="bg-[#111111] border border-[#222] rounded-xl shadow-2xl w-full max-w-sm p-6 relative animate-in zoom-in-95 duration-200">
             <button 
               onClick={() => setIsJoinModalOpen(false)} 
-              className="absolute top-4 right-4 text-zinc-500 hover:text-white transition-colors"
+              className="absolute top-4 right-4 text-neutral-500 hover:text-white transition-colors"
             >
               <X size={16} />
             </button>
 
             <div className="mb-6">
-              <div className="w-10 h-10 bg-zinc-500/10 rounded-full flex items-center justify-center mb-3">
-                 <Users size={20} className="text-zinc-400" />
+              <div className="w-10 h-10 bg-[#1a1a1a] border border-[#2a2a2a] rounded-xl flex items-center justify-center mb-4">
+                 <Users size={20} className="text-neutral-400" />
               </div>
-              <h2 className="text-lg font-bold text-white">Join Workspace</h2>
-              <p className="text-xs text-zinc-400 mt-1">Enter the invitation code shared by the project admin.</p>
+              <h2 className="text-lg font-medium text-white mb-1">Join Workspace</h2>
+              <p className="text-xs text-neutral-500 leading-relaxed">
+                  Enter the unique UUID invitation code shared by the project administrator to gain access.
+              </p>
             </div>
 
             <form onSubmit={handleJoinSubmit} className="space-y-4">
               <div>
                 <input 
                   type="text" 
-                  placeholder="Paste UUID code here..." 
+                  placeholder="e.g. 550e8400-e29b-..." 
                   value={inviteCode}
                   onChange={(e) => setInviteCode(e.target.value)}
-                  className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2.5 text-sm text-white focus:outline-none focus:border-zinc-500 focus:ring-1 focus:ring-zinc-500/20 transition-all placeholder:text-zinc-700 font-mono"
+                  className="w-full bg-[#0a0a0a] border border-[#222] rounded-lg px-3 py-3 text-sm text-neutral-200 focus:outline-none focus:border-neutral-500 focus:bg-[#111] transition-all placeholder:text-neutral-700 font-mono shadow-inner"
                   autoFocus
                 />
                 {error && (
-                  <p className="text-rose-500 text-[11px] mt-2 font-medium flex items-center gap-1">
-                    <AlertCircle size={12} /> 
-                    {error}
-                  </p>
+                  <div className="flex items-start gap-2 mt-3 text-red-400 bg-red-900/10 border border-red-900/20 p-2.5 rounded-lg">
+                    <AlertCircle size={14} className="mt-0.5 shrink-0" />
+                    <p className="text-[11px] leading-snug">{error}</p>
+                  </div>
                 )}
               </div>
 
-              <div className="flex justify-end gap-2 pt-2">
+              <div className="flex justify-end gap-3 pt-2">
                 <button 
                   type="button"
                   onClick={() => setIsJoinModalOpen(false)}
-                  className="px-4 py-2 text-xs font-medium text-zinc-400 hover:text-white transition-colors"
+                  className="px-4 py-2 text-xs font-medium text-neutral-400 hover:text-white transition-colors"
                 >
                   Cancel
                 </button>
                 <button 
                   type="submit"
                   disabled={!inviteCode || isJoining}
-                  className="px-4 py-2 bg-zinc-600 hover:bg-zinc-500 text-white text-xs font-bold rounded-lg transition-colors flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="px-4 py-2 bg-white hover:bg-neutral-200 text-black text-xs font-semibold rounded-lg transition-colors flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-white/10"
                 >
                   {isJoining ? <Loader2 size={14} className="animate-spin" /> : <ArrowRight size={14} />}
-                  Join Project
+                  {isJoining ? "Joining..." : "Join Project"}
                 </button>
               </div>
             </form>
