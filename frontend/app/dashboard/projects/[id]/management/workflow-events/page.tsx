@@ -804,7 +804,7 @@ export default function CalendarPage() {
                             <tr>
                                 <th className="px-4 py-3">Date & Time</th>
                                 <th className="px-4 py-3">Event</th>
-                                <th className="px-4 py-3">Linked Issue</th>
+                                <th className="px-4 py-3">Linked Task</th>
                                 <th className="px-4 py-3">Tags</th>
                                 <th className="px-4 py-3">Attendees</th>
                                 <th className="px-4 py-3 text-right">Action</th>
