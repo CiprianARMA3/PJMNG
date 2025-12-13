@@ -55,7 +55,6 @@ This project uses **Supabase (PostgreSQL)**. You can use the SQL schema below as
 ```sql
 -- WARNING: This schema is for context only and is not meant to be run directly as a single block.
 -- Table order and constraints may not be valid for execution without reordering.
-'''
 CREATE TABLE public.activity_logs (
   id uuid NOT NULL DEFAULT gen_random_uuid(),
   project_id uuid,
@@ -570,4 +569,3 @@ CREATE TABLE public.users (
   CONSTRAINT users_plan_id_fkey FOREIGN KEY (plan_id) REFERENCES public.plans(id)
 );
 
-'''
