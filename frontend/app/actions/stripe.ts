@@ -556,7 +556,6 @@ export async function getUserBillingInfo() {
 }
 
 // frontend/app/actions/stripe.ts
-
 export async function getCheckoutPreview(planId: string, interval: 'month' | 'year') {
   const supabase = createClient(cookies());
   const { data: { user } } = await supabase.auth.getUser();
@@ -579,7 +578,7 @@ export async function getCheckoutPreview(planId: string, interval: 'month' | 'ye
 
   const customerId = userData?.stripe_customer_id;
 
-  // 3. Check for Existing Subscription (Using SDK for listing works fine)
+  // 3. Check for Existing Subscription
   let activeSub: Stripe.Subscription | null = null;
   if (customerId) {
     try {
@@ -609,24 +608,26 @@ export async function getCheckoutPreview(planId: string, interval: 'month' | 'ye
     }
 
     if (!currentItem) {
-        // Edge case: Sub exists but has no items? Fallback to new sub logic.
-        // Proceed to Scenario B.
+        // Edge case: Sub exists but has no items. Fallback to new sub logic (Scenario B).
     } else {
         try {
-          // FIX: Use URLSearchParams to ensure proper encoding of brackets [ ]
+          // UPDATE: Using the new 'create_preview' endpoint via POST
           const params = new URLSearchParams();
           params.append('customer', customerId);
           params.append('subscription', activeSub.id);
-          params.append('subscription_items[0][id]', currentItem.id);
-          params.append('subscription_items[0][price]', targetPriceId);
-          params.append('subscription_proration_behavior', 'always_invoice');
+          
+          // New API structure: Nested under 'subscription_details'
+          params.append('subscription_details[items][0][id]', currentItem.id);
+          params.append('subscription_details[items][0][price]', targetPriceId);
+          params.append('subscription_details[proration_behavior]', 'always_invoice');
 
-          const response = await fetch(`https://api.stripe.com/v1/invoices/upcoming?${params.toString()}`, {
-            method: 'GET',
+          const response = await fetch(`https://api.stripe.com/v1/invoices/create_preview`, {
+            method: 'POST',
             headers: {
               'Authorization': `Bearer ${process.env.STRIPE_SECRET_KEY}`,
               'Content-Type': 'application/x-www-form-urlencoded',
             },
+            body: params.toString(), // Parameters must be in the body for POST
             cache: 'no-store'
           });
 
@@ -657,7 +658,6 @@ export async function getCheckoutPreview(planId: string, interval: 'month' | 'ye
   }
 
   // SCENARIO B: New Subscription OR Fallback
-  // We fetch price directly to avoid SDK issues
   try {
     const res = await fetch(`https://api.stripe.com/v1/prices/${targetPriceId}`, {
         headers: { 
