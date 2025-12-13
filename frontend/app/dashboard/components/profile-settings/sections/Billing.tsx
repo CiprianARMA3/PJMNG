@@ -361,15 +361,23 @@ export default function BillingPage() {
                                             <span>{inv.status}</span>
                                         </div>
                                     </td>
-                                    <td className="px-6 py-4 text-right">
-                                        {inv.pdfUrl ? (
-                                            <a href={inv.pdfUrl} target="_blank" rel="noreferrer" className="text-neutral-400 hover:text-white transition-colors">
-                                                <Download size={16} />
-                                            </a>
-                                        ) : (
-                                            <span className="text-neutral-700">-</span>
-                                        )}
-                                    </td>
+<td className="px-6 py-4 text-right">
+    {inv.pdfUrl ? (
+        // Add flex, justify-end, and items-center to the <td>'s content
+        <div className="flex justify-end items-center"> 
+            <a 
+                href={inv.pdfUrl} 
+                target="_blank" 
+                rel="noreferrer" 
+                className="text-neutral-400 hover:text-white transition-colors p-1" // Added padding for better hit area
+            >
+                <Download size={16} />
+            </a>
+        </div>
+    ) : (
+        <span className="text-neutral-700">-</span>
+    )}
+</td>
                                 </tr>
                             ))}
                             {invoices.length === 0 && (
