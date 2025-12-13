@@ -146,14 +146,14 @@ export default function ProjectTemplate({ project, creatorName }: ProjectTemplat
         <div className="absolute inset-0 bg-gradient-to-t from-[#111] to-transparent" />
         
         {/* Settings Action */}
-        <div className="absolute top-3 right-3 z-20 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+        {/* <div className="absolute top-3 right-3 z-20 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
             <button 
                 onClick={stopPropagation}
                 className="p-1.5 bg-[#1a1a1a] hover:bg-[#222] text-neutral-400 hover:text-white border border-[#333] rounded-lg transition-colors"
             >
                 <Settings size={14} />
             </button>
-        </div>
+        </div> */}
       </div>
 
       {/* Content Body */}
