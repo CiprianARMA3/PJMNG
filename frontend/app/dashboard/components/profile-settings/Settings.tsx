@@ -1,13 +1,16 @@
-// settings.tsx
 "use client";
+
 import { JSX, useState } from "react";
 import { User, CreditCard, Bell, Shield, HelpCircle, Users, Home, FileText } from "lucide-react";
+import Agreements from  "./sections/Agreements";
+import SUPPORT from  "./sections/HelpSupport";
 
 // Import your setting sub-pages here
 import PublicProfilePage from "./sections/Profile";
 import AccountPage from "./sections/Account";
 import BillingPage from "./sections/Billing";
-import Projects from "./sections/Projects"
+import Projects from "./sections/Projects";
+
 // 1. Declare all available page IDs
 type PageKey = "account" | "billing" | "notifications" | "security" | "support" | "team" | "properties" | "documents";
 
@@ -28,16 +31,16 @@ export default function UserSettings({ user }: UserSettingsProps) {
   const [currentPage, setCurrentPage] = useState<PageKey>("account");
 
   // 3. Strongly type the pages object
-    const pages: Record<PageKey, JSX.Element> = {
+  const pages: Record<PageKey, JSX.Element> = {
     "account": <AccountPage user={user ? { id: user.id, email: user.email } : null} />,
     "billing": <BillingPage />,
-    "notifications": <div className="text-gray-300">Notifications Settings - Coming Soon</div>,
-    "security": <div className="text-gray-300">Security Settings - Coming Soon</div>,
-    "support": <div className="text-gray-300">Support Center - Coming Soon</div>,
-    "team": <div className="text-gray-300">Team Management - Coming Soon</div>,
-    "properties": <div className="text-gray-300"><Projects /></div>,
-    "documents": <div className="text-gray-300">Agreements</div>,
-    };
+    "notifications": <div className="text-neutral-500 text-sm p-4">Notifications Settings - Coming Soon</div>,
+    "security": <div className="text-neutral-500 text-sm p-4">Security Settings - Coming Soon</div>,
+    "support": <div className="text-neutral-500 text-sm p-4"><SUPPORT/></div>,
+    "team": <div className="text-neutral-500 text-sm p-4">Team Management - Coming Soon</div>,
+    "properties": <div className="text-neutral-300"><Projects /></div>,
+    "documents": <div className="text-neutral-300"><Agreements/></div>,
+  };
 
   const menuSections = [
     {
@@ -66,21 +69,23 @@ export default function UserSettings({ user }: UserSettingsProps) {
   ];
 
   return (
-    <div className="flex w-full min-h-screen text-gray-200  mt-[30px] overflow-y-hidden scrollbar-hide">
+    <div className="flex w-full min-h-screen font-sans text-neutral-200 mt-[30px] overflow-y-hidden scrollbar-hide">
+      
       {/* LEFT SIDEBAR */}
-      <aside className="w-80 pr-6 border-r border-[#1e1e22]">
+      <aside className="w-80 pr-8 border-r border-[#222]">
         <div className="sticky top-6">
-          <div className="mb-8">
-            <h2 className="text-2xl font-bold mb-2 text-white">Settings</h2>
-            <p className="text-sm text-gray-400">Manage your account and projects preferences</p>
+          <div className="mb-10 pl-2">
+            <h2 className="text-xl font-medium mb-1 text-white/90">Settings</h2>
+            <p className="text-xs text-neutral-500 font-medium">Manage your account and project preferences</p>
           </div>
-          <nav className="space-y-8">
+          
+          <nav className="space-y-10">
             {menuSections.map((section) => (
               <div key={section.title}>
-                <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-4">
+                <h3 className="text-[10px] font-semibold text-neutral-500 uppercase tracking-widest mb-3 pl-2">
                   {section.title}
                 </h3>
-                <div className="space-y-2">
+                <div className="space-y-1">
                   {section.items.map((item) => {
                     const Icon = item.icon;
                     const isActive = currentPage === item.id;
@@ -88,34 +93,36 @@ export default function UserSettings({ user }: UserSettingsProps) {
                       <button
                         key={item.id}
                         onClick={() => setCurrentPage(item.id)}
-                        className={`block w-full text-left p-4 rounded-xl cursor-pointer transition-all border ${
+                        className={`group block w-full text-left p-3 rounded-xl cursor-pointer transition-all border ${
                           isActive
-                            ? "bg-purple-600/20 text-purple-300 border-purple-500/30 shadow-lg shadow-purple-500/10"
-                            : "text-gray-400 hover:bg-[#1a1a1d] hover:text-gray-200 border-transparent hover:border-[#2a2a2e]"
+                            ? "bg-[#161616] border-[#2a2a2a] shadow-sm"
+                            : "bg-transparent border-transparent hover:bg-[#111111] hover:border-[#222]"
                         }`}
                       >
                         <div className="flex items-start gap-3">
-                          <div className={`p-2 rounded-lg ${
+                          <div className={`p-1.5 rounded-lg border transition-colors ${
                             isActive 
-                              ? "bg-purple-500/20 text-purple-300" 
-                              : "bg-[#1e1e22] text-gray-400"
+                              ? "bg-[#1a1a1a] border-[#2a2a2a] text-white" 
+                              : "bg-[#111111] border-[#1a1a1a] text-neutral-500 group-hover:text-neutral-300 group-hover:border-[#2a2a2a]"
                           }`}>
-                            <Icon size={18} />
+                            <Icon size={16} />
                           </div>
-                          <div className="flex-1 min-w-0">
+                          <div className="flex-1 min-w-0 py-0.5">
                             <div className="flex items-center gap-2">
-                              <span className={`font-medium ${
-                                isActive ? "text-purple-300" : "text-gray-200"
+                              <span className={`text-sm font-medium transition-colors ${
+                                isActive ? "text-white" : "text-neutral-400 group-hover:text-neutral-200"
                               }`}>
                                 {item.label}
                               </span>
                               {item.id === "documents" && (
-                                <span className="px-1.5 py-0.5 text-xs bg-blue-500/20 text-blue-300 rounded-md border border-blue-500/30">
+                                <span className="px-1.5 py-0.5 text-[10px] bg-blue-500/10 text-blue-400 rounded border border-blue-500/20 font-medium">
                                   Legal
                                 </span>
                               )}
                             </div>
-                            <p className="text-sm text-gray-500 mt-1 leading-tight">
+                            <p className={`text-[11px] mt-0.5 leading-tight transition-colors ${
+                                isActive ? "text-neutral-400" : "text-neutral-600 group-hover:text-neutral-500"
+                            }`}>
                               {item.description}
                             </p>
                           </div>
@@ -127,20 +134,12 @@ export default function UserSettings({ user }: UserSettingsProps) {
               </div>
             ))}
           </nav>
-
-          {/* Quick Stats Footer */}
-          {/* <div className="mt-12 p-4 bg-[#141417] rounded-xl border border-[#1e1e22]">
-            <div className="text-center">
-              <div className="text-2xl font-bold text-white mb-1">12</div>
-              <div className="text-xs text-gray-400">Projects</div>
-            </div>
-          </div> */}
         </div>
       </aside>
 
       {/* MAIN CONTENT */}
-      <div className="flex-1 pl-8 pr-8">
-        <div className="max-w-4xl">
+      <div className="flex-1 pl-10 pr-6">
+        <div className="max-w-5xl">
           {pages[currentPage]}
         </div>
       </div>

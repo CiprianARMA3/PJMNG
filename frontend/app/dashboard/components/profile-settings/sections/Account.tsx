@@ -1,13 +1,44 @@
-// sections/Account.tsx
+// frontend/app/dashboard/components/profile-settings/sections/Account.tsx
 "use client";
+
 import { useState, useEffect, useRef } from "react";
-import { Eye, EyeOff, Upload, Trash2, Edit2, Check, X } from "lucide-react";
+import { 
+  Eye, 
+  EyeOff, 
+  Upload, 
+  Trash2, 
+  Edit2, 
+  Check, 
+  X, 
+  User, 
+  Mail, 
+  Lock, 
+  Camera,
+  AlertCircle,
+  CheckCircle2,
+  Loader2
+} from "lucide-react";
 import { createClient } from "@/utils/supabase/client";
 
-// !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!//
-// // FIX ACCOUNT PAGE FA LAGGARE TUTTO//
-// !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! //
 const supabase = createClient();
+
+// --- Shared Component: Page Widget ---
+const PageWidget = ({ title, icon: Icon, children, action }: any) => (
+  <div className="relative z-10 w-full bg-[#111111] border border-[#222] rounded-xl flex flex-col overflow-visible shadow-[0_15px_30px_-10px_rgba(0,0,0,0.5)] hover:border-[#333] transition-colors mb-6">
+    <div className="px-5 py-4 border-b border-[#222] flex items-center justify-between bg-[#141414] rounded-t-xl">
+      <div className="flex items-center gap-3">
+        <div className="p-1.5 bg-[#1a1a1a] rounded-md border border-[#2a2a2a]">
+           <Icon size={14} className="text-neutral-400" />
+        </div>
+        <h3 className="text-sm font-medium text-neutral-300 tracking-wide">{title}</h3>
+      </div>
+      {action}
+    </div>
+    <div className="flex-1 p-6 bg-[#111111] min-h-0 relative flex flex-col rounded-b-xl text-neutral-300">
+      {children}
+    </div>
+  </div>
+);
 
 interface AccountPageProps {
   user: {
@@ -50,9 +81,7 @@ export default function AccountPage({ user }: AccountPageProps) {
           .eq('id', user.id)
           .single();
 
-        if (error) {
-          throw error;
-        }
+        if (error) throw error;
 
         if (data) {
           setFirstName(data.name || "");
@@ -81,7 +110,6 @@ export default function AccountPage({ user }: AccountPageProps) {
     setTimeout(() => setMessage(null), 5000);
   };
 
-  // Handle click on change button
   const handleChangeImageClick = () => {
     fileInputRef.current?.click();
   };
@@ -90,13 +118,11 @@ export default function AccountPage({ user }: AccountPageProps) {
     const file = e.target.files?.[0];
     if (!file || !user) return;
 
-    // Validate file size (15MB)
     if (file.size > 15 * 1024 * 1024) {
       showMessage('error', "File size must be under 15MB");
       return;
     }
 
-    // Validate file type
     if (!file.type.startsWith('image/')) {
       showMessage('error', "Please upload a valid image file (PNG, JPEG)");
       return;
@@ -105,7 +131,6 @@ export default function AccountPage({ user }: AccountPageProps) {
     setIsUploadingImage(true);
     
     try {
-      // Get the correct file extension from the actual file type
       let fileExt = '';
       if (file.type === 'image/jpeg' || file.type === 'image/jpg') {
         fileExt = 'jpg';
@@ -116,7 +141,6 @@ export default function AccountPage({ user }: AccountPageProps) {
       } else if (file.type === 'image/webp') {
         fileExt = 'webp';
       } else {
-        // Fallback: try to get extension from filename
         const fileNameParts = file.name.split('.');
         fileExt = fileNameParts[fileNameParts.length - 1].toLowerCase();
       }
@@ -124,25 +148,16 @@ export default function AccountPage({ user }: AccountPageProps) {
       const fileName = `${user.id}.${fileExt}`;
       const filePath = fileName;
 
-      console.log('Uploading file:', fileName, 'Type:', file.type, 'Extension:', fileExt);
-
       const { error: uploadError } = await supabase.storage
         .from('avatars')
         .upload(filePath, file, { upsert: true });
 
-      if (uploadError) {
-        console.error('Upload error:', uploadError);
-        throw uploadError;
-      }
+      if (uploadError) throw uploadError;
 
-      // Get public URL
       const { data: { publicUrl } } = supabase.storage
         .from('avatars')
         .getPublicUrl(filePath);
 
-      console.log('Public URL:', publicUrl);
-
-      // Update user metadata in public.users table
       const { error: updateError } = await supabase
         .from('users')
         .update({
@@ -151,16 +166,11 @@ export default function AccountPage({ user }: AccountPageProps) {
         })
         .eq('id', user.id);
 
-      if (updateError) {
-        console.error('Update error:', updateError);
-        throw updateError;
-      }
+      if (updateError) throw updateError;
 
-      // Update local state WITH CACHE BUSTING - this is the key fix!
       setProfileImage(`${publicUrl}?t=${Date.now()}`);
       showMessage('success', "Profile image updated successfully");
       
-      // Reset file input
       if (fileInputRef.current) {
         fileInputRef.current.value = '';
       }
@@ -176,25 +186,19 @@ export default function AccountPage({ user }: AccountPageProps) {
     if (!profileImage || !user) return;
 
     try {
-      // Extract file path from URL (remove cache busting parameter)
       const cleanUrl = profileImage.split('?')[0];
       const urlParts = cleanUrl.split('/');
       const fileName = urlParts[urlParts.length - 1];
       const filePath = fileName;
 
-      console.log('Removing file:', filePath);
-
-      // Delete from storage
       const { error: deleteError } = await supabase.storage
         .from('avatars')
         .remove([filePath]);
 
       if (deleteError) {
-        console.error('Delete error:', deleteError);
-        // Continue even if file doesn't exist in storage
+         console.warn("Storage remove error (might be okay if already gone):", deleteError);
       }
 
-      // Update user metadata in public.users table
       const { error: updateError } = await supabase
         .from('users')
         .update({
@@ -203,11 +207,8 @@ export default function AccountPage({ user }: AccountPageProps) {
         })
         .eq('id', user.id);
 
-      if (updateError) {
-        throw updateError;
-      }
+      if (updateError) throw updateError;
 
-      // Update local state
       setProfileImage("");
       showMessage('success', "Profile image removed successfully");
     } catch (error) {
@@ -237,17 +238,13 @@ export default function AccountPage({ user }: AccountPageProps) {
     setLoading(true);
     
     try {
-      // Verify current password by signing in
       const { error: signInError } = await supabase.auth.signInWithPassword({
         email: user.email,
         password: currentPassword,
       });
 
-      if (signInError) {
-        throw new Error("Current password is incorrect");
-      }
+      if (signInError) throw new Error("Current password is incorrect");
 
-      // Update user data in public.users table
       const { error: updateError } = await supabase
         .from('users')
         .update({
@@ -257,11 +254,8 @@ export default function AccountPage({ user }: AccountPageProps) {
         })
         .eq('id', user.id);
 
-      if (updateError) {
-        throw updateError;
-      }
+      if (updateError) throw updateError;
 
-      // Update local state
       setFirstName(tempFirstName);
       setLastName(tempLastName);
       
@@ -290,26 +284,19 @@ export default function AccountPage({ user }: AccountPageProps) {
     setLoading(true);
 
     try {
-      // Verify current password
       const { error: signInError } = await supabase.auth.signInWithPassword({
         email: user.email,
         password: currentPassword,
       });
 
-      if (signInError) {
-        throw new Error("Current password is incorrect");
-      }
+      if (signInError) throw new Error("Current password is incorrect");
 
-      // Update password in Auth
       const { error: updateError } = await supabase.auth.updateUser({
         password: newPassword
       });
 
-      if (updateError) {
-        throw updateError;
-      }
+      if (updateError) throw updateError;
 
-      // Update updated_at in public.users table
       await supabase
         .from('users')
         .update({
@@ -329,57 +316,65 @@ export default function AccountPage({ user }: AccountPageProps) {
   };
 
   return (
-    <div className="max-w-2xl">
+    <div className="max-w-4xl mx-auto space-y-8 font-sans">
       <div className="mb-8">
-        <h1 className="text-2xl font-semibold text-white mb-2">Account</h1>
-        <p className="text-gray-400">Manage your account settings and preferences.</p>
+        <h1 className="text-xl font-medium text-white/90 mb-1">Account Settings</h1>
+        <p className="text-sm text-neutral-500">Manage your profile, security, and contact preferences.</p>
       </div>
 
       {/* Message Alert */}
       {message && (
-        <div className={`mb-6 p-4 rounded-lg border ${
+        <div className={`p-4 rounded-xl border flex items-start gap-3 text-sm ${
           message.type === 'success' 
-            ? 'bg-green-900/20 border-green-500 text-green-400' 
-            : 'bg-red-900/20 border-red-500 text-red-400'
+            ? 'bg-green-500/5 border-green-500/10 text-green-400' 
+            : 'bg-red-500/5 border-red-500/10 text-red-400'
         }`}>
-          {message.text}
+          {message.type === 'success' ? <CheckCircle2 size={16} className="mt-0.5"/> : <AlertCircle size={16} className="mt-0.5"/>}
+          <p>{message.text}</p>
         </div>
       )}
 
       {/* Profile Picture Section */}
-      <div className="bg-[#141417] border border-[#1e1e22] rounded-lg p-8 mb-8">
-        <h2 className="text-lg font-semibold text-white mb-6">Profile Picture</h2>
-        <div className="flex items-start gap-6">
+      <PageWidget title="Profile Picture" icon={Camera}>
+        <div className="flex flex-col sm:flex-row items-start gap-8">
           <div className="flex flex-col items-center gap-4">
-            <div className="relative">
-              <div className="w-24 h-24 rounded-full overflow-hidden bg-[#0f0f10] flex-shrink-0 border-2 border-[#2a2a2e] group hover:border-purple-500 transition-colors">
+            <div className="relative group">
+              <div className="w-24 h-24 rounded-full overflow-hidden bg-[#161616] flex-shrink-0 border border-[#333] group-hover:border-neutral-500 transition-colors shadow-lg">
                 {profileImage ? (
                   <img 
                     src={profileImage}
                     alt="Profile" 
                     className="w-full h-full object-cover"
-                    key={profileImage} // Force React to re-mount the image element
+                    key={profileImage} 
                     onError={(e) => {
-                      console.error('Image failed to load:', profileImage);
                       const target = e.target as HTMLImageElement;
                       target.style.display = 'none';
                     }}
                   />
                 ) : null}
                 {!profileImage && (
-                  <div className="w-full h-full bg-gradient-to-br from-purple-600 to-purple-900 flex items-center justify-center text-white text-2xl font-bold">
+                  <div className="w-full h-full bg-gradient-to-b from-[#222] to-[#111] flex items-center justify-center text-neutral-500 text-2xl font-medium">
                     {firstName?.[0]}{lastName?.[0]}
                   </div>
                 )}
                 {isUploadingImage && (
-                  <div className="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center">
-                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-500"></div>
+                  <div className="absolute inset-0 bg-black/60 flex items-center justify-center backdrop-blur-sm">
+                    <Loader2 className="animate-spin text-white w-6 h-6" />
                   </div>
                 )}
               </div>
             </div>
-            <div className="flex gap-2">
-              {/* Hidden file input */}
+          </div>
+          
+          <div className="flex-1 space-y-4">
+            <div>
+                 <p className="text-sm text-neutral-300 font-medium mb-1">Upload new avatar</p>
+                 <p className="text-xs text-neutral-500 leading-relaxed max-w-sm">
+                    We recommend using an image of at least 256x256 pixels in PNG or JPEG format. Maximum file size: 15MB.
+                </p>
+            </div>
+            
+            <div className="flex gap-3">
               <input
                 ref={fileInputRef}
                 type="file"
@@ -388,196 +383,204 @@ export default function AccountPage({ user }: AccountPageProps) {
                 className="hidden"
                 disabled={isUploadingImage}
               />
-              {/* Change button that triggers file input */}
               <button 
                 onClick={handleChangeImageClick}
                 disabled={isUploadingImage}
-                className={`flex items-center gap-2 px-4 py-2 text-white rounded-xl transition-colors cursor-pointer text-sm ${
+                className={`flex items-center gap-2 px-4 py-2 text-xs font-semibold rounded-lg transition-all shadow-md ${
                   isUploadingImage 
-                    ? 'bg-gray-600 cursor-not-allowed' 
-                    : 'bg-purple-600 hover:bg-purple-700'
+                    ? 'bg-neutral-800 text-neutral-500 cursor-not-allowed' 
+                    : 'bg-white text-black hover:bg-neutral-200'
                 }`}
               >
-                <Upload size={16} />
-                {isUploadingImage ? 'Uploading...' : 'Change'}
+                <Upload size={14} />
+                {isUploadingImage ? 'Uploading...' : 'Upload Image'}
               </button>
+              
               {profileImage && (
                 <button 
                   onClick={handleRemoveImage}
                   disabled={isUploadingImage}
-                  className="flex items-center gap-2 px-4 py-2 bg-[#1e1e22] hover:bg-[#2a2a2e] text-gray-200 rounded-xl transition-colors border border-[#2a2a2e] text-sm disabled:opacity-50"
+                  className="flex items-center gap-2 px-4 py-2 bg-[#1a1a1a] hover:bg-[#222] text-neutral-400 hover:text-red-400 rounded-lg transition-all border border-[#2a2a2a] hover:border-red-900/30 text-xs font-medium"
                 >
-                  <Trash2 size={16} />
+                  <Trash2 size={14} />
                   Remove
                 </button>
               )}
             </div>
           </div>
-          <div className="flex-1">
-            <p className="text-sm text-gray-400 mb-2">We recommend using an image of at least 256x256 pixels in PNG or JPEG format.</p>
-            <p className="text-sm text-gray-500">Maximum file size: 15MB</p>
-          </div>
         </div>
-      </div>
+      </PageWidget>
 
       {/* Full Name Section */}
-      <div className="bg-[#141417] border border-[#1e1e22] rounded-lg p-8 mb-8">
-        <div className="flex items-center justify-between mb-6">
-          <h2 className="text-lg font-semibold text-white">Full Name</h2>
-          {!isEditingName ? (
-            <button
-              onClick={startEditingName}
-              className="flex items-center gap-2 px-3 py-1 text-purple-400 hover:text-purple-300 text-sm font-medium transition-colors"
-            >
-              <Edit2 size={16} />
-              Edit
-            </button>
-          ) : (
-            <div className="flex items-center gap-2">
-              <button
-                onClick={applyNameChanges}
-                disabled={loading}
-                className="flex items-center gap-2 px-3 py-1 bg-green-600 hover:bg-green-700 text-white text-sm font-medium rounded-lg transition-colors disabled:opacity-50"
-              >
-                <Check size={16} />
-                {loading ? 'Saving...' : 'Apply'}
-              </button>
-              <button
-                onClick={cancelEditingName}
-                disabled={loading}
-                className="flex items-center gap-2 px-3 py-1 bg-[#1e1e22] hover:bg-[#2a2a2e] text-gray-200 text-sm font-medium rounded-lg transition-colors disabled:opacity-50"
-              >
-                <X size={16} />
-                Cancel
-              </button>
+      <PageWidget 
+        title="Personal Information" 
+        icon={User}
+        action={
+            !isEditingName ? (
+                <button
+                  onClick={startEditingName}
+                  className="flex items-center gap-1.5 px-3 py-1.5 text-neutral-400 hover:text-white text-xs font-medium transition-colors bg-[#1a1a1a] hover:bg-[#222] border border-[#2a2a2a] rounded-lg"
+                >
+                  <Edit2 size={12} />
+                  Edit Details
+                </button>
+              ) : null
+        }
+      >
+        <div className="space-y-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div>
+                <label className="block text-xs font-medium text-neutral-500 uppercase tracking-wide mb-2">First Name</label>
+                {isEditingName ? (
+                <input
+                    type="text"
+                    value={tempFirstName}
+                    onChange={(e) => setTempFirstName(e.target.value)}
+                    className="w-full px-4 py-2.5 bg-[#161616] border border-[#333] rounded-lg text-neutral-200 placeholder-neutral-600 focus:outline-none focus:border-neutral-500 focus:bg-[#1a1a1a] transition-all text-sm"
+                    placeholder="Enter first name"
+                />
+                ) : (
+                <div className="w-full px-4 py-2.5 bg-[#161616] border border-[#222] rounded-lg text-neutral-300 text-sm">
+                    {firstName || "Not set"}
+                </div>
+                )}
             </div>
-          )}
-        </div>
-        
-        <div className="grid grid-cols-2 gap-4">
-          <div>
-            <label className="block text-sm text-gray-300 mb-2">First Name</label>
-            {isEditingName ? (
-              <input
-                type="text"
-                value={tempFirstName}
-                onChange={(e) => setTempFirstName(e.target.value)}
-                className="w-full px-4 py-2 bg-[#0f0f10] border border-[#2a2a2e] rounded-xl text-gray-200 placeholder-gray-600 focus:outline-none focus:border-purple-500 transition-colors"
-                placeholder="Enter first name"
-              />
-            ) : (
-              <div className="w-full px-4 py-2 bg-[#0f0f10] border border-transparent rounded-xl text-gray-200">
-                {firstName || "Not set"}
-              </div>
-            )}
-          </div>
-          <div>
-            <label className="block text-sm text-gray-300 mb-2">Last Name</label>
-            {isEditingName ? (
-              <input
-                type="text"
-                value={tempLastName}
-                onChange={(e) => setTempLastName(e.target.value)}
-                className="w-full px-4 py-2 bg-[#0f0f10] border border-[#2a2a2e] rounded-xl text-gray-200 placeholder-gray-600 focus:outline-none focus:border-purple-500 transition-colors"
-                placeholder="Enter last name"
-              />
-            ) : (
-              <div className="w-full px-4 py-2 bg-[#0f0f10] border border-transparent rounded-xl text-gray-200">
-                {lastName || "Not set"}
-              </div>
-            )}
-          </div>
-        </div>
-        
-        {isEditingName && (
-          <div className="mt-4 p-4 bg-[#0f0f10] border border-[#2a2a2e] rounded-lg">
-            <p className="text-sm text-gray-400">
-              To confirm changes, please enter your current password:
-            </p>
-            <div className="mt-2 relative">
-              <input
-                type={showCurrentPassword ? "text" : "password"}
-                value={currentPassword}
-                onChange={(e) => setCurrentPassword(e.target.value)}
-                className="w-full px-4 py-2 bg-[#141417] border border-[#2a2a2e] rounded-xl text-gray-200 placeholder-gray-600 focus:outline-none focus:border-purple-500 transition-colors pr-10"
-                placeholder="Enter current password"
-              />
-              <button
-                onClick={() => setShowCurrentPassword(!showCurrentPassword)}
-                className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500 hover:text-gray-300 transition-colors"
-              >
-                {showCurrentPassword ? <EyeOff size={18} /> : <Eye size={18} />}
-              </button>
+            <div>
+                <label className="block text-xs font-medium text-neutral-500 uppercase tracking-wide mb-2">Last Name</label>
+                {isEditingName ? (
+                <input
+                    type="text"
+                    value={tempLastName}
+                    onChange={(e) => setTempLastName(e.target.value)}
+                    className="w-full px-4 py-2.5 bg-[#161616] border border-[#333] rounded-lg text-neutral-200 placeholder-neutral-600 focus:outline-none focus:border-neutral-500 focus:bg-[#1a1a1a] transition-all text-sm"
+                    placeholder="Enter last name"
+                />
+                ) : (
+                <div className="w-full px-4 py-2.5 bg-[#161616] border border-[#222] rounded-lg text-neutral-300 text-sm">
+                    {lastName || "Not set"}
+                </div>
+                )}
             </div>
-          </div>
-        )}
-      </div>
+            </div>
+            
+            {isEditingName && (
+                <div className="bg-[#161616] border border-[#222] rounded-lg p-5 animate-in fade-in slide-in-from-top-2 duration-200">
+                    <div className="flex items-start gap-3 mb-4">
+                        <AlertCircle className="w-4 h-4 text-neutral-500 mt-0.5" />
+                        <p className="text-xs text-neutral-400 leading-relaxed">
+                            To confirm these changes, please enter your current password. This is a security measure to protect your account.
+                        </p>
+                    </div>
+                    
+                    <div className="relative max-w-md">
+                        <input
+                            type={showCurrentPassword ? "text" : "password"}
+                            value={currentPassword}
+                            onChange={(e) => setCurrentPassword(e.target.value)}
+                            className="w-full px-4 py-2.5 bg-[#111] border border-[#333] rounded-lg text-neutral-200 placeholder-neutral-600 focus:outline-none focus:border-neutral-500 transition-colors pr-10 text-sm"
+                            placeholder="Current password"
+                        />
+                        <button
+                            onClick={() => setShowCurrentPassword(!showCurrentPassword)}
+                            className="absolute right-3 top-1/2 transform -translate-y-1/2 text-neutral-500 hover:text-neutral-300 transition-colors"
+                        >
+                            {showCurrentPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                        </button>
+                    </div>
+
+                    <div className="flex items-center gap-3 mt-6 border-t border-[#222] pt-4">
+                        <button
+                            onClick={applyNameChanges}
+                            disabled={loading}
+                            className="flex items-center gap-2 px-4 py-2 bg-white hover:bg-neutral-200 text-black text-xs font-semibold rounded-lg transition-colors disabled:opacity-50 shadow-lg shadow-black/20"
+                        >
+                            {loading ? <Loader2 size={14} className="animate-spin" /> : <Check size={14} />}
+                            {loading ? 'Saving...' : 'Save Changes'}
+                        </button>
+                        <button
+                            onClick={cancelEditingName}
+                            disabled={loading}
+                            className="flex items-center gap-2 px-4 py-2 bg-transparent hover:bg-[#222] text-neutral-400 text-xs font-medium rounded-lg transition-colors disabled:opacity-50"
+                        >
+                            <X size={14} />
+                            Cancel
+                        </button>
+                    </div>
+                </div>
+            )}
+        </div>
+      </PageWidget>
 
       {/* Contact Email Section */}
-      <div className="bg-[#141417] border border-[#1e1e22] rounded-lg p-8 mb-8">
-        <h2 className="text-lg font-semibold text-white mb-2">Contact Email</h2>
-        <p className="text-sm text-gray-400 mb-6">Manage your account's email address for invoices and notifications.</p>
-        <div className="space-y-3">
-          {emails.map((emailValue, index) => (
-            <div key={index} className="flex items-center gap-3">
-              <div className="flex-1 px-4 py-3 bg-[#0f0f10] border border-[#2a2a2e] rounded-xl text-gray-200">
-                {emailValue}
-              </div>
+      <PageWidget title="Contact Information" icon={Mail}>
+        <div>
+            <p className="text-xs text-neutral-500 mb-4">
+                This email address is used for invoices, login, and important notifications.
+            </p>
+            <div className="space-y-3">
+            {emails.map((emailValue, index) => (
+                <div key={index} className="flex items-center justify-between px-4 py-3 bg-[#161616] border border-[#222] rounded-lg group hover:border-[#333] transition-colors">
+                    <span className="text-sm text-neutral-300 font-mono">{emailValue}</span>
+                    <span className="px-2 py-0.5 rounded text-[10px] font-medium uppercase bg-green-500/10 text-green-500 border border-green-500/20 tracking-wide">Verified</span>
+                </div>
+            ))}
             </div>
-          ))}
         </div>
-      </div>
+      </PageWidget>
 
       {/* Password Section */}
-      <div className="bg-[#141417] border border-[#1e1e22] rounded-lg p-8">
-        <h2 className="text-lg font-semibold text-white mb-6">Password</h2>
-        <p className="text-sm text-gray-400 mb-6">Modify your current password.</p>
-        <div className="grid grid-cols-2 gap-4 mb-6">
-          <div>
-            <label className="block text-sm text-gray-300 mb-2">Current Password</label>
-            <div className="relative">
-              <input
-                type={showCurrentPassword ? "text" : "password"}
-                value={currentPassword}
-                onChange={(e) => setCurrentPassword(e.target.value)}
-                className="w-full px-4 py-2 bg-[#0f0f10] border border-[#2a2a2e] rounded-xl text-gray-200 placeholder-gray-600 focus:outline-none focus:border-purple-500 transition-colors pr-10"
-                placeholder="Enter current password"
-              />
-              <button
-                onClick={() => setShowCurrentPassword(!showCurrentPassword)}
-                className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500 hover:text-gray-300 transition-colors"
-              >
-                {showCurrentPassword ? <EyeOff size={18} /> : <Eye size={18} />}
-              </button>
+      <PageWidget title="Security & Password" icon={Lock}>
+        <div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+            <div>
+                <label className="block text-xs font-medium text-neutral-500 uppercase tracking-wide mb-2">Current Password</label>
+                <div className="relative">
+                <input
+                    type={showCurrentPassword ? "text" : "password"}
+                    value={currentPassword}
+                    onChange={(e) => setCurrentPassword(e.target.value)}
+                    className="w-full px-4 py-2.5 bg-[#161616] border border-[#333] rounded-lg text-neutral-200 placeholder-neutral-600 focus:outline-none focus:border-neutral-500 focus:bg-[#1a1a1a] transition-all pr-10 text-sm"
+                    placeholder="••••••••••••"
+                />
+                <button
+                    onClick={() => setShowCurrentPassword(!showCurrentPassword)}
+                    className="absolute right-3 top-1/2 transform -translate-y-1/2 text-neutral-500 hover:text-neutral-300 transition-colors"
+                >
+                    {showCurrentPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                </button>
+                </div>
             </div>
-          </div>
-          <div>
-            <label className="block text-sm text-gray-300 mb-2">New Password</label>
-            <div className="relative">
-              <input
-                type={showNewPassword ? "text" : "password"}
-                value={newPassword}
-                onChange={(e) => setNewPassword(e.target.value)}
-                className="w-full px-4 py-2 bg-[#0f0f10] border border-[#2a2a2e] rounded-xl text-gray-200 placeholder-gray-600 focus:outline-none focus:border-purple-500 transition-colors pr-10"
-                placeholder="Enter new password"
-              />
-              <button
-                onClick={() => setShowNewPassword(!showNewPassword)}
-                className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500 hover:text-gray-300 transition-colors"
-              >
-                {showNewPassword ? <EyeOff size={18} /> : <Eye size={18} />}
-              </button>
+            <div>
+                <label className="block text-xs font-medium text-neutral-500 uppercase tracking-wide mb-2">New Password</label>
+                <div className="relative">
+                <input
+                    type={showNewPassword ? "text" : "password"}
+                    value={newPassword}
+                    onChange={(e) => setNewPassword(e.target.value)}
+                    className="w-full px-4 py-2.5 bg-[#161616] border border-[#333] rounded-lg text-neutral-200 placeholder-neutral-600 focus:outline-none focus:border-neutral-500 focus:bg-[#1a1a1a] transition-all pr-10 text-sm"
+                    placeholder="Minimum 6 characters"
+                />
+                <button
+                    onClick={() => setShowNewPassword(!showNewPassword)}
+                    className="absolute right-3 top-1/2 transform -translate-y-1/2 text-neutral-500 hover:text-neutral-300 transition-colors"
+                >
+                    {showNewPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                </button>
+                </div>
             </div>
-          </div>
+            </div>
+            
+            <div className="flex justify-end pt-4 border-t border-[#222]">
+                <button
+                onClick={handleUpdatePassword}
+                disabled={loading || !currentPassword || !newPassword}
+                className="px-6 py-2 bg-white hover:bg-neutral-200 text-black text-xs font-semibold rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-black/20"
+                >
+                {loading ? 'Updating...' : 'Update Password'}
+                </button>
+            </div>
         </div>
-        <button
-          onClick={handleUpdatePassword}
-          disabled={loading || !currentPassword || !newPassword}
-          className="px-6 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-xl transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-        >
-          {loading ? 'Updating...' : 'Update Password'}
-        </button>
-      </div>
+      </PageWidget>
     </div>
   );
 }
