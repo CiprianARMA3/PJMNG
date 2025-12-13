@@ -13,7 +13,7 @@ Follow these steps to configure the development environment for Kapry.dev (PJMNG
 
 1.  **Clone the repository:**
     ```bash
-    git clone <your-repo-url>
+    git clone <https://github.com/CiprianARMA3/PJMNG>
     ```
 
 2.  **Navigate to the frontend directory:**
