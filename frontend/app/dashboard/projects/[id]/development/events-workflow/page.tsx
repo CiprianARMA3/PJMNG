@@ -10,7 +10,7 @@ import {
   Calendar as CalendarIcon, Table as TableIcon, 
   X, ChevronLeft, ChevronRight,
   Clock, Video, ExternalLink, Minimize2, Maximize2, Tag as TagIcon,
-  Loader2
+  Loader2, User, Link as LinkIcon
 } from "lucide-react";
 
 // --- TYPES ---
@@ -19,7 +19,9 @@ type Tag = { name: string; color: string; textColor?: string };
 type UserProfile = {
   id: string;
   name: string | null;
+  role?: string; 
   metadata: { avatar_url?: string; [key: string]: any };
+  email?: string;
 };
 
 type LinkedIssue = {
@@ -50,6 +52,16 @@ type Task = {
   };
 };
 
+// --- HELPER FOR ROLE BADGES ---
+const getRoleBadgeStyle = (role: string = 'Viewer') => {
+    switch (role.toLowerCase()) {
+        case 'owner': return 'bg-yellow-500/10 text-yellow-500 border-yellow-500/20';
+        case 'admin': return 'bg-blue-500/10 text-blue-400 border-blue-500/20';
+        case 'editor': return 'bg-green-500/10 text-green-400 border-green-500/20';
+        default: return 'bg-white/5 text-white/40 border-white/10';
+    }
+};
+
 export default function CalendarPage() {
   const supabase = createClient();
   const params = useParams();
@@ -57,8 +69,6 @@ export default function CalendarPage() {
   const projectId = params.id as string;
 
   const { checkAccess, loading: authLoading } = useProjectPermissions(projectId);
-
-
 
   // --- STATE ---
   const [user, setUser] = useState<any>(null);
@@ -81,7 +91,7 @@ export default function CalendarPage() {
   const GRID_TOTAL_HEIGHT = 24 * hourHeight;
 
   // --- INITIAL DATA FETCH ---
-useEffect(() => {
+  useEffect(() => {
     const init = async () => {
       // 1. Get Auth User
       const { data: { user: authUser } } = await supabase.auth.getUser();
@@ -90,7 +100,7 @@ useEffect(() => {
         return; 
       }
 
-      // 2. Fetch User Profile (To fix Menu Name/Avatar)
+      // 2. Fetch User Profile
       const { data: userProfile } = await supabase
         .from("users")
         .select("name, surname, metadata")
@@ -108,26 +118,20 @@ useEffect(() => {
           avatar_url: userProfile?.metadata?.avatar_url || authUser.user_metadata?.avatar_url
         }
       };
-
       
       setUser(finalUser);
 
-        if (!authLoading && !checkAccess('events-workflow')) {
-    router.push(`/dashboard/projects/${projectId}`);
-    return null;
-  }
+      if (!authLoading && !checkAccess('events-workflow')) {
+        router.push(`/dashboard/projects/${projectId}`);
+        return null;
+      }
 
       // 4. Fetch Project Data
-      const { data: proj } = await supabase
-        .from("projects")
-        .select("*")
-        .eq("id", projectId)
-        .single();
-        
+      const { data: proj } = await supabase.from("projects").select("*").eq("id", projectId).single();
       setProject(proj);
 
       // 5. Fetch Page Specific Data
-      await fetchData();
+      await fetchData(authUser.id);
     };
 
     init();
@@ -143,8 +147,10 @@ useEffect(() => {
     return () => { document.body.style.overflow = 'unset'; }
   }, [selectedTask]);
 
-  const fetchData = async () => {
+  const fetchData = async (currentUserId?: string) => {
     setLoading(true);
+    
+    // Fetch Tasks
     const { data: tasksData } = await supabase
         .from("tasks")
         .select(`*, issue:issue_id(id, title, type, metadata), creator:creator_id(id, name, metadata)`)
@@ -152,16 +158,56 @@ useEffect(() => {
     
     if (tasksData) setTasks(tasksData as any);
 
-    const { data: usersData } = await supabase
+    // Fetch Users & Roles
+    const { data: projectUsersData } = await supabase
         .from("project_users")
-        .select("user:users(id, name, metadata)")
+        .select(`role_info, user:users(id, name, surname, metadata, email)`)
         .eq("project_id", projectId);
     
-    if (usersData) {
+    if (projectUsersData) {
         const map: Record<string, UserProfile> = {};
-        usersData.forEach((u: any) => { if(u.user) map[u.user.id] = u.user; });
-        const { data: currentUser } = await supabase.from("users").select("*").eq("id", (await supabase.auth.getUser()).data.user?.id).single();
-        if(currentUser) map[currentUser.id] = currentUser as any;
+
+        projectUsersData.forEach((u: any) => { 
+            if(u.user) {
+                // Resolve Role
+                let role = 'Viewer';
+                try {
+                    if (typeof u.role_info === 'string') {
+                        const parsed = JSON.parse(u.role_info);
+                        role = parsed.role || role;
+                    } else if (typeof u.role_info === 'object' && u.role_info) {
+                        role = u.role_info.role || role;
+                    }
+                } catch (e) {}
+
+                const profile = {
+                    id: u.user.id,
+                    name: u.user.name ? `${u.user.name} ${u.user.surname || ''}`.trim() : "Unknown",
+                    email: u.user.email,
+                    role: role,
+                    metadata: u.user.metadata || {}
+                };
+
+                map[u.user.id] = profile;
+            } 
+        });
+        
+        // Ensure current user is in map if not found
+        const uid = currentUserId;
+        if(uid && !map[uid]) {
+             const { data: currentUser } = await supabase.from("users").select("id, name, surname, metadata, email").eq("id", uid).single();
+             if(currentUser) {
+                 const profile = {
+                    id: currentUser.id,
+                    name: currentUser.name ? `${currentUser.name} ${currentUser.surname || ''}`.trim() : "Me",
+                    email: currentUser.email,
+                    role: 'Owner',
+                    metadata: currentUser.metadata || {}
+                 };
+                 map[currentUser.id] = profile;
+             }
+        }
+        
         setUserMap(map);
     }
     setLoading(false);
@@ -219,7 +265,6 @@ useEffect(() => {
       const taskEndDateTime = new Date(`${task.task_date}T${task.end_time}`);
       const isPast = taskEndDateTime < new Date();
       
-      // --- STRICT COLOR PALETTE ---
       const colorMap = {
           default: { bg: 'bg-blue-600/10', border: 'border-blue-500/50', bar: 'border-l-blue-500', text: 'text-blue-100' },
           bug:     { bg: 'bg-red-600/10', border: 'border-red-500/50', bar: 'border-l-red-500', text: 'text-red-100' },
@@ -267,7 +312,7 @@ useEffect(() => {
   };
 
  if (loading) {
-    return (
+       return (
       <div role="status" className="flex justify-center items-center h-screen bg-[#0a0a0a]">
         <svg
           aria-hidden="true"
@@ -297,22 +342,15 @@ useEffect(() => {
         ::-webkit-scrollbar-track { background: #0a0a0a; }
         ::-webkit-scrollbar-thumb { background: #262626; border-radius: 4px; }
         ::-webkit-scrollbar-thumb:hover { background: #333; }
-        
         .past-event-striped {
             background-image: repeating-linear-gradient(
-                45deg,
-                transparent,
-                transparent 5px,
-                rgba(0,0,0,0.3) 5px,
-                rgba(0,0,0,0.3) 10px
+                45deg, transparent, transparent 5px, rgba(0,0,0,0.3) 5px, rgba(0,0,0,0.3) 10px
             );
         }
       `}</style>
 
-      {/* --- SIDEBAR --- */}
       <Menu project={project} user={user} />
       
-      {/* --- MAIN CONTENT --- */}
       <main className="flex-1 ml-64 flex flex-col h-full bg-[#0a0a0a]">
         
         {/* --- HEADER --- */}
@@ -321,7 +359,6 @@ useEffect(() => {
                 <h1 className="text-xl font-bold tracking-tight">Calendar<span className="text-white/30 text-lg font-light ml-1">Overview</span></h1>
                 <div className="h-6 w-px bg-white/10"></div>
                 
-                {/* Date Navigation */}
                 <div className="flex items-center gap-3">
                     <div className="flex items-center bg-[#161616] rounded-md border border-white/5 p-0.5">
                         <button onClick={() => navigateDate(-1)} className="p-1.5 hover:bg-white/10 rounded text-white/60 hover:text-white"><ChevronLeft size={16}/></button>
@@ -335,7 +372,6 @@ useEffect(() => {
                 </div>
             </div>
 
-            {/* View Controls */}
             <div className="flex items-center gap-3">
                  {viewMode === 'calendar' && (
                     <>
@@ -367,8 +403,6 @@ useEffect(() => {
             {/* CALENDAR VIEW */}
             {viewMode === 'calendar' && (
                 <div className="flex-1 overflow-y-auto relative flex flex-col">
-                    
-                    {/* Sticky Day Headers */}
                     <div className="sticky top-0 z-40 bg-[#0a0a0a] border-b border-white/5 flex flex-none h-12">
                          <div className="w-14 flex-none border-r border-white/5 bg-[#0a0a0a]" />
                          <div className="flex-1 flex">
@@ -384,38 +418,30 @@ useEffect(() => {
                          </div>
                     </div>
 
-                    {/* Scrollable Grid Area */}
                     <div className="flex flex-1 relative min-h-0">
-                        {/* 1. Time Column */}
                         <div className="w-14 flex-none border-r border-white/5 bg-[#0a0a0a] relative" style={{ height: `${GRID_TOTAL_HEIGHT}px` }}>
                              {HOURS.map(h => (
                                 <div key={h} className="absolute w-full text-right pr-2 text-xs font-medium text-white/20" style={{ top: h * hourHeight, transform: 'translateY(-50%)' }}>
                                     {h === 0 ? '' : `${h.toString().padStart(2, '0')}:00`}
                                 </div>
                             ))}
-                            {/* Spacer for the last tick */}
                             <div style={{ top: 24 * hourHeight, height: 1 }} className="absolute w-full"></div>
                         </div>
 
-                        {/* 2. Main Grid */}
                         <div className="flex-1 relative" style={{ height: `${GRID_TOTAL_HEIGHT}px` }}>
-                            {/* Render rows for all 24 hours */}
                             {HOURS.map(h => (
                                 <div key={h} className="absolute w-full border-b border-white/5" style={{ top: h * hourHeight, height: hourHeight }}>
                                     <div className="absolute top-1/2 w-full border-t border-white/[0.02] border-dashed"></div> 
                                 </div>
                             ))}
-                            {/* Bottom border for the last hour */}
                              <div className="absolute w-full border-b border-white/5" style={{ top: 24 * hourHeight, height: 1 }}></div>
                             
-                            {/* Current Time Marker */}
                             {currentTimeMarker !== null && (
                                 <div className="absolute w-full z-10 pointer-events-none border-t border-red-500/50" style={{ top: currentTimeMarker }}>
                                     <div className="absolute -left-1.5 w-3 h-3 rounded-full bg-red-500 -mt-1.5"></div>
                                 </div>
                             )}
                             
-                            {/* Columns & Events */}
                             <div className="absolute inset-0 flex h-full">
                                 {dateStrip.map((day, colIndex) => {
                                     const dayTasks = tasks.filter(t => isSameDay(day, t.task_date));
@@ -424,6 +450,9 @@ useEffect(() => {
                                             {dayTasks.map(task => {
                                                 const { style, theme, isPast } = getEventStyle(task, dayTasks);
                                                 const tags = getTaskTags(task);
+                                                const attendees = task.metadata?.attendees || [];
+                                                const hasMeeting = !!task.metadata?.meeting_link;
+
                                                 return (
                                                     <div 
                                                         key={task.id}
@@ -431,14 +460,23 @@ useEffect(() => {
                                                         style={style}
                                                         className={`
                                                             absolute rounded-md px-2 py-1.5 cursor-pointer transition-all border-l-[3px] overflow-hidden flex flex-col justify-start
-                                                            hover:brightness-110 hover:z-50 hover:shadow-lg shadow-sm
+                                                            hover:brightness-110 hover:z-50 hover:shadow-lg shadow-sm group/card
                                                             ${theme.bg} ${theme.border} ${theme.bar} ${theme.text}
                                                             ${isPast ? 'past-event-striped opacity-60 saturate-50' : ''}
                                                         `}
                                                     >
-                                                        <div className="flex items-center gap-1.5 min-w-0 mb-0.5">
-                                                            {task.issue && (<div className={`flex-none w-2 h-2 rounded-full ${task.issue.type === 'Bug' ? 'bg-red-400' : 'bg-purple-400'}`}></div>)}
-                                                            <span className="text-xs font-bold truncate leading-tight">{task.title}</span>
+                                                        {/* HEADER LINE */}
+                                                        <div className="flex items-center justify-between mb-0.5 relative">
+                                                            <div className="flex items-center gap-1.5 min-w-0 pr-4">
+                                                                {task.issue && (<div className={`flex-none w-2 h-2 rounded-full ${task.issue.type === 'Bug' ? 'bg-red-400' : 'bg-purple-400'}`}></div>)}
+                                                                <span className="text-xs font-bold truncate leading-tight">{task.title}</span>
+                                                            </div>
+                                                            {/* MEETING ICON */}
+                                                            {hasMeeting && (
+                                                                <div className="absolute top-0 right-0 p-0.5 rounded-full bg-black/20 text-white/90" title="Meeting Required">
+                                                                    <Video size={10} strokeWidth={3} />
+                                                                </div>
+                                                            )}
                                                         </div>
                                                         
                                                         {parseInt(style.height) > 40 && (
@@ -447,23 +485,55 @@ useEffect(() => {
                                                             </div>
                                                         )}
 
-                                                        {parseInt(style.height) > 60 && tags.length > 0 && (
-                                                            <div className="flex gap-1 flex-wrap overflow-hidden max-h-[20px]">
-                                                                {tags.slice(0, 3).map((tag, i) => (
-                                                                    <span 
-                                                                        key={i} 
-                                                                        className="text-[9px] px-1.5 py-0.5 rounded-[3px] border font-medium"
-                                                                        style={{ 
-                                                                            borderColor: `${tag.color}40`, 
-                                                                            color: tag.color, 
-                                                                            backgroundColor: `${tag.color}20` 
-                                                                        }}
-                                                                    >
-                                                                        {tag.name}
-                                                                    </span>
-                                                                ))}
-                                                            </div>
+                                                        {/* DESCRIPTION SNIPPET */}
+                                                        {parseInt(style.height) > 80 && task.description && (
+                                                            <p className="text-[9px] text-white/50 line-clamp-2 leading-3 mb-1 break-words">
+                                                                {task.description}
+                                                            </p>
                                                         )}
+
+                                                        {/* FOOTER: TAGS + BIGGER AVATARS */}
+                                                        <div className="mt-auto flex items-end justify-between gap-1">
+                                                            {/* Tags */}
+                                                            {parseInt(style.height) > 60 && tags.length > 0 ? (
+                                                                <div className="flex gap-1 flex-wrap overflow-hidden max-h-[20px] max-w-[60%]">
+                                                                    {tags.slice(0, 3).map((tag, i) => (
+                                                                        <span key={i} className="text-[9px] px-1.5 py-0.5 rounded-[3px] border font-medium whitespace-nowrap" style={{ borderColor: `${tag.color}40`, color: tag.color, backgroundColor: `${tag.color}20` }}>
+                                                                            {tag.name}
+                                                                        </span>
+                                                                    ))}
+                                                                </div>
+                                                            ) : <div/>}
+
+                                                            {/* Attendees with Rich Tooltip */}
+                                                            {attendees.length > 0 && (
+                                                                <div className="flex -space-x-2 self-end relative">
+                                                                    {attendees.slice(0, 3).map(uid => (
+                                                                        <div key={uid} className="group/avatar relative">
+                                                                            <div className="w-5 h-5 rounded-full border border-[#161616] bg-[#222] overflow-hidden hover:z-20 hover:scale-110 transition-transform relative z-10 cursor-help">
+                                                                                {userMap[uid]?.metadata?.avatar_url ? (
+                                                                                    <img src={userMap[uid].metadata.avatar_url} className="w-full h-full object-cover"/>
+                                                                                ) : (
+                                                                                    <div className="w-full h-full flex items-center justify-center text-[8px] text-white/50 font-bold">{userMap[uid]?.name?.[0] || "?"}</div>
+                                                                                )}
+                                                                            </div>
+                                                                            {/* HOVER TOOLTIP */}
+                                                                            <div className="absolute bottom-full right-0 mb-1.5 hidden group-hover/avatar:flex flex-col items-end gap-1 bg-[#161616] border border-white/10 p-2 rounded shadow-2xl z-50 whitespace-nowrap min-w-[100px] pointer-events-none">
+                                                                                <span className="text-xs font-bold text-white">{userMap[uid]?.name || "Unknown"}</span>
+                                                                                <span className={`text-[8px] px-1 py-0.5 rounded border uppercase font-bold ${getRoleBadgeStyle(userMap[uid]?.role)}`}>
+                                                                                    {userMap[uid]?.role || 'Viewer'}
+                                                                                </span>
+                                                                            </div>
+                                                                        </div>
+                                                                    ))}
+                                                                    {attendees.length > 3 && (
+                                                                        <div className="w-5 h-5 rounded-full border border-[#161616] bg-[#333] flex items-center justify-center text-[8px] text-white font-bold z-0">
+                                                                            +{attendees.length - 3}
+                                                                        </div>
+                                                                    )}
+                                                                </div>
+                                                            )}
+                                                        </div>
                                                     </div>
                                                 );
                                             })}
@@ -473,7 +543,6 @@ useEffect(() => {
                             </div>
                         </div>
                     </div>
-                    {/* Bottom Spacer */}
                     <div className="h-10 flex-none bg-[#0a0a0a]"></div>
                 </div>
             )}
@@ -495,8 +564,7 @@ useEffect(() => {
                             {tasks.length === 0 ? (
                                 <tr><td colSpan={5} className="text-center py-12 text-white/20 italic">No events found for this project.</td></tr>
                             ) : tasks.sort((a,b) => a.task_date.localeCompare(b.task_date)).map(task => {
-                                const taskEnd = new Date(`${task.task_date}T${task.end_time}`);
-                                const isPast = taskEnd < new Date();
+                                const isPast = new Date(`${task.task_date}T${task.end_time}`) < new Date();
                                 const tags = getTaskTags(task);
                                 return (
                                     <tr key={task.id} onClick={() => setSelectedTask(task)} className={`cursor-pointer transition-colors ${isPast ? 'opacity-50 hover:opacity-100 past-event-striped' : 'hover:bg-[#111]'}`}>
@@ -504,7 +572,12 @@ useEffect(() => {
                                             <div className="text-white/80 font-bold">{new Date(task.task_date).toLocaleDateString()}</div>
                                             <div className="opacity-50 mt-0.5">{task.start_time.slice(0,5)} - {task.end_time.slice(0,5)}</div>
                                         </td>
-                                        <td className="px-4 py-3 font-medium text-white text-base">{task.title}</td>
+                                        <td className="px-4 py-3 font-medium text-white text-base">
+                                            <div className="flex items-center gap-2">
+                                                {task.title}
+                                                {task.metadata?.meeting_link && <Video size={14} className="text-green-500/80" />}
+                                            </div>
+                                        </td>
                                         <td className="px-4 py-3">
                                             {task.issue ? (
                                                 <span className={`text-[10px] px-2 py-1 rounded border font-medium ${task.issue.type === 'Bug' ? 'bg-red-500/10 text-red-400 border-red-500/20' : 'bg-purple-500/10 text-purple-400 border-purple-500/20'}`}>
@@ -539,23 +612,33 @@ useEffect(() => {
         </div>
       </main>
 
-      {/* --- GLOBAL FIXED MODAL --- */}
+      {/* --- GLOBAL FIXED MODAL (READ ONLY) --- */}
       {selectedTask && (
           <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200">
               <div className="bg-[#161616] border border-white/10 rounded-xl w-full max-w-lg overflow-hidden shadow-2xl flex flex-col max-h-[90vh] animate-in zoom-in-95 duration-200">
                   <div className="p-6 border-b border-white/10 flex justify-between items-start bg-[#1a1a1a]">
-                      <div className="space-y-1">
-                          {selectedTask.issue && (
-                              <div className={`inline-block px-2 py-0.5 rounded text-[10px] uppercase font-bold tracking-wider mb-2 border ${selectedTask.issue.type === 'Bug' ? 'bg-red-500/10 text-red-400 border-red-500/20' : 'bg-purple-500/10 text-purple-400 border-purple-500/20'}`}>
-                                  Linked {selectedTask.issue.type}
-                              </div>
-                          )}
-                          <h3 className="font-bold text-2xl text-white leading-tight">{selectedTask.title}</h3>
-                      </div>
+                      <h3 className="font-bold text-2xl text-white leading-tight">{selectedTask.title}</h3>
                       <button onClick={() => setSelectedTask(null)} className="p-2 bg-white/5 hover:bg-white/10 rounded-lg text-white/60 hover:text-white transition-colors"><X size={20} /></button>
                   </div>
 
                   <div className="p-6 space-y-6 overflow-y-auto">
+                      
+                      {/* --- LINKED ISSUE DISPLAY --- */}
+                      {selectedTask.issue && (
+                          <div className="flex items-center gap-3 p-3 bg-white/5 rounded-lg border border-white/10">
+                              <div className={`px-2 py-1 rounded text-[10px] font-bold uppercase tracking-wider border ${selectedTask.issue.type === 'Bug' ? 'bg-red-500/10 text-red-400 border-red-500/20' : 'bg-purple-500/10 text-purple-400 border-purple-500/20'}`}>
+                                  {selectedTask.issue.type}
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                  <div className="text-[10px] text-white/40 uppercase font-bold mb-0.5">Linked Issue</div>
+                                  <div className="text-sm font-medium text-white/90 truncate flex items-center gap-2">
+                                     <LinkIcon size={14} className="text-white/40" />
+                                     {selectedTask.issue.title}
+                                  </div>
+                              </div>
+                          </div>
+                      )}
+
                       {/* Tags Section */}
                       {getTaskTags(selectedTask).length > 0 && (
                           <div className="flex flex-wrap gap-2">
@@ -581,9 +664,17 @@ useEffect(() => {
                                   <span>Created by</span>
                                   <div className="flex items-center gap-1.5 px-2 py-0.5 bg-[#0a0a0a] rounded-full border border-white/5">
                                       <div className="w-4 h-4 rounded-full bg-[#222] overflow-hidden">
-                                          {selectedTask.creator?.metadata?.avatar_url ? <img src={selectedTask.creator.metadata.avatar_url} className="w-full h-full object-cover"/> : <div className="w-full h-full flex items-center justify-center text-[8px]">{selectedTask.creator?.name?.[0]}</div>}
+                                          {(userMap[selectedTask.creator_id || '']?.metadata?.avatar_url || selectedTask.creator?.metadata?.avatar_url) ? 
+                                            <img src={userMap[selectedTask.creator_id || '']?.metadata?.avatar_url || selectedTask.creator?.metadata?.avatar_url} className="w-full h-full object-cover"/> : 
+                                            <div className="w-full h-full flex items-center justify-center text-[8px]">{(userMap[selectedTask.creator_id || '']?.name?.[0] || selectedTask.creator?.name?.[0])}</div>
+                                          }
                                       </div>
-                                      <span className="text-xs font-medium text-white/80">{selectedTask.creator?.name || "Unknown"}</span>
+                                      <span className="text-xs font-medium text-white/80">{userMap[selectedTask.creator_id || '']?.name || selectedTask.creator?.name || "Unknown"}</span>
+                                      
+                                      {/* CREATOR ROLE BADGE */}
+                                      <span className={`text-[8px] px-1 py-0.5 rounded border uppercase font-bold ${getRoleBadgeStyle(userMap[selectedTask.creator_id || '']?.role)}`}>
+                                            {userMap[selectedTask.creator_id || '']?.role || 'Viewer'}
+                                      </span>
                                   </div>
                               </div>
                           </div>
@@ -606,13 +697,21 @@ useEffect(() => {
 
                       <div className="pt-4 border-t border-white/5">
                           <label className="text-[10px] uppercase font-bold text-white/40 block mb-3">Attendees ({selectedTask.metadata?.attendees?.length || 0})</label>
-                          <div className="flex flex-wrap gap-2">
+                          <div className="grid grid-cols-1 gap-2">
                               {(selectedTask.metadata?.attendees || []).map((uid) => (
-                                  <div key={uid} className="flex items-center gap-2 p-2 pr-3 rounded-full bg-white/5 border border-white/5 hover:bg-white/10 transition-colors cursor-default">
-                                      <div className="w-6 h-6 rounded-full bg-[#222] border border-white/10 overflow-hidden">
-                                          {userMap[uid]?.metadata?.avatar_url ? <img src={userMap[uid].metadata.avatar_url} className="w-full h-full object-cover"/> : <div className="w-full h-full flex items-center justify-center text-[8px]">{userMap[uid]?.name?.[0]}</div>}
+                                  <div key={uid} className="flex items-center gap-3 p-2 pr-3 rounded-lg bg-white/5 border border-white/5 hover:bg-white/10 transition-colors cursor-default">
+                                      <div className="w-8 h-8 rounded-full bg-[#222] border border-white/10 overflow-hidden shrink-0">
+                                          {userMap[uid]?.metadata?.avatar_url ? <img src={userMap[uid].metadata.avatar_url} className="w-full h-full object-cover"/> : <div className="w-full h-full flex items-center justify-center text-[10px]">{userMap[uid]?.name?.[0]}</div>}
                                       </div>
-                                      <span className="text-xs font-medium text-white/80">{userMap[uid]?.name}</span>
+                                      <div className="flex flex-col min-w-0">
+                                          <span className="text-xs font-bold text-white/90 truncate">{userMap[uid]?.name}</span>
+                                          <div className="flex">
+                                              {/* --- ROLE BADGE --- */}
+                                              <span className={`inline-flex items-center gap-1 rounded px-1.5 py-0 text-[9px] font-bold uppercase tracking-wider border ${getRoleBadgeStyle(userMap[uid]?.role)}`}>
+                                                  {userMap[uid]?.role || 'Viewer'}
+                                              </span>
+                                          </div>
+                                      </div>
                                   </div>
                               ))}
                               {(selectedTask.metadata?.attendees || []).length === 0 && <span className="text-sm text-white/30 italic">No attendees have joined this event yet.</span>}

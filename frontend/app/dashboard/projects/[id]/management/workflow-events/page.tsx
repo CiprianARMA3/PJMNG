@@ -12,8 +12,27 @@ import {
   Link as LinkIcon, Clock, Trash2,
   Video, UserPlus, UserMinus, ExternalLink,
   Minimize2, Maximize2, Tag as TagIcon,
-  Loader2
+  Loader2, Check, Filter, Search, Settings
 } from "lucide-react";
+
+// --- HELPERS ---
+const getContrastColor = (hexcolor: string) => {
+    if (!hexcolor) return '#000000';
+    const r = parseInt(hexcolor.slice(1, 3), 16);
+    const g = parseInt(hexcolor.slice(3, 5), 16);
+    const b = parseInt(hexcolor.slice(5, 7), 16);
+    const yiq = ((r * 299) + (g * 587) + (b * 114)) / 1000;
+    return (yiq >= 128) ? '#000000' : '#ffffff';
+}
+
+const getRoleBadgeStyle = (role: string = 'Viewer') => {
+    switch (role.toLowerCase()) {
+        case 'owner': return 'bg-yellow-500/10 text-yellow-500 border-yellow-500/20';
+        case 'admin': return 'bg-blue-500/10 text-blue-400 border-blue-500/20';
+        case 'editor': return 'bg-green-500/10 text-green-400 border-green-500/20';
+        default: return 'bg-white/5 text-white/40 border-white/10';
+    }
+};
 
 // --- TYPES ---
 type Tag = { name: string; color: string; textColor?: string };
@@ -21,7 +40,12 @@ type Tag = { name: string; color: string; textColor?: string };
 type UserProfile = {
   id: string;
   name: string | null;
+  email?: string;
   metadata: { avatar_url?: string; [key: string]: any };
+};
+
+type ProjectMember = UserProfile & {
+  role: string;
 };
 
 type LinkedIssue = {
@@ -59,14 +83,16 @@ export default function CalendarPage() {
   const projectId = params.id as string;
   const { checkAccess, loading: authLoading } = useProjectPermissions(projectId);
 
-
-
   // --- STATE ---
   const [user, setUser] = useState<any>(null);
   const [project, setProject] = useState<any>(null);
   const [tasks, setTasks] = useState<Task[]>([]);
   const [availableIssues, setAvailableIssues] = useState<LinkedIssue[]>([]);
+  
+  // Member & Assignment State
+  const [members, setMembers] = useState<ProjectMember[]>([]);
   const [userMap, setUserMap] = useState<Record<string, UserProfile>>({});
+  
   const [loading, setLoading] = useState(true);
   
   // View State
@@ -77,7 +103,10 @@ export default function CalendarPage() {
 
   // Modal & Form State
   const [showModal, setShowModal] = useState(false);
+  const [showSettingsModal, setShowSettingsModal] = useState(false); // Global Tags Modal
   const [editingTask, setEditingTask] = useState<Task | null>(null);
+  
+  // Form Fields
   const [formTitle, setFormTitle] = useState("");
   const [formDesc, setFormDesc] = useState("");
   const [formDate, setFormDate] = useState("");
@@ -85,6 +114,17 @@ export default function CalendarPage() {
   const [formEndTime, setFormEndTime] = useState("10:00");
   const [formIssueId, setFormIssueId] = useState("");
   const [formMeetingLink, setFormMeetingLink] = useState("");
+  const [formAttendees, setFormAttendees] = useState<string[]>([]);
+  const [formTags, setFormTags] = useState<Tag[]>([]);
+
+  // Tag Form Inputs
+  const [newTagName, setNewTagName] = useState("");
+  const [newTagColor, setNewTagColor] = useState("#6B7280");
+  const [globalTagName, setGlobalTagName] = useState("");
+  const [globalTagColor, setGlobalTagColor] = useState("#8b5cf6");
+
+  // Assignment Filter State
+  const [assigneeFilterRole, setAssigneeFilterRole] = useState<string>("All");
 
   // --- CONFIG ---
   const HOURS = Array.from({ length: 24 }, (_, i) => i);
@@ -100,7 +140,7 @@ export default function CalendarPage() {
         return; 
       }
 
-      // 2. Fetch User Profile (To fix Menu Name/Avatar)
+      // 2. Fetch User Profile
       const { data: userProfile } = await supabase
         .from("users")
         .select("name, surname, metadata")
@@ -142,10 +182,14 @@ export default function CalendarPage() {
 
   const fetchData = async (currentUserId?: string) => {
     setLoading(true);
-      if (!authLoading && !checkAccess('manager-workflow-events')) {
-    router.push(`/dashboard/projects/${projectId}`);
-    return null;
-  }
+    if (!authLoading && !checkAccess('manager-workflow-events')) {
+      router.push(`/dashboard/projects/${projectId}`);
+      return null;
+    }
+
+    // Refresh Project Metadata (Global Tags)
+    const { data: proj } = await supabase.from("projects").select("*").eq("id", projectId).single();
+    if (proj) setProject(proj);
     
     // Fetch Tasks
     const { data: tasksData } = await supabase
@@ -162,37 +206,59 @@ export default function CalendarPage() {
         .neq("status", "Closed");
     if (issuesData) setAvailableIssues(issuesData as any);
 
-    // Fetch Users (Collaborators)
-    const { data: usersData } = await supabase
+    // Fetch Users & Roles
+    const { data: projectUsersData } = await supabase
         .from("project_users")
-        .select("user:users(id, name, surname, metadata)")
+        .select(`role_info, user:users(id, name, surname, metadata, email)`)
         .eq("project_id", projectId);
     
-    if (usersData) {
+    if (projectUsersData) {
         const map: Record<string, UserProfile> = {};
-        usersData.forEach((u: any) => { 
+        const memberList: ProjectMember[] = [];
+
+        projectUsersData.forEach((u: any) => { 
             if(u.user) {
-                map[u.user.id] = {
+                // Resolve Role
+                let role = 'Viewer';
+                try {
+                    if (typeof u.role_info === 'string') {
+                        const parsed = JSON.parse(u.role_info);
+                        role = parsed.role || role;
+                    } else if (typeof u.role_info === 'object' && u.role_info) {
+                        role = u.role_info.role || role;
+                    }
+                } catch (e) {}
+
+                const profile = {
                     id: u.user.id,
                     name: u.user.name ? `${u.user.name} ${u.user.surname || ''}`.trim() : "Unknown",
+                    email: u.user.email,
                     metadata: u.user.metadata || {}
                 };
+
+                map[u.user.id] = profile;
+                memberList.push({ ...profile, role });
             } 
         });
         
-        // Ensure current user is in map
+        // Ensure current user is in map if not found in project_users (e.g. superadmin/owner edge case)
         const uid = currentUserId || user?.id;
         if(uid && !map[uid]) {
-             const { data: currentUser } = await supabase.from("users").select("id, name, surname, metadata").eq("id", uid).single();
+             const { data: currentUser } = await supabase.from("users").select("id, name, surname, metadata, email").eq("id", uid).single();
              if(currentUser) {
-                 map[currentUser.id] = {
+                 const profile = {
                     id: currentUser.id,
                     name: currentUser.name ? `${currentUser.name} ${currentUser.surname || ''}`.trim() : "Me",
+                    email: currentUser.email,
                     metadata: currentUser.metadata || {}
                  };
+                 map[currentUser.id] = profile;
+                 memberList.push({ ...profile, role: 'Owner' });
              }
         }
+        
         setUserMap(map);
+        setMembers(memberList.sort((a,b) => a.name!.localeCompare(b.name!)));
     }
     setLoading(false);
   };
@@ -223,6 +289,41 @@ export default function CalendarPage() {
 
   const toMins = (t: string) => { const [h, m] = t.split(':').map(Number); return h * 60 + m; };
 
+  // --- TAG LOGIC ---
+  const globalTags: Tag[] = useMemo(() => project?.metadata?.global_tags || [], [project]);
+
+  const addGlobalTag = async () => {
+    if (!globalTagName.trim() || !project) return;
+    const newTag: Tag = { name: globalTagName, color: globalTagColor, textColor: getContrastColor(globalTagColor) };
+    if (globalTags.some(t => t.name.toLowerCase() === globalTagName.toLowerCase())) { alert("Tag exists."); return; }
+    const updatedTags = [...globalTags, newTag];
+    const updatedProject = { ...project, metadata: { ...project.metadata, global_tags: updatedTags } };
+    setProject(updatedProject);
+    setGlobalTagName("");
+    await supabase.from("projects").update({ metadata: updatedProject.metadata }).eq("id", projectId);
+  };
+
+  const removeGlobalTag = async (tagName: string) => {
+    if (!project) return;
+    const updatedTags = globalTags.filter(t => t.name !== tagName);
+    const updatedProject = { ...project, metadata: { ...project.metadata, global_tags: updatedTags } };
+    setProject(updatedProject);
+    await supabase.from("projects").update({ metadata: updatedProject.metadata }).eq("id", projectId);
+  };
+
+  const handleAddLocalTag = () => {
+    if (!newTagName.trim()) return;
+    const newTag: Tag = { name: newTagName.trim(), color: newTagColor, textColor: getContrastColor(newTagColor) };
+    if (formTags.some(t => t.name.toLowerCase() === newTag.name.toLowerCase())) return;
+    setFormTags(prev => [...prev, newTag]);
+    setNewTagName("");
+  };
+
+  const handleAddGlobalTagToEvent = (tag: Tag) => {
+      if (formTags.some(t => t.name === tag.name)) return;
+      setFormTags(prev => [...prev, tag]);
+  };
+
   // --- VISUALIZATION LOGIC ---
   const getEventStyle = (task: Task, dayTasks: Task[]) => {
       const startMins = toMins(task.start_time);
@@ -246,7 +347,6 @@ export default function CalendarPage() {
       const taskEndDateTime = new Date(`${task.task_date}T${task.end_time}`);
       const isPast = taskEndDateTime < new Date();
       
-      // --- STRICT COLOR PALETTE (Blue/Red/Purple) ---
       const colorMap = {
           default: { bg: 'bg-blue-600/10', border: 'border-blue-500/50', bar: 'border-l-blue-500', text: 'text-blue-100' },
           bug:     { bg: 'bg-red-600/10', border: 'border-red-500/50', bar: 'border-l-red-500', text: 'text-red-100' },
@@ -303,6 +403,12 @@ export default function CalendarPage() {
     setFormStartTime(`${startH.toString().padStart(2, '0')}:00`);
     setFormEndTime(`${((startH + 1) % 24).toString().padStart(2, '0')}:00`);
     setFormIssueId(""); setFormMeetingLink("");
+    
+    // Default current user as attendee
+    setFormAttendees(user ? [user.id] : []);
+    setFormTags([]);
+    setAssigneeFilterRole("All");
+    
     setShowModal(true);
   };
 
@@ -315,13 +421,32 @@ export default function CalendarPage() {
     setFormEndTime(task.end_time.slice(0, 5));
     setFormIssueId(task.issue_id || "");
     setFormMeetingLink(task.metadata?.meeting_link || "");
+    
+    // Load attendees
+    setFormAttendees(task.metadata?.attendees || []);
+    setFormTags(task.metadata?.tags || []);
+    setAssigneeFilterRole("All");
+    
     setShowModal(true);
+  };
+
+  const toggleFormAttendee = (userId: string) => {
+    setFormAttendees(prev => {
+        if (prev.includes(userId)) return prev.filter(id => id !== userId);
+        return [...prev, userId];
+    });
   };
 
   const handleSaveTask = async () => {
     if (!formTitle.trim()) return;
     const existingMeta = editingTask?.metadata || {};
-    const newMetadata = { ...existingMeta, meeting_link: formMeetingLink, attendees: existingMeta.attendees || (editingTask ? [] : [user.id]) };
+    const newMetadata = { 
+        ...existingMeta, 
+        meeting_link: formMeetingLink, 
+        attendees: formAttendees,
+        tags: formTags
+    };
+    
     const payload = {
       project_id: projectId,
       title: formTitle,
@@ -334,8 +459,10 @@ export default function CalendarPage() {
       metadata: newMetadata,
       ...(editingTask ? {} : { creator_id: user.id }) 
     };
+    
     if (editingTask) await supabase.from("tasks").update(payload).eq("id", editingTask.id);
     else await supabase.from("tasks").insert(payload);
+    
     setShowModal(false);
     fetchData(); 
   };
@@ -362,12 +489,28 @@ export default function CalendarPage() {
       const updatedMetadata = { ...task.metadata, attendees: newAttendees };
       const updatedTask = { ...task, metadata: updatedMetadata };
       setTasks(prev => prev.map(t => t.id === task.id ? updatedTask : t));
-      if (editingTask && editingTask.id === task.id) setEditingTask(updatedTask);
+      if (editingTask && editingTask.id === task.id) {
+          setEditingTask(updatedTask);
+          setFormAttendees(newAttendees);
+      }
       await supabase.from("tasks").update({ metadata: updatedMetadata }).eq("id", task.id);
   };
 
+  // Filter Members for Modal
+  const uniqueRoles = useMemo(() => {
+    const roles = new Set(members.map(m => m.role).filter(Boolean));
+    return Array.from(roles);
+  }, [members]);
+
+  const filteredMembers = useMemo(() => {
+    return members.filter(m => {
+        if (assigneeFilterRole !== "All" && m.role !== assigneeFilterRole) return false;
+        return true;
+    });
+  }, [members, assigneeFilterRole]);
+
  if (loading) {
-    return (
+       return (
       <div role="status" className="flex justify-center items-center h-screen bg-[#0a0a0a]">
         <svg
           aria-hidden="true"
@@ -400,11 +543,7 @@ export default function CalendarPage() {
         
         .past-event-striped {
             background-image: repeating-linear-gradient(
-                45deg,
-                transparent,
-                transparent 5px,
-                rgba(0,0,0,0.3) 5px,
-                rgba(0,0,0,0.3) 10px
+                45deg, transparent, transparent 5px, rgba(0,0,0,0.3) 5px, rgba(0,0,0,0.3) 10px
             );
         }
       `}</style>
@@ -442,6 +581,14 @@ export default function CalendarPage() {
                     className="flex items-center gap-2 px-3 py-1.5 bg-white text-black hover:bg-gray-200 text-[10px] uppercase font-bold rounded transition-colors"
                  >
                     <Plus size={14} /> Add Event
+                 </button>
+                 
+                 <button 
+                    onClick={() => setShowSettingsModal(true)} 
+                    className="p-2 bg-white/5 hover:bg-white/10 text-white/60 hover:text-white rounded transition-colors"
+                    title="Global Tags Settings"
+                 >
+                    <Settings size={16} />
                  </button>
                  
                  <div className="h-6 w-px bg-white/10"></div>
@@ -544,6 +691,9 @@ export default function CalendarPage() {
                                             {dayTasks.map(task => {
                                                 const { style, theme, isPast } = getEventStyle(task, dayTasks);
                                                 const tags = getTaskTags(task);
+                                                const attendees = task.metadata?.attendees || [];
+                                                const hasMeeting = !!task.metadata?.meeting_link;
+
                                                 return (
                                                     <div 
                                                         key={task.id}
@@ -556,8 +706,9 @@ export default function CalendarPage() {
                                                             ${isPast ? 'past-event-striped opacity-60 saturate-50' : ''}
                                                         `}
                                                     >
-                                                        <div className="flex items-center justify-between mb-0.5">
-                                                            <div className="flex items-center gap-1.5 min-w-0">
+                                                        {/* HEADER & MEETING ICON */}
+                                                        <div className="flex items-center justify-between mb-0.5 relative">
+                                                            <div className="flex items-center gap-1.5 min-w-0 pr-4">
                                                                 {task.issue && (<div className={`flex-none w-2 h-2 rounded-full ${task.issue.type === 'Bug' ? 'bg-red-400' : 'bg-purple-400'}`}></div>)}
                                                                 <span className="text-xs font-bold truncate leading-tight">{task.title}</span>
                                                             </div>
@@ -565,12 +716,18 @@ export default function CalendarPage() {
                                                             <button 
                                                                 onClick={(e) => toggleJoinTask(e, task)}
                                                                 disabled={isPast}
-                                                                className={`p-0.5 rounded opacity-0 group-hover/card:opacity-100 transition-opacity 
+                                                                className={`absolute top-0 right-0 p-0.5 rounded opacity-0 group-hover/card:opacity-100 transition-opacity z-10
                                                                     ${task.metadata?.attendees?.includes(user?.id) ? 'text-red-400 hover:bg-red-400/20' : 'text-blue-400 hover:bg-blue-400/20'}
                                                                 `}
                                                             >
                                                                 {task.metadata?.attendees?.includes(user?.id) ? <UserMinus size={12}/> : <UserPlus size={12}/>}
                                                             </button>
+                                                            {/* Meeting Icon (If not hovering) */}
+                                                            {hasMeeting && (
+                                                                <div className="absolute top-0 right-0 p-0.5 rounded-full bg-black/20 text-white/90 group-hover/card:opacity-0 transition-opacity" title="Meeting Required">
+                                                                    <Video size={10} strokeWidth={3} />
+                                                                </div>
+                                                            )}
                                                         </div>
                                                         
                                                         {parseInt(style.height) > 40 && (
@@ -579,23 +736,52 @@ export default function CalendarPage() {
                                                             </div>
                                                         )}
 
-                                                        {parseInt(style.height) > 60 && tags.length > 0 && (
-                                                            <div className="flex gap-1 flex-wrap overflow-hidden max-h-[20px]">
-                                                                {tags.slice(0, 3).map((tag, i) => (
-                                                                    <span 
-                                                                        key={i} 
-                                                                        className="text-[9px] px-1.5 py-0.5 rounded-[3px] border font-medium"
-                                                                        style={{ 
-                                                                            borderColor: `${tag.color}40`, 
-                                                                            color: tag.color, 
-                                                                            backgroundColor: `${tag.color}20` 
-                                                                        }}
-                                                                    >
-                                                                        {tag.name}
-                                                                    </span>
-                                                                ))}
-                                                            </div>
+                                                        {/* DESCRIPTION SNIPPET */}
+                                                        {parseInt(style.height) > 80 && task.description && (
+                                                            <p className="text-[9px] text-white/50 line-clamp-2 leading-3 mb-1 break-words">
+                                                                {task.description}
+                                                            </p>
                                                         )}
+
+                                                        {/* FOOTER: TAGS + BIGGER AVATARS */}
+                                                        <div className="mt-auto flex items-end justify-between gap-1">
+                                                            {parseInt(style.height) > 60 && tags.length > 0 ? (
+                                                                <div className="flex gap-1 flex-wrap overflow-hidden max-h-[20px] max-w-[60%]">
+                                                                    {tags.slice(0, 3).map((tag, i) => (
+                                                                        <span key={i} className="text-[9px] px-1.5 py-0.5 rounded-[3px] border font-medium whitespace-nowrap" style={{ borderColor: `${tag.color}40`, color: tag.color, backgroundColor: `${tag.color}20` }}>
+                                                                            {tag.name}
+                                                                        </span>
+                                                                    ))}
+                                                                </div>
+                                                            ) : <div/>}
+
+                                                            {/* Attendees with Rich Tooltip */}
+                                                            {attendees.length > 0 && (
+                                                                <div className="flex -space-x-2 self-end relative">
+                                                                    {attendees.slice(0, 3).map(uid => (
+                                                                        <div key={uid} className="group/avatar relative">
+                                                                            <div className="w-5 h-5 rounded-full border border-[#161616] bg-[#222] overflow-hidden hover:z-20 hover:scale-110 transition-transform relative z-10 cursor-help">
+                                                                                {userMap[uid]?.metadata?.avatar_url ? (
+                                                                                    <img src={userMap[uid].metadata.avatar_url} className="w-full h-full object-cover"/>
+                                                                                ) : (
+                                                                                    <div className="w-full h-full flex items-center justify-center text-[8px] text-white/50 font-bold">{userMap[uid]?.name?.[0] || "?"}</div>
+                                                                                )}
+                                                                            </div>
+                                                                            {/* HOVER TOOLTIP */}
+                                                                            <div className="absolute bottom-full right-0 mb-1.5 hidden group-hover/avatar:flex flex-col items-end gap-1 bg-[#161616] border border-white/10 p-2 rounded shadow-2xl z-50 whitespace-nowrap min-w-[100px] pointer-events-none">
+                                                                                <span className="text-xs font-bold text-white">{userMap[uid]?.name || "Unknown"}</span>
+                                                 
+                                                                            </div>
+                                                                        </div>
+                                                                    ))}
+                                                                    {attendees.length > 3 && (
+                                                                        <div className="w-5 h-5 rounded-full border border-[#161616] bg-[#333] flex items-center justify-center text-[8px] text-white font-bold z-0">
+                                                                            +{attendees.length - 3}
+                                                                        </div>
+                                                                    )}
+                                                                </div>
+                                                            )}
+                                                        </div>
                                                     </div>
                                                 );
                                             })}
@@ -638,7 +824,12 @@ export default function CalendarPage() {
                                             <div className="text-white/80 font-bold">{new Date(task.task_date).toLocaleDateString()}</div>
                                             <div className="opacity-50 mt-0.5">{task.start_time.slice(0,5)} - {task.end_time.slice(0,5)}</div>
                                         </td>
-                                        <td className="px-4 py-3 font-medium text-white text-base">{task.title}</td>
+                                        <td className="px-4 py-3 font-medium text-white text-base">
+                                            <div className="flex items-center gap-2">
+                                                {task.title}
+                                                {task.metadata?.meeting_link && <Video size={14} className="text-green-500/80" />}
+                                            </div>
+                                        </td>
                                         <td className="px-4 py-3">
                                             {task.issue ? (
                                                 <span className={`text-[10px] px-2 py-1 rounded border font-medium ${task.issue.type === 'Bug' ? 'bg-red-500/10 text-red-400 border-red-500/20' : 'bg-purple-500/10 text-purple-400 border-purple-500/20'}`}>
@@ -687,28 +878,186 @@ export default function CalendarPage() {
       {/* --- CRUD MODAL --- */}
       {showModal && (
           <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200">
-              <div className="bg-[#161616] border border-white/10 rounded-xl w-full max-w-md overflow-hidden shadow-2xl flex flex-col max-h-[90vh] animate-in zoom-in-95 duration-200">
+              <div className="bg-[#161616] border border-white/10 rounded-xl w-full max-w-lg overflow-hidden shadow-2xl flex flex-col max-h-[90vh] animate-in zoom-in-95 duration-200">
                   <div className="p-5 border-b border-white/10 flex justify-between items-center bg-[#1a1a1a]">
                       <h3 className="font-bold text-lg text-white">{editingTask ? "Edit Event" : "New Event"}</h3>
                       <button onClick={() => setShowModal(false)} className="p-2 bg-white/5 hover:bg-white/10 rounded text-white/60 hover:text-white transition-colors"><X size={16} /></button>
                   </div>
-                  <div className="p-6 space-y-5 overflow-y-auto custom-scrollbar">
+                  <div className="p-6 space-y-5 overflow-y-auto custom-scrollbar flex-1">
                       {/* Form Fields */}
-                      <div><label className="text-[10px] uppercase font-bold text-white/40 block mb-1.5">Title</label><input autoFocus className="w-full bg-[#0a0a0a] border border-white/10 rounded-lg p-3 text-sm text-white outline-none focus:border-blue-500 transition-colors" value={formTitle} onChange={e => setFormTitle(e.target.value)} placeholder="e.g. Daily Standup" /></div>
-                      <div><label className="text-[10px] uppercase font-bold text-white/40 block mb-1.5">Description</label><textarea className="w-full bg-[#0a0a0a] border border-white/10 rounded-lg p-3 text-sm text-white outline-none focus:border-blue-500 transition-colors min-h-[80px] resize-y" value={formDesc} onChange={e => setFormDesc(e.target.value)} placeholder="Details..." /></div>
-                      <div className="grid grid-cols-3 gap-3">
-                          <div className="col-span-3"><label className="text-[10px] uppercase font-bold text-white/40 block mb-1.5">Date</label><input type="date" className="w-full bg-[#0a0a0a] border border-white/10 rounded-lg p-2.5 text-sm text-white outline-none focus:border-blue-500" value={formDate} onChange={e => setFormDate(e.target.value)} /></div>
-                          <div><label className="text-[10px] uppercase font-bold text-white/40 block mb-1.5">Start</label><input type="time" className="w-full bg-[#0a0a0a] border border-white/10 rounded-lg p-2.5 text-sm text-white outline-none focus:border-blue-500" value={formStartTime} onChange={e => setFormStartTime(e.target.value)} /></div>
-                          <div><label className="text-[10px] uppercase font-bold text-white/40 block mb-1.5">End</label><input type="time" className="w-full bg-[#0a0a0a] border border-white/10 rounded-lg p-2.5 text-sm text-white outline-none focus:border-blue-500" value={formEndTime} onChange={e => setFormEndTime(e.target.value)} /></div>
+                      <div>
+                        <label className="text-[10px] uppercase font-bold text-white/40 block mb-1.5">Title</label>
+                        <input autoFocus className="w-full bg-[#0a0a0a] border border-white/10 rounded-lg p-3 text-sm text-white outline-none focus:border-blue-500 transition-colors" value={formTitle} onChange={e => setFormTitle(e.target.value)} placeholder="e.g. Daily Standup" />
                       </div>
-                      <div><label className="text-[10px] uppercase font-bold text-green-400 block mb-1.5 flex items-center gap-1"><Video size={10}/> Meeting Link</label><div className="flex gap-2"><input className="flex-1 bg-[#0a0a0a] border border-green-500/30 rounded-lg p-2.5 text-sm text-white outline-none focus:border-green-500" value={formMeetingLink} onChange={e => setFormMeetingLink(e.target.value)} placeholder="https://meet.google.com/..." />{formMeetingLink && <a href={formMeetingLink} target="_blank" className="p-2.5 bg-green-500/10 text-green-400 border border-green-500/20 rounded-lg hover:bg-green-500/20"><ExternalLink size={16}/></a>}</div></div>
-                      <div><label className="text-[10px] uppercase font-bold text-purple-400 block mb-1.5 flex items-center gap-1"><LinkIcon size={10}/> Link Issue</label><select className="w-full bg-[#0a0a0a] border border-purple-500/30 rounded-lg p-2.5 text-sm text-white outline-none focus:border-purple-500 appearance-none cursor-pointer" value={formIssueId} onChange={e => setFormIssueId(e.target.value)}><option value="">None</option>{availableIssues.map(issue => <option key={issue.id} value={issue.id}>[{issue.type}] {issue.title}</option>)}</select></div>
                       
-                      {/* Attendees Control inside Edit Modal */}
-                      {editingTask && (<div className="p-3 bg-[#0a0a0a] border border-white/5 rounded-lg space-y-3"><div className="flex items-center justify-between"><div className="flex items-center gap-2"><span className="text-[10px] font-bold uppercase text-white/40">Created By:</span><div className="flex items-center gap-1.5"><div className="w-5 h-5 rounded-full bg-[#222] overflow-hidden">{editingTask.creator?.metadata?.avatar_url ? <img src={editingTask.creator.metadata.avatar_url} className="w-full h-full object-cover"/> : <div className="w-full h-full flex items-center justify-center text-[8px]">{editingTask.creator?.name?.[0]}</div>}</div><span className="text-xs font-medium text-white/70">{editingTask.creator?.name || "Unknown"}</span></div></div></div><div className="border-t border-white/5 pt-2"><div className="flex items-center justify-between mb-2"><span className="text-[10px] font-bold uppercase text-white/40">Attendees</span><button onClick={(e) => toggleJoinTask(e, editingTask)} className={`text-[10px] font-bold flex items-center gap-1 ${editingTask.metadata?.attendees?.includes(user.id) ? 'text-red-400' : 'text-blue-400'}`}>{editingTask.metadata?.attendees?.includes(user.id) ? <><UserMinus size={10}/> Leave</> : <><UserPlus size={10}/> Join</>}</button></div><div className="flex flex-wrap gap-2">{(editingTask.metadata?.attendees || []).map(uid => (<div key={uid} className="flex items-center gap-1.5 bg-[#222] pr-2 rounded-full border border-white/10"><div className="w-5 h-5 rounded-full bg-[#333] overflow-hidden">{userMap[uid]?.metadata?.avatar_url ? <img src={userMap[uid].metadata.avatar_url} className="w-full h-full object-cover"/> : <div className="w-full h-full flex items-center justify-center text-[8px]">{userMap[uid]?.name?.[0]}</div>}</div><span className="text-xs text-white/70">{userMap[uid]?.name}</span></div>))}{(editingTask.metadata?.attendees || []).length === 0 && <span className="text-white/20 text-xs italic">No attendees yet</span>}</div></div></div>)}
+                      <div>
+                        <label className="text-[10px] uppercase font-bold text-white/40 block mb-1.5">Description</label>
+                        <textarea className="w-full bg-[#0a0a0a] border border-white/10 rounded-lg p-3 text-sm text-white outline-none focus:border-blue-500 transition-colors min-h-[80px] resize-y" value={formDesc} onChange={e => setFormDesc(e.target.value)} placeholder="Details..." />
+                      </div>
                       
-                      {/* Action Buttons */}
-                      <div className="pt-4 flex gap-3"><button onClick={handleSaveTask} className="flex-1 py-2.5 bg-white text-black text-sm font-bold rounded-lg hover:bg-gray-200 transition-colors">{editingTask ? "Save Changes" : "Create Event"}</button>{editingTask && (<button onClick={handleDeleteTask} className="px-4 py-2.5 bg-red-500/10 text-red-400 border border-red-500/20 text-sm font-bold rounded-lg hover:bg-red-500/20 transition-colors"><Trash2 size={16}/></button>)}</div>
+                      <div className="grid grid-cols-3 gap-3">
+                          <div className="col-span-3">
+                             <label className="text-[10px] uppercase font-bold text-white/40 block mb-1.5">Date</label>
+                             <input type="date" className="w-full bg-[#0a0a0a] border border-white/10 rounded-lg p-2.5 text-sm text-white outline-none focus:border-blue-500" value={formDate} onChange={e => setFormDate(e.target.value)} />
+                          </div>
+                          <div>
+                            <label className="text-[10px] uppercase font-bold text-white/40 block mb-1.5">Start</label>
+                            <input type="time" className="w-full bg-[#0a0a0a] border border-white/10 rounded-lg p-2.5 text-sm text-white outline-none focus:border-blue-500" value={formStartTime} onChange={e => setFormStartTime(e.target.value)} />
+                          </div>
+                          <div>
+                            <label className="text-[10px] uppercase font-bold text-white/40 block mb-1.5">End</label>
+                            <input type="time" className="w-full bg-[#0a0a0a] border border-white/10 rounded-lg p-2.5 text-sm text-white outline-none focus:border-blue-500" value={formEndTime} onChange={e => setFormEndTime(e.target.value)} />
+                          </div>
+                      </div>
+
+                      {/* --- TAGS INPUT --- */}
+                      <div>
+                          <label className="text-[10px] uppercase font-bold text-white/40 block mb-2">Tags</label>
+                          <div className="flex flex-wrap gap-2 mb-2 p-2 bg-white/5 rounded border border-white/5 min-h-[38px]">
+                              {formTags.map(tag => (
+                                  <div key={tag.name} className="flex items-center gap-1 rounded px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wider" style={{ backgroundColor: tag.color, color: tag.textColor }}>
+                                      {tag.name}
+                                      <button onClick={() => setFormTags(prev => prev.filter(t => t.name !== tag.name))} className="hover:opacity-70"><X size={10}/></button>
+                                  </div>
+                              ))}
+                              {formTags.length === 0 && <span className="text-white/30 text-xs self-center">No tags selected.</span>}
+                          </div>
+                          <div className="flex gap-2">
+                              <input className="flex-1 bg-[#0a0a0a] border border-white/10 rounded-lg p-2 text-xs text-white" placeholder="Add custom tag..." value={newTagName} onChange={e => setNewTagName(e.target.value)} />
+                              <input type="color" className="h-8 w-8 rounded cursor-pointer p-0 border-0 bg-transparent" value={newTagColor} onChange={e => setNewTagColor(e.target.value)} />
+                              <button onClick={handleAddLocalTag} className="px-3 bg-white/10 hover:bg-white/20 rounded text-[10px] font-bold">ADD</button>
+                          </div>
+                          {globalTags.length > 0 && (
+                            <div className="flex flex-wrap gap-2 mt-2 pt-2 border-t border-white/10">
+                                <span className="text-[10px] text-white/30 self-center uppercase font-bold">Global:</span>
+                                {globalTags.filter(gt => !formTags.some(ft => ft.name === gt.name)).map(tag => (
+                                    <button key={tag.name} onClick={() => handleAddGlobalTagToEvent(tag)} className="text-[10px] px-2 py-0.5 rounded border border-white/10 hover:bg-white/5 transition-colors font-bold" style={{ color: tag.color }}>+ {tag.name}</button>
+                                ))}
+                            </div>
+                        )}
+                      </div>
+                      
+                      {/* ASSIGN MEMBERS SECTION */}
+                      <div className="border border-white/5 rounded-lg p-3 bg-[#0a0a0a]">
+                          <div className="flex items-center justify-between mb-3">
+                              <label className="text-[10px] uppercase font-bold text-white/40">Assign To</label>
+                              <div className="flex gap-2">
+                                  {["All", ...uniqueRoles].map(role => (
+                                      <button 
+                                        key={role}
+                                        onClick={() => setAssigneeFilterRole(role)}
+                                        className={`px-2 py-0.5 text-[9px] font-bold uppercase rounded border transition-colors ${assigneeFilterRole === role ? 'bg-white text-black border-white' : 'border-white/10 text-white/40 hover:text-white'}`}
+                                      >
+                                        {role}
+                                      </button>
+                                  ))}
+                              </div>
+                          </div>
+                          
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-40 overflow-y-auto pr-1 custom-scrollbar">
+                              {filteredMembers.map(member => {
+                                  const isSelected = formAttendees.includes(member.id);
+                                  return (
+                                      <div 
+                                        key={member.id}
+                                        onClick={() => toggleFormAttendee(member.id)}
+                                        className={`flex items-center gap-2 p-2 rounded-lg cursor-pointer border transition-all ${isSelected ? 'bg-blue-500/10 border-blue-500/40' : 'bg-[#111] border-white/5 hover:bg-[#161616]'}`}
+                                      >
+                                          <div className="relative">
+                                              <div className="w-8 h-8 rounded-full bg-[#222] overflow-hidden">
+                                                  {member.metadata.avatar_url ? <img src={member.metadata.avatar_url} className="w-full h-full object-cover"/> : <div className="w-full h-full flex items-center justify-center text-[10px] text-white/50">{member.name?.[0]}</div>}
+                                              </div>
+                                              {isSelected && (
+                                                <div className="absolute -bottom-1 -right-1 bg-blue-500 text-white rounded-full p-0.5 border-2 border-[#0a0a0a]">
+                                                    <Check size={8} strokeWidth={4} />
+                                                </div>
+                                              )}
+                                          </div>
+                                          <div className="flex-1 min-w-0">
+                                              <div className={`text-xs font-bold truncate ${isSelected ? 'text-blue-200' : 'text-white/80'}`}>{member.name}</div>
+                                              <div className="flex mt-0.5">
+                                                  {/* --- ROLE BADGE --- */}
+                                                  <span className={`inline-flex items-center gap-1 rounded px-1.5 py-0 text-[8px] font-bold uppercase tracking-wider border ${getRoleBadgeStyle(member.role)}`}>
+                                                      {member.role}
+                                                  </span>
+                                              </div>
+                                          </div>
+                                      </div>
+                                  );
+                              })}
+                              {filteredMembers.length === 0 && (
+                                  <div className="col-span-full py-4 text-center text-xs text-white/20 italic">No members found for this filter.</div>
+                              )}
+                          </div>
+                      </div>
+
+                      <div>
+                        <label className="text-[10px] uppercase font-bold text-green-400 block mb-1.5 flex items-center gap-1"><Video size={10}/> Meeting Link</label>
+                        <div className="flex gap-2">
+                            <input className="flex-1 bg-[#0a0a0a] border border-green-500/30 rounded-lg p-2.5 text-sm text-white outline-none focus:border-green-500" value={formMeetingLink} onChange={e => setFormMeetingLink(e.target.value)} placeholder="https://meet.google.com/..." />
+                            {formMeetingLink && <a href={formMeetingLink} target="_blank" className="p-2.5 bg-green-500/10 text-green-400 border border-green-500/20 rounded-lg hover:bg-green-500/20"><ExternalLink size={16}/></a>}
+                        </div>
+                      </div>
+                      
+                      <div>
+                        <label className="text-[10px] uppercase font-bold text-purple-400 block mb-1.5 flex items-center gap-1"><LinkIcon size={10}/> Link Task</label>
+                        <select className="w-full bg-[#0a0a0a] border border-purple-500/30 rounded-lg p-2.5 text-sm text-white outline-none focus:border-purple-500 appearance-none cursor-pointer" value={formIssueId} onChange={e => setFormIssueId(e.target.value)}>
+                            <option value="">None</option>
+                            {availableIssues.map(issue => <option key={issue.id} value={issue.id}>[{issue.type}] {issue.title}</option>)}
+                        </select>
+                      </div>
+
+                      {/* Created By Info in Edit Mode */}
+                      {editingTask && editingTask.creator && (
+                          <div className="flex items-center gap-2 p-2 rounded bg-white/5 text-xs text-white/50">
+                              <span>Created by:</span>
+                              <div className="flex items-center gap-1.5 px-2 py-0.5 bg-[#0a0a0a] rounded-full border border-white/5">
+                                  <div className="w-4 h-4 rounded-full bg-[#222] overflow-hidden">
+                                      {(userMap[editingTask.creator_id || '']?.metadata?.avatar_url || editingTask.creator?.metadata?.avatar_url) ? 
+                                        <img src={userMap[editingTask.creator_id || '']?.metadata?.avatar_url || editingTask.creator?.metadata?.avatar_url} className="w-full h-full object-cover"/> : 
+                                        <div className="w-full h-full flex items-center justify-center text-[8px]">{(userMap[editingTask.creator_id || '']?.name?.[0] || editingTask.creator?.name?.[0])}</div>
+                                      }
+                                  </div>
+                                  <span className="text-xs font-medium text-white/80">{userMap[editingTask.creator_id || '']?.name || editingTask.creator?.name || "Unknown"}</span>
+                              </div>
+                          </div>
+                      )}
+                  </div>
+                  
+                  {/* Action Buttons */}
+                  <div className="p-5 border-t border-white/10 bg-[#1a1a1a] flex gap-3">
+                      <button onClick={handleSaveTask} className="flex-1 py-2.5 bg-white text-black text-sm font-bold rounded-lg hover:bg-gray-200 transition-colors">{editingTask ? "Save Changes" : "Create Event"}</button>
+                      {editingTask && (<button onClick={handleDeleteTask} className="px-4 py-2.5 bg-red-500/10 text-red-400 border border-red-500/20 text-sm font-bold rounded-lg hover:bg-red-500/20 transition-colors"><Trash2 size={16}/></button>)}
+                  </div>
+              </div>
+          </div>
+      )}
+
+      {/* --- GLOBAL SETTINGS MODAL --- */}
+      {showSettingsModal && (
+          <div className="fixed inset-0 z-[10000] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200">
+              <div className="bg-[#161616] border border-white/10 rounded-xl w-full max-w-md shadow-2xl p-6">
+                  <div className="flex justify-between items-center mb-6">
+                      <h3 className="text-lg font-bold text-white flex items-center gap-2"><Settings size={18} /> Global Tags</h3>
+                      <button onClick={() => setShowSettingsModal(false)} className="text-white/50 hover:text-white"><X size={18}/></button>
+                  </div>
+                  
+                  <div className="space-y-4">
+                      <div className="p-3 bg-white/5 rounded-lg min-h-[60px] flex flex-wrap gap-2 content-start border border-white/5">
+                          {globalTags.map(tag => (
+                              <div key={tag.name} className="flex items-center gap-1 rounded px-2 py-1 text-xs font-bold uppercase" style={{ backgroundColor: tag.color, color: tag.textColor }}>
+                                  {tag.name}
+                                  <button onClick={() => removeGlobalTag(tag.name)} className="hover:opacity-70 ml-1"><X size={12}/></button>
+                              </div>
+                          ))}
+                          {globalTags.length === 0 && <span className="text-white/30 text-xs italic">No global tags defined.</span>}
+                      </div>
+
+                      <div className="flex gap-2">
+                          <input className="flex-1 bg-[#0a0a0a] border border-white/10 rounded-lg p-2.5 text-sm text-white" placeholder="New global tag..." value={globalTagName} onChange={e => setGlobalTagName(e.target.value)} />
+                          <input type="color" className="h-10 w-10 rounded-lg border-0 bg-transparent cursor-pointer" value={globalTagColor} onChange={e => setGlobalTagColor(e.target.value)} />
+                      </div>
+                      <button onClick={addGlobalTag} className="w-full py-2 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-lg text-sm">Add Global Tag</button>
                   </div>
               </div>
           </div>
