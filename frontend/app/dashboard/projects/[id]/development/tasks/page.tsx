@@ -11,13 +11,13 @@ import { useProjectPermissions } from "@/hooks/useProjectPermissions";
 import { 
   Search, Plus, X, 
   CheckCircle2, Clock, AlertTriangle, 
-  FileCode, Terminal, 
-  Send, Trash2, Edit, Save, 
+  FileCode, 
+  Trash2, Edit, Save, 
   Bug, Zap, Hammer, Github, 
-  GitBranch, Users, UserPlus, UserMinus, ExternalLink,
-  RefreshCw, Filter, ChevronDown, // Existing imports
+  Users, UserPlus, ExternalLink,
+  RefreshCw, Filter, ChevronDown, 
   ChevronUp, Minus,
-  Disc, XCircle // Added imports for visual urgency
+  Disc, XCircle 
 } from "lucide-react";
 
 // --- TYPES ---
@@ -40,6 +40,12 @@ type Comment = {
   user: UserProfile;
 };
 
+// Project Member Type
+type ProjectMember = {
+    user: UserProfile;
+    role: string;
+};
+
 type Issue = {
   id: string;
   project_id: string;
@@ -54,6 +60,7 @@ type Issue = {
     github_repo?: string;
     github_path?: string;
     collaborators?: string[]; 
+    assigned_by?: Record<string, { by: string, role: string, at: string }>; 
     resolved_by?: string; 
     code_snippet?: string;
     terminal_output?: string;
@@ -84,7 +91,6 @@ const MarkdownRenderer = ({ content }: { content: string }) => {
     <div className="text-sm text-[#d4d4d4] leading-relaxed space-y-2 font-light">
       {parts.map((part, index) => {
         if (part.startsWith("```") && part.endsWith("```")) {
-          // Extract language (e.g. ```javascript) and code
           const match = part.match(/^```(\w+)?\n?([\s\S]*?)```$/);
           const language = match ? match[1] || 'text' : 'text';
           const code = match ? match[2] : part.slice(3, -3);
@@ -92,7 +98,6 @@ const MarkdownRenderer = ({ content }: { content: string }) => {
           return <CodeBlock key={index} language={language} code={code.trim()} />;
         }
         
-        // Render regular text (headings, lists, paragraphs)
         return (
           <div key={index} className="whitespace-pre-wrap">
             {part.split('\n').map((line, i) => {
@@ -108,7 +113,7 @@ const MarkdownRenderer = ({ content }: { content: string }) => {
   );
 };
 
-// --- NEW UI HELPER: STATUS CONFIG ---
+// --- UI HELPER: STATUS CONFIG ---
 const getStatusConfig = (status: string) => {
   switch (status) {
     case 'Open':
@@ -150,10 +155,10 @@ const getStatusConfig = (status: string) => {
 };
 
 
-// --- NEW UI HELPER: PRIORITY ICON ---
+// --- UI HELPER: PRIORITY ICON ---
 const getPriorityIcon = (p: string) => {
     const size = 10;
-    const baseClass = "mr-1"; // Small margin right
+    const baseClass = "mr-1"; 
     if (p === 'Urgent') return <AlertTriangle size={size} className={`${baseClass} text-red-500 fill-red-500/30`} />;
     if (p === 'High') return <ChevronUp size={size} className={`${baseClass} text-orange-500`} />;
     if (p === 'Normal') return <Minus size={size} className={`${baseClass} text-blue-500`} />;
@@ -172,7 +177,7 @@ const CodeBlock = ({ language, code }: { language: string, code: string }) => {
         customStyle={{
           margin: 0,
           padding: '1.5rem',
-          background: '#1e1e1e', // Matches your modal bg
+          background: '#1e1e1e', 
           fontSize: '0.875rem',
           lineHeight: '1.5',
         }}
@@ -193,9 +198,8 @@ export default function IssuesPage() {
   const router = useRouter();
   const projectId = params.id as string;
 
-  const { checkAccess, loading: authLoading } = useProjectPermissions(projectId);
-
-
+  // Extract role as userRole for Permissions
+  const { checkAccess, loading: authLoading, role: userRole } = useProjectPermissions(projectId);
 
   // --- STATE ---
   const [user, setUser] = useState<any>(null);
@@ -215,9 +219,13 @@ export default function IssuesPage() {
   const [selectedIssue, setSelectedIssue] = useState<Issue | null>(null); 
   const [isNewIssue, setIsNewIssue] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
-  const [activeTab, setActiveTab] = useState<"details" | "comments">("details");
   
-  // Form State (rest of form state remains unchanged for brevity)
+  // STATE: Manager & Members
+  const [projectMembers, setProjectMembers] = useState<ProjectMember[]>([]);
+  const [showAssignMenu, setShowAssignMenu] = useState(false);
+  const [assignRoleFilter, setAssignRoleFilter] = useState("All");
+  
+  // Form State
   const [formTitle, setFormTitle] = useState("");
   const [formContent, setFormContent] = useState("");
   const [formType, setFormType] = useState("Bug");
@@ -240,7 +248,7 @@ export default function IssuesPage() {
   const [userMap, setUserMap] = useState<Record<string, UserProfile>>({});
 
   // --- INITIAL FETCH ---
-useEffect(() => {
+  useEffect(() => {
     const init = async () => {
       // 1. Get Auth User
       const { data: { user: authUser } } = await supabase.auth.getUser();
@@ -249,11 +257,11 @@ useEffect(() => {
         return; 
       }
         if (!authLoading && !checkAccess('tasks')) {
-    router.push(`/dashboard/projects/${projectId}`);
-    return null;
-  }
+        router.push(`/dashboard/projects/${projectId}`);
+        return null;
+      }
 
-      // 2. Fetch User Profile (To get correct Name/Avatar)
+      // 2. Fetch User Profile
       const { data: userProfile } = await supabase
         .from("users")
         .select("name, surname, metadata")
@@ -282,8 +290,40 @@ useEffect(() => {
         .single();
         
       setProject(proj);
+
+      // 5. Fetch Project Members & Parse "role_info" JSON
+      const { data: membersData } = await supabase
+        .from('project_users')
+        .select('role_info, user:users(id, name, surname, metadata)')
+        .eq('project_id', projectId);
+
+      if (membersData) {
+          const formattedMembers = membersData.map((m: any) => {
+              let r = 'Viewer';
+              if (m.role_info) {
+                  try {
+                      // Attempt to parse the JSON string: {"role":"Developer","permissions":[...]}
+                      const parsedInfo = typeof m.role_info === 'string' ? JSON.parse(m.role_info) : m.role_info;
+                      
+                      // Extract specifically the 'role' field (Name) for display/filtering
+                      if (parsedInfo && parsedInfo.role) {
+                          r = parsedInfo.role;
+                      } else if (typeof parsedInfo === 'string') {
+                          // Handle legacy cases where it might just be a string
+                          r = parsedInfo;
+                      }
+                  } catch (e) {
+                      // Fallback if parsing fails
+                      console.log("Role parsing fallback", e);
+                      r = typeof m.role_info === 'string' ? m.role_info : 'Member';
+                  }
+              }
+              return { user: m.user, role: r };
+          });
+          setProjectMembers(formattedMembers);
+      }
       
-      // 5. Fetch Tasks/Issues (Keep your existing function)
+      // 6. Fetch Tasks/Issues
       fetchIssues();
     };
 
@@ -301,20 +341,25 @@ useEffect(() => {
     if (data) {
        setIssues(data as any);
        
-       // Gather IDs for Avatar Map (Creator, Solver, Collaborators)
+       // Gather IDs for Avatar Map including assigners
        const userIds = new Set<string>();
        data.forEach((i: any) => {
            if(i.user_id) userIds.add(i.user_id);
            if(i.metadata?.resolved_by) userIds.add(i.metadata.resolved_by);
            if(i.metadata?.collaborators) i.metadata.collaborators.forEach((c: string) => userIds.add(c));
+           if(i.metadata?.assigned_by) {
+               Object.values(i.metadata.assigned_by).forEach((val: any) => {
+                   if(val.by) userIds.add(val.by);
+               });
+           }
        });
 
        if(userIds.size > 0) {
          const { data: users } = await supabase.from("users").select("id, name, surname, metadata").in("id", Array.from(userIds));
          if(users) {
-            const map: any = {};
-            users.forEach(u => map[u.id] = u);
-            setUserMap(map);
+           const map: any = {};
+           users.forEach(u => map[u.id] = u);
+           setUserMap(map);
          }
        }
     }
@@ -322,11 +367,7 @@ useEffect(() => {
     setRefreshing(false);
   };
 
-// ... inside IssuesPage component
-
-  // --- UPDATED FETCH COMMENTS LOGIC ---
   const fetchComments = async () => {
-    // Don't fetch if it's a new issue or no issue is selected
     if (!selectedIssue || selectedIssue.id === 'new') {
         setComments([]);
         return;
@@ -335,7 +376,7 @@ useEffect(() => {
     const { data } = await supabase
       .from("issue_comments")
       .select(`*, user:users ( id, name, surname, metadata )`)
-      .eq("issue_id", selectedIssue.id) // Strictly match current issue ID
+      .eq("issue_id", selectedIssue.id) 
       .order("created_at", { ascending: true });
     
     if (data) {
@@ -345,18 +386,14 @@ useEffect(() => {
     }
   };
 
-  // --- UPDATED USE EFFECT ---
-  // Run this whenever the selectedIssue ID changes. 
-  // We removed 'activeTab' dependency because the new UI shows comments by default.
   useEffect(() => {
     if (selectedIssue && !isNewIssue) {
         fetchComments();
     } else {
         setComments([]);
     }
-  }, [selectedIssue?.id]); // Only re-run if the ID changes
+  }, [selectedIssue?.id]);
 
-  // --- FILTER LOGIC ---
   const filteredIssues = issues.filter(issue => {
       const matchesSearch = issue.title.toLowerCase().includes(searchQuery.toLowerCase());
       const matchesType = filterType === "All" || issue.type === filterType;
@@ -365,10 +402,8 @@ useEffect(() => {
       return matchesSearch && matchesType && matchesPriority && matchesStatus;
   });
 
-  // --- ACTIONS (omitted for brevity) ---
   const openModal = (issue?: Issue) => {
     setComments([]);
-    // ... logic remains unchanged
     if (issue) {
       setSelectedIssue(issue);
       setIsNewIssue(false);
@@ -386,7 +421,6 @@ useEffect(() => {
       setAttachments(issue.metadata?.attachments || []);
       setFormGithubRepo(issue.metadata?.github_repo || "");
       setFormGithubPath(issue.metadata?.github_path || "");
-      setActiveTab("details");
     } else {
       setSelectedIssue({ id: "new" } as Issue);
       setIsNewIssue(true);
@@ -403,11 +437,10 @@ useEffect(() => {
       setFormGithubRepo("");
       setFormGithubPath("");
       setAttachments([]);
-      setActiveTab("details");
     }
   };
 
-  const closeModal = () => { setSelectedIssue(null); setIsEditing(false); };
+  const closeModal = () => { setSelectedIssue(null); setIsEditing(false); setShowAssignMenu(false); };
 
   const handleAddTag = async (saveToGlobal: boolean) => {
     if (!tagNameInput) return;
@@ -438,6 +471,7 @@ useEffect(() => {
       github_repo: formGithubRepo,
       github_path: formGithubPath,
       collaborators: selectedIssue?.metadata?.collaborators || [], 
+      assigned_by: selectedIssue?.metadata?.assigned_by || {},
       resolved_by: formStatus === "Resolved" ? user.id : (selectedIssue?.metadata?.resolved_by || null)
     };
 
@@ -481,16 +515,53 @@ useEffect(() => {
     const isJoined = currentCollaborators.includes(user.id);
     
     let newCollaborators;
+    let newAssignedBy = { ...(selectedIssue.metadata?.assigned_by || {}) };
+
     if (isJoined) {
       newCollaborators = currentCollaborators.filter((id: string) => id !== user.id);
+      delete newAssignedBy[user.id]; // Remove assignment record if user leaves
     } else {
       newCollaborators = [...currentCollaborators, user.id];
     }
 
-    const updatedMetadata = { ...selectedIssue.metadata, collaborators: newCollaborators };
+    const updatedMetadata = { ...selectedIssue.metadata, collaborators: newCollaborators, assigned_by: newAssignedBy };
     setSelectedIssue({ ...selectedIssue, metadata: updatedMetadata });
     await supabase.from("issues").update({ metadata: updatedMetadata }).eq("id", selectedIssue.id);
     fetchIssues(); 
+  };
+
+  // --- MANAGER ASSIGNMENT LOGIC ---
+  const handleManagerAssign = async (targetUserId: string) => {
+    if (!selectedIssue) return;
+    const currentCollaborators = selectedIssue.metadata?.collaborators || [];
+    const isJoined = currentCollaborators.includes(targetUserId);
+    
+    let newCollaborators;
+    let newAssignedBy = { ...(selectedIssue.metadata?.assigned_by || {}) };
+
+    if (isJoined) {
+        // Remove user
+        newCollaborators = currentCollaborators.filter(id => id !== targetUserId);
+        delete newAssignedBy[targetUserId];
+    } else {
+        // Add user & add metadata tracking
+        newCollaborators = [...currentCollaborators, targetUserId];
+        newAssignedBy[targetUserId] = {
+            by: user.id,
+            role: userRole || 'Manager',
+            at: new Date().toISOString()
+        };
+    }
+
+    const updatedMetadata = { 
+        ...selectedIssue.metadata, 
+        collaborators: newCollaborators, 
+        assigned_by: newAssignedBy 
+    };
+    
+    setSelectedIssue({ ...selectedIssue, metadata: updatedMetadata });
+    await supabase.from("issues").update({ metadata: updatedMetadata }).eq("id", selectedIssue.id);
+    fetchIssues();
   };
 
   const handleQuickUpdate = async (field: 'status' | 'priority', value: string) => {
@@ -545,7 +616,12 @@ useEffect(() => {
       if (t === 'Feature') return <Zap size={12} className="text-yellow-400" />;
       return <Hammer size={12} className="text-blue-400" />;
   }
+  
   const hasWriteAccess = selectedIssue && (selectedIssue.user_id === user.id || selectedIssue.metadata?.collaborators?.includes(user.id));
+  
+  // UPDATED: Strict Permission Check for "manager"
+  // This ignores the role name (e.g. "Developer") and strictly checks if the "manager" permission string exists.
+  const isManager = checkAccess('management') || userRole === 'owner';
 
  if (loading) {
     return (
@@ -585,8 +661,6 @@ useEffect(() => {
         {/* HEADER */}
         <div className="flex-none h-14 mt-[55px] px-6 border-b border-white/5 flex items-center justify-between bg-[#0a0a0a]/50 backdrop-blur-sm z-10">
           <div className="flex items-center gap-4">
-             {/* <h1 className="text-lg font-bold tracking-tight">{project?.name || "Project"}</h1>
-             <span className="px-2 py-0.5 bg-white/5 text-white/40 text-[10px] uppercase font-bold tracking-wider rounded border border-white/5">Issues Board</span> */}
             <h1 className="text-xl font-bold tracking-tight">Tasks <span className="text-white/30 text-lg font-light">Panel</span></h1>
 
           </div>
@@ -685,7 +759,6 @@ useEffect(() => {
                         key={issue.id} 
                         onClick={() => openModal(issue)} 
                         // CONDITIONAL CLASSES:
-                        // If resolved: lower opacity, grayscale, and slightly different hover behavior
                         className={`grid grid-cols-12 gap-4 px-6 py-4 border-b border-white/5 items-center transition-all cursor-pointer group relative
                             ${isResolved 
                                 ? 'opacity-60 hover:opacity-80 grayscale-[0.3] bg-black/40' 
@@ -693,7 +766,6 @@ useEffect(() => {
                             }
                         `}
                         // CONDITIONAL STYLE:
-                        // Adds the diagonal stripes only if resolved
                         style={isResolved ? {
                             backgroundImage: `repeating-linear-gradient(
                                 45deg,
@@ -711,7 +783,6 @@ useEffect(() => {
                               <div className="flex items-center gap-1 px-1.5 py-0.5 text-[10px] font-bold uppercase rounded border border-white/10 bg-white/5 text-white/60">
                                   {getTypeIcon(issue.type)} {issue.type}
                               </div>
-                              {/* Strikethrough title if resolved */}
                               <span className={`font-medium text-sm truncate transition-colors ${isResolved ? 'text-white/40 line-through decoration-white/20' : 'text-gray-200'}`}>
                                   {issue.title}
                               </span>
@@ -812,8 +883,7 @@ useEffect(() => {
         </div>
       </main>
 
-      {/* --- MODAL (Remaining sections omitted for brevity) --- */}
-{/* --- MODAL --- */}
+      {/* --- MODAL --- */}
       {selectedIssue && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-in fade-in duration-200">
             {/* Main Modal Container */}
@@ -979,96 +1049,95 @@ useEffect(() => {
                                 </div>
                             )}
 
-                            {/* ACTIVITY / COMMENTS (Only in View Mode) */}
-{/* ACTIVITY / COMMENTS STREAM */}
-{!isEditing && !isNewIssue && (
-    <div className="mt-12 pt-10 border-t border-[#333]">
-        <h3 className="text-sm font-bold text-white mb-6 flex items-center gap-2">
-            Activity
-            <span className="px-2 py-0.5 bg-[#333] text-xs rounded-full text-white/60">{comments.length}</span>
-        </h3>
-        
-        {/* Comment Input Area */}
-        <div className="flex gap-4 mb-8">
-            {/* CURRENT USER AVATAR */}
-            <div className="w-8 h-8 rounded-full flex-none flex items-center justify-center overflow-hidden bg-[#9200cc] border border-[#333] text-xs font-bold text-white relative">
-                {(user?.user_metadata?.avatar_url || user?.metadata?.avatar_url) ? (
-                    <img 
-                        src={user.user_metadata?.avatar_url || user.metadata?.avatar_url} 
-                        alt="Me" 
-                        className="w-full h-full object-cover" 
-                    />
-                ) : (
-                    <span>{user?.email?.[0].toUpperCase()}</span>
-                )}
-            </div>
+                            {/* ACTIVITY / COMMENTS STREAM */}
+                            {!isEditing && !isNewIssue && (
+                                <div className="mt-12 pt-10 border-t border-[#333]">
+                                    <h3 className="text-sm font-bold text-white mb-6 flex items-center gap-2">
+                                        Activity
+                                        <span className="px-2 py-0.5 bg-[#333] text-xs rounded-full text-white/60">{comments.length}</span>
+                                    </h3>
+                                    
+                                    {/* Comment Input Area */}
+                                    <div className="flex gap-4 mb-8">
+                                        {/* CURRENT USER AVATAR */}
+                                        <div className="w-8 h-8 rounded-full flex-none flex items-center justify-center overflow-hidden bg-[#9200cc] border border-[#333] text-xs font-bold text-white relative">
+                                            {(user?.user_metadata?.avatar_url || user?.metadata?.avatar_url) ? (
+                                                <img 
+                                                    src={user.user_metadata?.avatar_url || user.metadata?.avatar_url} 
+                                                    alt="Me" 
+                                                    className="w-full h-full object-cover" 
+                                                />
+                                            ) : (
+                                                <span>{user?.email?.[0].toUpperCase()}</span>
+                                            )}
+                                        </div>
 
-            <div className="flex-1">
-                <textarea 
-                    className="w-full bg-[#161616] border border-[#333] rounded-md p-3 text-sm text-white outline-none focus:border-[#9200cc] resize-none transition-all placeholder:text-white/20" 
-                    rows={2} 
-                    placeholder="Add a comment..." 
-                    value={newComment} 
-                    onChange={e => setNewComment(e.target.value)}
-                    onKeyDown={e => {
-                        if (e.key === 'Enter' && !e.shiftKey) {
-                            e.preventDefault();
-                            handlePostComment();
-                        }
-                    }}
-                />
-                <div className="flex justify-end mt-2">
-                        <button onClick={handlePostComment} disabled={!newComment.trim()} className="px-3 py-1.5 bg-[#333] hover:bg-[#444] disabled:opacity-50 text-white text-xs font-bold rounded transition-colors">
-                        Comment
-                        </button>
-                </div>
-            </div>
-        </div>
+                                        <div className="flex-1">
+                                            <textarea 
+                                                className="w-full bg-[#161616] border border-[#333] rounded-md p-3 text-sm text-white outline-none focus:border-[#9200cc] resize-none transition-all placeholder:text-white/20" 
+                                                rows={2} 
+                                                placeholder="Add a comment..." 
+                                                value={newComment} 
+                                                onChange={e => setNewComment(e.target.value)}
+                                                onKeyDown={e => {
+                                                    if (e.key === 'Enter' && !e.shiftKey) {
+                                                        e.preventDefault();
+                                                        handlePostComment();
+                                                    }
+                                                }}
+                                            />
+                                            <div className="flex justify-end mt-2">
+                                                    <button onClick={handlePostComment} disabled={!newComment.trim()} className="px-3 py-1.5 bg-[#333] hover:bg-[#444] disabled:opacity-50 text-white text-xs font-bold rounded transition-colors">
+                                                    Comment
+                                                    </button>
+                                            </div>
+                                        </div>
+                                    </div>
 
-        {/* Comment Timeline */}
-        <div className="space-y-6">
-            {comments.map(c => (
-                <div key={c.id} className="flex gap-4 group animate-in fade-in slide-in-from-top-1 duration-200">
-                    <div className="flex-none">
-                        {/* COMMENTER AVATAR */}
-                        <div className="w-8 h-8 rounded-full flex items-center justify-center overflow-hidden bg-[#252526] border border-[#333] relative">
-                            {c.user.metadata?.avatar_url ? (
-                                <img 
-                                    src={c.user.metadata.avatar_url} 
-                                    className="w-full h-full object-cover" 
-                                    alt={c.user.name || "User"}
-                                />
-                            ) : (
-                                <span className="text-xs font-bold text-white/40">
-                                    {c.user.name?.[0] || "?"}
-                                </span>
+                                    {/* Comment Timeline */}
+                                    <div className="space-y-6">
+                                        {comments.map(c => (
+                                            <div key={c.id} className="flex gap-4 group animate-in fade-in slide-in-from-top-1 duration-200">
+                                                <div className="flex-none">
+                                                    {/* COMMENTER AVATAR */}
+                                                    <div className="w-8 h-8 rounded-full flex items-center justify-center overflow-hidden bg-[#252526] border border-[#333] relative">
+                                                        {c.user.metadata?.avatar_url ? (
+                                                            <img 
+                                                                src={c.user.metadata.avatar_url} 
+                                                                className="w-full h-full object-cover" 
+                                                                alt={c.user.name || "User"}
+                                                            />
+                                                        ) : (
+                                                            <span className="text-xs font-bold text-white/40">
+                                                                {c.user.name?.[0] || "?"}
+                                                            </span>
+                                                        )}
+                                                    </div>
+                                                </div>
+                                                <div className="flex-1">
+                                                    <div className="flex items-center gap-2 mb-1">
+                                                        <span className="font-bold text-sm text-white/90">
+                                                            {c.user.name || "Unknown User"} {c.user.surname}
+                                                        </span>
+                                                        <span className="text-[10px] text-white/30">
+                                                            {new Date(c.created_at).toLocaleString()}
+                                                        </span>
+                                                    </div>
+                                                    <div className="text-sm text-[#cccccc] leading-relaxed whitespace-pre-wrap">
+                                                        {c.content}
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        ))}
+                                        
+                                        {comments.length === 0 && (
+                                            <div className="text-center py-8 text-white/20 italic text-sm">
+                                                No activity yet. Be the first to comment.
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
                             )}
-                        </div>
-                    </div>
-                    <div className="flex-1">
-                        <div className="flex items-center gap-2 mb-1">
-                            <span className="font-bold text-sm text-white/90">
-                                {c.user.name || "Unknown User"} {c.user.surname}
-                            </span>
-                            <span className="text-[10px] text-white/30">
-                                {new Date(c.created_at).toLocaleString()}
-                            </span>
-                        </div>
-                        <div className="text-sm text-[#cccccc] leading-relaxed whitespace-pre-wrap">
-                            {c.content}
-                        </div>
-                    </div>
-                </div>
-            ))}
-            
-            {comments.length === 0 && (
-                <div className="text-center py-8 text-white/20 italic text-sm">
-                    No activity yet. Be the first to comment.
-                </div>
-            )}
-        </div>
-    </div>
-)}
 
                         </div>
 
@@ -1105,30 +1174,113 @@ useEffect(() => {
                                 {/* Assignees */}
                                 <div>
                                     <label className="text-[10px] font-bold text-white/30 uppercase mb-2 flex items-center gap-2"><Users size={12}/> Assignees</label>
-                                    <div className="flex flex-wrap gap-2 mb-2">
-                                         {/* Existing Collaborators */}
-                                         {(isEditing ? (selectedIssue?.metadata?.collaborators || []) : (selectedIssue.metadata?.collaborators || [])).map(uid => (
-                                             <div key={uid} className="flex items-center gap-2 bg-[#252526] pr-2 rounded-full border border-[#333]">
-                                                 {userMap[uid]?.metadata?.avatar_url ? 
-                                                    <img src={userMap[uid].metadata.avatar_url} className="w-6 h-6 rounded-full" /> : 
-                                                    <div className="w-6 h-6 rounded-full bg-[#333] flex items-center justify-center text-[10px] font-bold">{userMap[uid]?.name?.[0]}</div>
-                                                 }
-                                                 <span className="text-xs">{userMap[uid]?.name}</span>
+                                    
+                                    {/* Assignees List with Metadata */}
+                                    <div className="flex flex-col gap-2 mb-2">
+                                         {(isEditing ? (selectedIssue?.metadata?.collaborators || []) : (selectedIssue.metadata?.collaborators || [])).map(uid => {
+                                            // LOGIC TO CHECK ASSIGNMENT
+                                            const assignmentMeta = selectedIssue.metadata?.assigned_by?.[uid];
+                                            const assignerUser = assignmentMeta?.by ? userMap[assignmentMeta.by] : null;
+
+                                            return (
+                                             <div key={uid} className="flex flex-col gap-1 bg-[#252526] p-2 rounded border border-[#333]">
+                                                 <div className="flex items-center gap-2">
+                                                    {userMap[uid]?.metadata?.avatar_url ? 
+                                                        <img src={userMap[uid].metadata.avatar_url} className="w-6 h-6 rounded-full" /> : 
+                                                        <div className="w-6 h-6 rounded-full bg-[#333] flex items-center justify-center text-[10px] font-bold">{userMap[uid]?.name?.[0]}</div>
+                                                    }
+                                                    <span className="text-xs font-bold">{userMap[uid]?.name} {userMap[uid]?.surname}</span>
+                                                 </div>
+                                                 {/* Display "Assigned by Manager" if applicable */}
+                                                 {assignmentMeta && (
+                                                     <div className="text-[10px] text-white/40 pl-8 flex items-center gap-1">
+                                                         <span className="w-1 h-1 rounded-full bg-[#9200cc]"></span>
+                                                         Assigned by {assignerUser ? assignerUser.name : "Manager"}
+                                                     </div>
+                                                 )}
                                              </div>
-                                         ))}
+                                            )
+                                         })}
                                          
-                                         {/* Add Self Button */}
-                                         {!isNewIssue && !isEditing && (
-                                            <button 
-                                                onClick={handleJoinIssue} 
-                                                className={`h-6 px-2 rounded-full border text-[10px] font-bold flex items-center gap-1 transition-all
-                                                ${(selectedIssue.metadata?.collaborators?.includes(user.id)) 
-                                                    ? 'bg-red-500/10 border-red-500/30 text-red-400 hover:bg-red-500/20' 
-                                                    : 'bg-[#333] border-[#444] text-white/60 hover:text-white hover:bg-[#444]'}`}
-                                            >
-                                                {(selectedIssue.metadata?.collaborators?.includes(user.id)) ? "Leave" : "+ Assign me"}
-                                            </button>
-                                         )}
+                                         <div className="flex items-center gap-2 mt-2">
+                                            {/* Existing Self Assign Button */}
+                                            {!isNewIssue && !isEditing && (
+                                                <button 
+                                                    onClick={handleJoinIssue} 
+                                                    className={`h-6 px-3 rounded-full border text-[10px] font-bold flex items-center gap-1 transition-all
+                                                    ${(selectedIssue.metadata?.collaborators?.includes(user.id)) 
+                                                        ? 'bg-red-500/10 border-red-500/30 text-red-400 hover:bg-red-500/20' 
+                                                        : 'bg-[#333] border-[#444] text-white/60 hover:text-white hover:bg-[#444]'}`}
+                                                >
+                                                    {(selectedIssue.metadata?.collaborators?.includes(user.id)) ? "Leave" : "+ Assign me"}
+                                                </button>
+                                            )}
+
+                                            {/* Manager "Manage" Button and Dropdown */}
+                                            {(!isNewIssue && !isEditing && isManager) && (
+                                                <div className="relative">
+                                                    <button 
+                                                        onClick={(e) => { e.stopPropagation(); setShowAssignMenu(!showAssignMenu); }}
+                                                        className="h-6 px-3 rounded-full border border-dashed border-white/30 text-[10px] font-bold flex items-center gap-1 hover:bg-[#333] transition-all text-white/60 hover:text-white hover:border-white/50"
+                                                    >
+                                                        <UserPlus size={12}/> Manage
+                                                    </button>
+                                                    
+                                                    {showAssignMenu && (
+                                                        <div 
+                                                            className="absolute top-full left-0 mt-2 w-64 bg-[#1e1e1e] border border-[#333] rounded-lg shadow-2xl z-50 p-3 animate-in fade-in slide-in-from-top-2 flex flex-col gap-2"
+                                                            onClick={(e) => e.stopPropagation()}
+                                                        >
+                                                            {/* Filter by Role */}
+                                                            <div>
+                                                                <label className="text-[9px] text-white/30 uppercase font-bold mb-1 block">Filter by Role</label>
+                                                                <select 
+                                                                    className="w-full bg-[#252526] text-xs text-white p-2 rounded outline-none border border-[#333] hover:border-[#555] transition-colors"
+                                                                    value={assignRoleFilter}
+                                                                    onChange={(e) => setAssignRoleFilter(e.target.value)}
+                                                                >
+                                                                    <option value="All">All Roles</option>
+                                                                    {Array.from(new Set(projectMembers.map(m => m.role))).map(r => (
+                                                                        <option key={r} value={r}>{r}</option>
+                                                                    ))}
+                                                                </select>
+                                                            </div>
+                                                            
+                                                            {/* Member List */}
+                                                            <div className="max-h-48 overflow-y-auto space-y-1 pr-1 custom-scrollbar">
+                                                                {projectMembers
+                                                                    .filter(m => assignRoleFilter === 'All' || m.role === assignRoleFilter)
+                                                                    .map(member => {
+                                                                        const isAssigned = selectedIssue.metadata?.collaborators?.includes(member.user.id);
+                                                                        return (
+                                                                            <div 
+                                                                                key={member.user.id} 
+                                                                                onClick={() => handleManagerAssign(member.user.id)}
+                                                                                className={`flex items-center gap-2 p-2 rounded cursor-pointer transition-colors border border-transparent ${isAssigned ? 'bg-[#9200cc]/10 border-[#9200cc]/30' : 'hover:bg-[#252526] hover:border-[#333]'}`}
+                                                                            >
+                                                                                <div className="relative">
+                                                                                    {member.user.metadata?.avatar_url ? (
+                                                                                        <img src={member.user.metadata.avatar_url} className="w-6 h-6 rounded-full" />
+                                                                                    ) : (
+                                                                                        <div className="w-6 h-6 rounded-full bg-[#333] flex items-center justify-center text-[8px] font-bold text-white/50">{member.user.name?.[0]}</div>
+                                                                                    )}
+                                                                                    {isAssigned && <div className="absolute -top-1 -right-1 bg-[#9200cc] rounded-full p-0.5 border border-[#1e1e1e]"><CheckCircle2 size={8} className="text-white"/></div>}
+                                                                                </div>
+                                                                                <div className="flex-1 min-w-0">
+                                                                                    <div className={`text-xs font-bold truncate ${isAssigned ? 'text-[#e0aaff]' : 'text-white/80'}`}>{member.user.name} {member.user.surname}</div>
+                                                                                    <div className="text-[10px] text-white/40">{member.role}</div>
+                                                                                </div>
+                                                                            </div>
+                                                                        )
+                                                                    })
+                                                                }
+                                                                {projectMembers.length === 0 && <p className="text-center text-[10px] text-white/20 py-2">No members found.</p>}
+                                                            </div>
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            )}
+                                         </div>
                                     </div>
                                 </div>
 
