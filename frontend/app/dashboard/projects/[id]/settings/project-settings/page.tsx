@@ -34,9 +34,7 @@ type UserStats = {
   total_tokens: number;
   days_active: number;
   favorite_model: string;
-  // Estimated cost added to type
   estimated_cost: number; 
-  // total_interactions is now Total Messages
   total_interactions: number; 
   total_code_reviews: number;
   total_roadmap_chats: number;
@@ -64,7 +62,6 @@ export default function UserSettingsPage() {
   // --- STATE ---
   const [user, setUser] = useState<any>(null); 
   const [project, setProject] = useState<any>(null);
-  // Initialize new stats to 0
   const [stats, setStats] = useState<UserStats | null>({
       joined_at: new Date().toISOString(),
       total_tokens: 0,
@@ -114,8 +111,8 @@ export default function UserSettingsPage() {
       const { data: proj } = await supabase.from("projects").select("*").eq("id", projectId).single();
       setProject(proj);
       
-      // 3. User Role/Permissions 
-      const { data: projectUser, error: puError } = await supabase
+      // 3. User Role/Permissions (UPDATED LOGIC)
+      const { data: projectUser } = await supabase
         .from("project_users")
         .select("role_info")
         .eq("project_id", projectId)
@@ -123,9 +120,35 @@ export default function UserSettingsPage() {
         .single();
         
       if (projectUser && projectUser.role_info) {
-          const roleInfo = projectUser.role_info as RoleInfo;
-          setUserRole(roleInfo.role || 'Member');
-          setUserPermissions(roleInfo.permissions || []);
+          try {
+              // Handle potential stringified JSON vs Object
+              let parsedInfo = projectUser.role_info;
+              
+              if (typeof parsedInfo === 'string') {
+                  try {
+                      parsedInfo = JSON.parse(parsedInfo);
+                  } catch {
+                      // Fallback: value is a simple string like "Manager"
+                      setUserRole(parsedInfo);
+                      setUserPermissions([]);
+                      return; 
+                  }
+              }
+
+              // Extract data safely
+              if (typeof parsedInfo === 'object' && parsedInfo !== null) {
+                  const info = parsedInfo as RoleInfo;
+                  setUserRole(info.role || 'Member');
+                  setUserPermissions(info.permissions || []);
+              } else {
+                   setUserRole('Member');
+                   setUserPermissions([]);
+              }
+          } catch (e) {
+              console.error("Error parsing role info:", e);
+              setUserRole('Member');
+              setUserPermissions([]);
+          }
       } else {
           setUserRole('Unknown');
           setUserPermissions([]);
@@ -140,8 +163,7 @@ export default function UserSettingsPage() {
         .eq("project_id", projectId)
         .eq("user_id", authUser.id);
         
-      // FIX: AI Interactions / Total Messages (ai_messages)
-      // 1. Get all chat IDs for the user in this project
+      // AI Interactions / Total Messages (ai_messages)
       const { data: userChatsData } = await supabase
         .from("ai_chats")
         .select("id")
@@ -150,7 +172,6 @@ export default function UserSettingsPage() {
         
       const chatIds = userChatsData?.map(chat => chat.id) || [];
 
-      // 2. Count all messages across those chats
       let totalMessagesCount = 0;
       if (chatIds.length > 0) {
         const { count: messagesCount } = await supabase
@@ -160,21 +181,21 @@ export default function UserSettingsPage() {
         totalMessagesCount = messagesCount || 0;
       }
       
-      // Code Review Sessions (ai_code_review_chats)
+      // Code Review Sessions
       const { count: codeReviewCount } = await supabase
         .from("ai_code_review_chats")
         .select("*", { count: 'exact', head: true })
         .eq("project_id", projectId)
         .eq("user_id", authUser.id);
 
-      // Roadmap Chats (ai_roadmap_chats)
+      // Roadmap Chats
       const { count: roadmapChatCount } = await supabase
         .from("ai_roadmap_chats")
         .select("*", { count: 'exact', head: true })
         .eq("project_id", projectId)
         .eq("user_id", authUser.id);
         
-      // SQL Chats (ai_sql_chats)
+      // SQL Chats
       const { count: sqlChatCount } = await supabase
         .from("ai_sql_chats")
         .select("*", { count: 'exact', head: true })
@@ -201,23 +222,22 @@ export default function UserSettingsPage() {
           modelCounts[log.model] = (modelCounts[log.model] || 0) + 1;
         });
       } else {
-        firstLogDate = new Date(); // Fallback
+        firstLogDate = new Date();
       }
 
       const favModel = Object.keys(modelCounts).reduce((a, b) => (modelCounts[a] || 0) > (modelCounts[b] || 0) ? a : b, "N/A");
       const diffTime = Math.abs(new Date().getTime() - firstLogDate.getTime());
       const daysActive = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
       
-      const estimatedCost = calculateEstimatedCost(totalTokens); // Calculate estimated cost
+      const estimatedCost = calculateEstimatedCost(totalTokens);
 
-      // Update state with all stats
       setStats({
         joined_at: firstLogDate.toISOString(),
         total_tokens: totalTokens,
         days_active: daysActive,
         favorite_model: favModel,
         estimated_cost: estimatedCost,
-        total_interactions: totalMessagesCount, // Using totalMessagesCount
+        total_interactions: totalMessagesCount,
         total_code_reviews: codeReviewCount || 0,
         total_roadmap_chats: roadmapChatCount || 0,
         total_sql_chats: sqlChatCount || 0,
