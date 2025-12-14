@@ -199,7 +199,12 @@ export default function ProjectPage() {
 
   return (
     <div className="min-h-screen bg-[#0a0a0a] text-white flex relative">
-
+            <style jsx global>{`
+        ::-webkit-scrollbar { width: 10px; height: 10px; }
+        ::-webkit-scrollbar-track { background: #0a0a0a; border-left: 1px solid #222; }
+        ::-webkit-scrollbar-thumb { background: #333; border: 2px solid #0a0a0a; border-radius: 5px; }
+        ::-webkit-scrollbar-thumb:hover { background: #444; }
+      `}</style>
       <Menu project={project} user={user} />
       
       <main className="flex-1 ml-64 min-h-screen overflow-y-auto bg-[#0a0a0a]">

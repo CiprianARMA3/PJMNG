@@ -492,7 +492,8 @@ export default function PricingInterface() {
   }, [currentPlan, selectedPlan]);
 
 
-  if (loading)    return (
+  if (loading)   
+     return (
       <div role="status" className="flex justify-center items-center h-screen bg-[#0a0a0a]">
         <svg
           aria-hidden="true"
