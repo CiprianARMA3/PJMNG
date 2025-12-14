@@ -153,7 +153,7 @@ export default function AddProjectButton() {
 
         {/* --- DROPDOWN MENU --- */}
         {isOpen && (
-          <div className="absolute top-[70%] left-1/2 -translate-x-1/2 w-[100%] bg-[#141414] border border-[#333] rounded-xl shadow-[0_20px_40px_-10px_rgba(0,0,0,0.7)] z-[100] overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+          <div className="absolute top-[72.5%] left-1/2 -translate-x-1/2 w-[100%] bg-[#141414] border border-[#333] rounded-xl shadow-[0_20px_40px_-10px_rgba(0,0,0,0.7)] z-[100] overflow-hidden animate-in fade-in zoom-in-95 duration-200">
             <Link
               href="/create-project" 
               className="w-full px-4 py-3 text-left text-neutral-300 hover:text-white hover:bg-[#1a1a1a] transition-all duration-150 border-b border-[#222] flex items-start gap-3 group/item"

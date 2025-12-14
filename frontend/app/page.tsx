@@ -2,6 +2,7 @@
 
 import React, { useState } from 'react';
 import Image from 'next/image';
+import LandingBoxes from './components/landingPage/boxesLanding'; // Assuming this provides a visual element
 import {
   ChevronDown,
   Menu,
@@ -18,7 +19,6 @@ import {
   Check,
   Minus
 } from 'lucide-react';
-import { redirect } from 'next/dist/server/api-utils';
 
 // --- 1. Aurora Background with Grain (Lighter, Professional Sine Wave) ---
 const AuroraBackground = () => {
@@ -30,7 +30,7 @@ const AuroraBackground = () => {
         @keyframes sine-flow-1 {
           0%   { transform: translate(-20%, 10%) scale(1); opacity: 0.8; }
           25%  { transform: translate(10%, -10%) scale(1.1); opacity: 1; }
-          50%  { transform: translate(40%, 10%) scale(1); opacity: 0.8; }
+          50%  { transform: translate(40%, 10%) scale(0.8); opacity: 0.6; } /* Adjusted opacity for lighter feel */
           75%  { transform: translate(10%, 30%) scale(0.9); opacity: 0.9; }
           100% { transform: translate(-20%, 10%) scale(1); opacity: 0.8; }
         }
@@ -48,9 +48,7 @@ const AuroraBackground = () => {
         }
       `}</style>
 
-      {/* Professional Gradient Elements - Lighter Pastel Tones 
-          Switched from heavy 500/600 weights to 100/200 weights for a 'lighter' feel 
-      */}
+      {/* Professional Gradient Elements - Lighter Pastel Tones */}
       
       {/* Light Blue/Indigo Wave (Top Left > Right) */}
       <div 
@@ -201,13 +199,7 @@ const Hero = () => (
       </div>
       <div className="pt-8 animate-fade-in -mt-6">
         <div className="inline-flex items-center gap-2 px-5 py-2 mix-blend-multiply">
-          {/* <span className="text-sm font-semibold text-[#5f6368] mt-5.5">
-            Uses the
-          </span> */}
           <img src="https://freepnglogo.com/images/all_img/1728457808_Google_Gemini_logo_PNG.png" className='w-30 mt-2 inline-block ml-2 opacity-80 mix-blend-multiply hover:grayscale-0 transition-all' alt="Gemini" />
-          {/* <span className="text-sm font-semibold text-[#5f6368] mt-5.5">
-            API 
-          </span> */}
         </div>
       </div>
     </div>
@@ -233,6 +225,7 @@ const FeatureCard = ({ icon: Icon, title, text }: { icon: any, title: string, te
 );
 
 const Features = () => (
+  // Removed LandingBoxes from here. Added py-32 to create space
   <section className="py-32 px-6 bg-white relative z-10 flex items-center">
     <div className="max-w-[1200px] mx-auto w-full">
       <div className="text-center mb-20 max-w-3xl mx-auto">
@@ -279,7 +272,6 @@ const Features = () => (
 
 // --- 5. Pricing Section ---
 const PricingSection = () => {
-  // Changed default state to false so Monthly is selected by default
   const [isAnnual, setIsAnnual] = useState(false);
 
   const plans = [
@@ -343,7 +335,7 @@ const PricingSection = () => {
   ];
 
   return (
-    <section className="py-24 px-6  relative z-10 overflow-hidden" id="pricing">
+    <section className="py-24 px-6 relative z-10 overflow-hidden" id="pricing">
       <div className="max-w-[1200px] mx-auto w-full relative">
         
         {/* Header */}
@@ -474,6 +466,16 @@ export default function Page() {
     <main className="bg-white min-h-screen font-sans selection:bg-purple-100 selection:text-purple-900 scroll-smooth">
       <Navbar />
       <Hero />
+      
+      {/* NEW: Wrapper for LandingBoxes. Placed between Hero and Features.
+        We use relative positioning here and z-20 to ensure it's above the white background of the Features section 
+        but likely behind the FeatureCards which are z-10 inside Features.
+        The negative margin is an aesthetic guess to make the boxes visually flow up into the Hero section.
+      */}
+      <div className="relative z-20 -mt-24">
+        <LandingBoxes />
+      </div>
+      
       <Features />
       <PricingSection />
       <Footer />

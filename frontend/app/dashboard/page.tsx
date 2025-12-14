@@ -19,7 +19,7 @@ import { signOut } from "../actions/auth";
 
 // Dynamic imports
 const HomeSection = lazy(() => import("./components/dashboard-sections/HomeSection"));
-const MailSection = lazy(() => import("./components/dashboard-sections/MailSection"));
+const MailSection = lazy(() => import("./components/dashboard-sections/Blog"));
 const QuickActionsSection = lazy(() => import("./components/dashboard-sections/Subscriptions"));
 const SettingsSection = lazy(() => import("./components/dashboard-sections/SettingsSection"));
 const UserSettings = lazy(() => import("./components/profile-settings/Settings"));

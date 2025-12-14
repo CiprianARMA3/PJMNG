@@ -134,101 +134,93 @@ export default function ProjectTemplate({ project, creatorName }: ProjectTemplat
   return (
     <div 
       onClick={handleCardClick}
-      className="group relative flex flex-col w-full bg-[#111] border border-[#222] hover:border-[#333] rounded-xl overflow-hidden cursor-pointer transition-all duration-300 shadow-sm hover:shadow-lg"
+      className="group relative flex flex-col w-full bg-[#111] border border-[#222] hover:border-[#333] rounded-xl overflow-hidden cursor-pointer transition-all duration-300 shadow-sm hover:shadow-lg min-h-[360px]"
     >
-      {/* Banner Area */}
-      <div className="relative h-28 w-full overflow-hidden bg-[#161616]">
+      {/* Banner Area - Increased Height (h-28 -> h-44) */}
+      <div className="relative h-44 w-full overflow-hidden bg-[#161616]">
         <img 
             src={bannerUrl} 
             alt={`${project.name} Banner`} 
             className="w-full h-full object-cover opacity-60 group-hover:opacity-80 group-hover:scale-105 transition-all duration-500" 
         />
-        <div className="absolute inset-0 bg-gradient-to-t from-[#111] to-transparent" />
-        
-        {/* Settings Action */}
-        {/* <div className="absolute top-3 right-3 z-20 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
-            <button 
-                onClick={stopPropagation}
-                className="p-1.5 bg-[#1a1a1a] hover:bg-[#222] text-neutral-400 hover:text-white border border-[#333] rounded-lg transition-colors"
-            >
-                <Settings size={14} />
-            </button>
-        </div> */}
+        <div className="absolute inset-0 bg-gradient-to-t from-[#111] via-transparent to-transparent" />
       </div>
 
-      {/* Content Body */}
-      <div className="flex-1 px-5 pb-5 -mt-8 relative z-10 flex flex-col">
+      {/* Content Body - Increased Padding & Negative Margin */}
+      <div className="flex-1 px-6 pb-6 -mt-10 relative z-10 flex flex-col">
         {/* Header: Icon + Title */}
-        <div className="flex items-end gap-3 mb-4">
-            <div className="w-14 h-14 rounded-xl bg-[#1a1a1a] border border-[#2a2a2a] p-1 shadow-lg group-hover:border-[#333] transition-colors overflow-hidden">
+        <div className="flex items-end gap-4 mb-5">
+            {/* Increased Icon Size (w-14 -> w-16) */}
+            <div className="w-16 h-16 rounded-xl bg-[#1a1a1a] border border-[#2a2a2a] p-1.5 shadow-lg group-hover:border-[#333] transition-colors overflow-hidden shrink-0">
                  {iconUrl ? (
                      <img src={iconUrl} alt="Icon" className="w-full h-full object-cover rounded-lg" />
                  ) : (
-                    <div className="w-full h-full flex items-center justify-center bg-[#111] rounded-lg text-neutral-600 font-bold text-lg">
+                    <div className="w-full h-full flex items-center justify-center bg-[#111] rounded-lg text-neutral-600 font-bold text-xl">
                         {project.name.substring(0, 2).toUpperCase()}
                     </div>
                  )}
             </div>
             <div className="mb-1 min-w-0 flex-1">
-                <h3 className="text-lg font-medium text-white truncate group-hover:text-neutral-200 transition-colors">
+                {/* Increased Title Size (text-lg -> text-xl) */}
+                <h3 className="text-xl font-medium text-white truncate group-hover:text-neutral-200 transition-colors">
                     {project.name}
                 </h3>
             </div>
         </div>
 
-        {/* Description */}
-        <p className="text-xs text-neutral-500 line-clamp-2 mb-6 h-8 leading-relaxed">
+        {/* Description - Increased Text Size & Line Clamp (text-xs -> text-sm) */}
+        <p className="text-sm text-neutral-500 line-clamp-3 mb-8 h-auto min-h-[3rem] leading-relaxed">
             {project.description || "No description provided for this project."}
         </p>
 
-        {/* Stats Row */}
-        <div className="grid grid-cols-2 gap-3 mb-5">
-            <div className="bg-[#161616] border border-[#222] rounded-lg p-2.5 flex items-center gap-3">
-                 <Calendar size={14} className="text-neutral-600" />
+        {/* Stats Row - Increased Padding & Text Sizes */}
+        <div className="grid grid-cols-2 gap-4 mb-6">
+            <div className="bg-[#161616] border border-[#222] rounded-lg p-3 flex items-center gap-3">
+                 <Calendar size={16} className="text-neutral-600" />
                  <div className="flex flex-col">
-                    <span className="text-[10px] text-neutral-500 uppercase font-medium">Created</span>
-                    <span className="text-xs text-neutral-300">{formattedDate}</span>
+                    <span className="text-xs text-neutral-500 uppercase font-medium">Created</span>
+                    <span className="text-sm text-neutral-300">{formattedDate}</span>
                  </div>
             </div>
             
-            <div className="bg-[#161616] border border-[#222] rounded-lg p-2.5 flex items-center gap-3">
-                 <Users size={14} className="text-neutral-600" />
+            <div className="bg-[#161616] border border-[#222] rounded-lg p-3 flex items-center gap-3">
+                 <Users size={16} className="text-neutral-600" />
                  <div className="flex flex-col">
-                    <span className="text-[10px] text-neutral-500 uppercase font-medium">Team</span>
-                    <span className="text-xs text-neutral-300">{memberCount} Members</span>
+                    <span className="text-xs text-neutral-500 uppercase font-medium">Team</span>
+                    <span className="text-sm text-neutral-300">{memberCount} Members</span>
                  </div>
             </div>
         </div>
 
         {/* Footer: Links & Creator */}
-        <div className="mt-auto pt-4 border-t border-[#222] flex items-center justify-between">
+        <div className="mt-auto pt-5 border-t border-[#222] flex items-center justify-between">
             {/* Social Links */}
             <div className="flex items-center gap-2" onClick={stopPropagation}>
                  {metadataLinks.length > 0 ? (
-                    metadataLinks.slice(0, 3).map((link) => (
+                    metadataLinks.slice(0, 4).map((link) => (
                       <a 
                         key={link.key} 
                         href={link.url} 
                         target="_blank" 
                         rel="noopener noreferrer" 
-                        className="p-1.5 rounded-md hover:bg-[#222] text-neutral-500 hover:text-white transition-colors"
+                        className="p-2 rounded-md hover:bg-[#222] text-neutral-500 hover:text-white transition-colors"
                         title={link.key}
                       >
-                         <link.Icon size={14} />
+                         <link.Icon size={16} />
                       </a>
                     ))
                  ) : (
-                    <span className="text-[10px] text-neutral-600 italic px-1">No links</span>
+                    <span className="text-xs text-neutral-600 italic px-1">No links</span>
                  )}
-                 {metadataLinks.length > 3 && (
-                     <span className="text-[10px] text-neutral-600">+{metadataLinks.length - 3}</span>
+                 {metadataLinks.length > 4 && (
+                     <span className="text-xs text-neutral-600 pl-1">+{metadataLinks.length - 4}</span>
                  )}
             </div>
 
             {/* Creator Badge */}
-            <div className="text-[10px] text-neutral-500 flex items-center gap-1.5">
+            <div className="text-xs text-neutral-500 flex items-center gap-2">
                 <span>by</span>
-                <span className="font-medium text-neutral-400 bg-[#161616] px-1.5 py-0.5 rounded border border-[#222]">
+                <span className="font-medium text-neutral-400 bg-[#161616] px-2 py-0.5 rounded border border-[#222]">
                     {creator}
                 </span>
             </div>
