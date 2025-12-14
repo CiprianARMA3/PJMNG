@@ -1,4 +1,4 @@
-// tablecalendar.tsx (ProjectCalendarTable)
+// tablecalendar.tsx
 
 'use client';
 
@@ -22,7 +22,7 @@ const mockProjectId = 'mock-project-id';
 
 export default function ProjectCalendarTable() {
     // --- STATE ---
-    // We initialize this to null and ensure it cannot be set to a task.
+    // Modal state is initialized but functionally disabled
     const [selectedTask, setSelectedTask] = useState<Task | null>(null);
     
     // Using the same mock data and helpers
@@ -89,19 +89,11 @@ export default function ProjectCalendarTable() {
                 .widget-scrollbar::-webkit-scrollbar-thumb { background: #bbb; border-radius: 2px; }
                 .widget-scrollbar::-webkit-scrollbar-thumb:hover { background: #999; }
     
-                /* LIGHT MODE STRIPES */
-                .past-event-striped {
-                    background-image: repeating-linear-gradient(
-                        45deg,
-                        transparent,
-                        transparent 5px,
-                        rgba(0,0,0,0.05) 5px,
-                        rgba(0,0,0,0.05) 10px
-                    );
-                }
+                /* LIGHT MODE STRIPES (REMOVED) */
             `}</style>
             
-            {/* --- WIDGET HEADER --- */}
+            {/* --- WIDGET HEADER (Fixed to Table View) --- */}
+            {/* **REVERT: Use bg-gray-50 to match the calendar header grey** */}
             <div className="flex-none h-12 px-4 border-b border-gray-200 flex items-center justify-between bg-gray-50">
                  <h2 className="text-xs font-semibold text-gray-800 flex items-center gap-1">
                     <TableIcon size={12} className="text-purple-600"/> Event List View
@@ -115,8 +107,10 @@ export default function ProjectCalendarTable() {
             </div>
 
             {/* --- TABLE VIEW --- */}
-            <div className="flex-1 overflow-auto widget-scrollbar p-2 bg-gray-50">
+            {/* **REVERT: Use bg-white for the main scrollable content area** */}
+            <div className="flex-1 overflow-auto widget-scrollbar bg-white">
                 <table className="w-full text-left text-xs text-gray-700 border-collapse">
+                    {/* **REVERT: Use bg-gray-50 to match the calendar's main header/background tone** */}
                     <thead className="text-[9px] uppercase font-bold text-gray-500 bg-gray-50 sticky top-0 border-b border-gray-200 z-10">
                         <tr>
                             <th className="px-3 py-2">Date</th>
@@ -135,9 +129,8 @@ export default function ProjectCalendarTable() {
                             return (
                                 <tr 
                                     key={task.id} 
-                                    // MODIFICATION: Removed onClick handler
-                                    // onClick={() => setSelectedTask(task)} 
-                                    className={`transition-colors cursor-default ${isPast ? 'opacity-70 past-event-striped' : 'hover:bg-gray-50'}`} // Removed hover:bg-gray-100 for a less interactive feel
+                                    // Row background is implicitly white or hover:bg-gray-50
+                                    className={`transition-colors cursor-default ${isPast ? 'opacity-70' : 'hover:bg-gray-50'}`} 
                                 >
                                     <td className="px-3 py-2 font-mono text-[10px] text-gray-500">
                                         <div className="text-gray-800">{new Date(task.task_date).toLocaleDateString()}</div>
@@ -156,7 +149,7 @@ export default function ProjectCalendarTable() {
                                         <div className="flex -space-x-1.5">
                                             {(task.metadata?.attendees || []).map((uid, i) => (
                                                 <div key={i} className="w-5 h-5 rounded-full bg-gray-200 border border-white overflow-hidden" title={userMap[uid]?.name || ""}>
-                                                    {userMap[uid]?.metadata?.avatar_url ? <img src={userMap[uid].metadata.avatar_url} className="w-full h-full object-cover"/> : <div className="w-full h-full flex items-center justify-center text-[8px] text-gray-600">{userMap[uid]?.name?.[0] || 'U'}</div>}
+                                                    {userMap[uid]?.metadata?.avatar_url ? <img src={userMap[uid].metadata.avatar_url} alt={userMap[uid]?.name || "User Avatar"} className="w-full h-full object-cover"/> : <div className="w-full h-full flex items-center justify-center text-[8px] text-gray-600">{userMap[uid]?.name?.[0] || 'U'}</div>}
                                                 </div>
                                             ))}
                                         </div>
@@ -167,10 +160,6 @@ export default function ProjectCalendarTable() {
                     </tbody>
                 </table>
             </div>
-            {/* Modal is not included in this component */}
         </div>
     );
 }
-
-// Re-export the new component for use in the parent file
-// export { ProjectCalendarTable }; // This line is not needed in the final JSX but helpful for module structure

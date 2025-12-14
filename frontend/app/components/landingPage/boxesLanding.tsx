@@ -2,7 +2,7 @@ import React from 'react';
 import TASK from './components/tasks';
 import CALENDAR from './components/calendar';
 import TABLECALENDAR from './components/tablecalendar';
-
+import REPOSITORYLOGS from './components/repositorylogs';
 import { 
   ArrowRight, 
   GitMerge, 
@@ -70,61 +70,77 @@ const FeaturesSection = () => {
 
         {/* --- Row 2: Split Grid --- */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          
           {/* Card: Review Experience */}
-{/* Card: Review Experience */}
 <FeatureCard className="p-8 md:p-10 flex flex-col justify-between min-h-[400px]">
     <div>
         <h3 className="text-2xl md:text-3xl font-bold mb-3">
             Keep track of Events and Workflow
         </h3>
         <p className="text-gray-600 mb-6">
-            One unified inbox and review workflow for your team's PRs.
+            Seamlessly manage your team's calendar and schedule with dual-view visualization for maximum clarity.
         </p>
         <a href="#" className="group flex items-center gap-2 text-sm font-semibold hover:text-gray-600 transition-colors mb-8">
-            Learn more 
+            Explore calendar features
             <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
         </a>
     </div>
     
-    {/* MODIFIED SECTION: Overlapping Container */}
-    <div className="relative h-64 w-full flex justify-start -mb-8"> 
+    {/* Professional Overlapping Calendar Layout */}
+    <div className="relative flex-1 w-full -mx-10 -mb-10"> 
         
-        {/* 1. CALENDAR (Left, lower z-index) */}
-        {/* Set to position absolute to establish space for TABLECALENDAR, using 70% width. */}
-        <div className="absolute top-0 left-0 h-full w-[70%] z-10">
-            <CALENDAR /> 
-        </div>
-        
-        {/* 2. TABLECALENDAR (Far Right, higher z-index, overlaps CALENDAR by 30%) */}
-        <div className="absolute top-0 right-0 h-full w-[60%] z-20">
-            {/* Inner wrapper for shadow/border on the table content */}
-            <div className="absolute inset-0 shadow-2xl border-2 border-purple-300 rounded-xl overflow-hidden bg-white">
+        {/* 1. TABLECALENDAR (Left, sticks to left border) */}
+        <div className="absolute top-0 left-0 bottom-0 w-[80%] z-10">
+            <div className="h-full rounded-l-none rounded-r-lg overflow-hidden shadow-lg border-r border-t border-b border-gray-200 bg-white">
                 <TABLECALENDAR />
             </div>
         </div>
         
+        {/* 2. CALENDAR (Right, sticks to right border, overlaps table) */}
+        <div className="absolute  left-[200] bottom-[-5] w-[80%] z-20">
+            <div className="h-full rounded-l-lg rounded-r-none overflow-hidden shadow-xl border-l-2 border-t-2 border-b-2 border-purple-300 bg-white">
+                <CALENDAR /> 
+            </div>
+        </div>
+        
     </div>
-    {/* END OF MODIFIED SECTION */}
 
 </FeatureCard>
 
           {/* Card: Notifications */}
-          <FeatureCard className="p-8 md:p-10 flex flex-col min-h-[400px]">
-            <div className="mb-8">
+<FeatureCard 
+            className="
+              p-8 md:p-10 
+              flex flex-col 
+              min-h-[400px] 
+              w-full  {/* STRETCH: Ensure the card takes full width */}
+              !m-0 !p-0 {/* ADJUSTMENT: Optionally remove outer padding/margin if FeatureCard adds default spacing */}
+            "
+          >
+            {/* Top Content (Unchanged) */}
+            <div className=" p-8 md:p-10 pb-0"> {/* PADDING ADJUSTMENT: Added padding back to internal div */}
               <h3 className="text-2xl md:text-3xl font-bold mb-3">
-                Don't miss a beat
+                Keep track of your GitHub Repository
               </h3>
               <p className="text-gray-600 mb-6">
-                Actionable Slack notifications that meet you where you are.
+                Both in a calendar and graph UI, you will be able to keep track of any changes made by your collaborators.
               </p>
               <a href="#" className="group flex items-center gap-2 text-sm font-semibold hover:text-gray-600 transition-colors">
-                Read the docs 
+                See more
                 <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
               </a>
             </div>
-            <div className="flex-1 flex items-end justify-center">
-              <TemplateImage className="w-full h-32 shadow-lg" label="Notification Preview" />
+
+            {/* Bottom Content (REPOSITORYLOGS) */}
+            <div className="
+              flex-1 
+              flex 
+              items-end {/* BOTTOM: Aligns children (REPOSITORYLOGS) to the bottom of this flex-1 container */}
+              justify-center 
+              w-full 
+              overflow-hidden {/* CLIPPING FIX: Ensures widget doesn't spill out */}
+               pt-0 {/* WIDGET FIT: Minimal padding if the widget has its own border/shadow */}
+            ">
+              <REPOSITORYLOGS />
             </div>
           </FeatureCard>
         </div>

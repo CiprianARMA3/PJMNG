@@ -1,11 +1,15 @@
-// calendar.tsx (Calendar3DayFixedView)
+// calendar.tsx
 
 'use client';
 
 import { useEffect, useState, useMemo } from "react";
-// ... (imports remain the same)
+import { createClient } from "@/utils/supabase/client";
+import { 
+  Calendar as CalendarIcon, 
+  X, ChevronLeft, ChevronRight,
+  Clock, Video, ExternalLink, Tag as TagIcon
+} from "lucide-react";
 import { useParams } from "next/navigation";
-import { CalendarIcon, ChevronLeft, ChevronRight } from "lucide-react";
 
 // --- TYPES (Keeping original types for consistency) ---
 type Tag = { name: string; color: string; textColor?: string };
@@ -20,7 +24,7 @@ type Task = {
 };
 
 /**
- * Calendar component fixed to 3-Day View with non-selectable view options.
+ * Calendar component fixed to 3-Day View. 
  * Events are non-selectable and cannot open the detail modal.
  */
 export default function Calendar3DayFixedView() {
@@ -44,8 +48,7 @@ export default function Calendar3DayFixedView() {
   const [startDate, setStartDate] = useState<Date>(new Date());
   const [hourHeight, setHourHeight] = useState(30); 
 
-  // Modal State (kept for structure, but task selection removed)
-  // We initialize this to null and ensure it cannot be set to a task.
+  // Modal State is maintained but functionally disabled
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
 
   // --- CONFIG (FIXED 3 HOUR WINDOW: 9 AM to 12 PM) ---
@@ -53,14 +56,13 @@ export default function Calendar3DayFixedView() {
   const END_HOUR = 12;
   const HOURS = Array.from({ length: END_HOUR - START_HOUR }, (_, i) => START_HOUR + i);
 
-  // --- SCROLL LOCKING EFFECT --- (Now redundant, but kept for cleanup)
+  // --- SCROLL LOCKING EFFECT --- 
   useEffect(() => {
-    // Modal will never open, so we always keep overflow unset.
     document.body.style.overflow = 'unset';
     return () => { document.body.style.overflow = 'unset'; }
-  }, []); // Empty dependency array, always unset
+  }, []); 
 
-  // --- HELPER LOGIC --- (Unchanged)
+  // --- HELPER LOGIC ---
   const getStartOfWeek = (d: Date) => {
     const day = d.getDay();
     const diff = d.getDate() - day + (day === 0 ? -6 : 1); 
@@ -85,10 +87,8 @@ export default function Calendar3DayFixedView() {
       return h * 60 + m;
   };
 
-  // --- VISUALIZATION LOGIC & MOCK DATA --- (Unchanged)
-  // ... (getEventStyle, dateStrip, currentTimeMarker, getTaskTags, mockTasks, tasksToDisplay all remain the same)
+  // --- VISUALIZATION LOGIC & MOCK DATA --- 
   const getEventStyle = (task: Task, dayTasks: Task[]) => {
-      // ... (implementation remains the same)
       const startMinsTotal = toMinutes(task.start_time);
       const endMinsTotal = toMinutes(task.end_time);
       const durationMins = endMinsTotal - startMinsTotal;
@@ -217,7 +217,7 @@ export default function Calendar3DayFixedView() {
 
   return (
     // Outer Container with the specific absolute positioning styles
-    <div className="absolute top-0 right-[-40px] left-0 bottom-[-40px] shadow-lg !rounded-r-none bg-white flex flex-col overflow-hidden font-sans relative">
+    <div className="absolute top-0 right-[-40px] left-0 bottom-[40px] shadow-lg !rounded-r-none bg-white flex flex-col overflow-hidden font-sans relative">
         <style jsx global>{`
             /* LIGHT MODE SCROLLBAR */
             .widget-scrollbar::-webkit-scrollbar { width: 4px; height: 4px; }
@@ -259,6 +259,7 @@ export default function Calendar3DayFixedView() {
                     {[1, 3, 5, 7].map(n => (
                         <button 
                             key={n} 
+                            // Removed onClick handler
                             className={`
                                 px-2 py-1 rounded text-[9px] font-bold uppercase cursor-default
                                 ${numDaysInView === n 
@@ -347,12 +348,11 @@ export default function Calendar3DayFixedView() {
                                             return (
                                                 <div 
                                                     key={task.id}
-                                                    // MODIFICATION: Removed onClick handler
-                                                    // onClick={() => setSelectedTask(task)} 
+                                                    // NON-SELECTABLE: Removed onClick handler
                                                     style={style}
                                                     className={`
                                                         absolute rounded-[3px] px-1 py-0.5 transition-all border-l-2 overflow-hidden flex flex-col justify-start
-                                                        hover:brightness-105 hover:z-50 shadow-sm cursor-default // Changed cursor to default
+                                                        hover:brightness-105 hover:z-50 shadow-sm cursor-default 
                                                         ${theme.bg} ${theme.border} ${theme.text}
                                                         ${isPast ? 'past-event-striped opacity-80' : ''}
                                                     `}
@@ -373,9 +373,8 @@ export default function Calendar3DayFixedView() {
             </div>
         </div>
 
-        {/* --- GLOBAL FIXED MODAL --- (It will never open because selectedTask is always null) */}
+        {/* --- GLOBAL FIXED MODAL (DISABLED) --- */}
         {selectedTask && (
-             // ... (Modal JSX remains here but will never render)
              <div className="hidden">Modal Content</div>
         )}
     </div>
