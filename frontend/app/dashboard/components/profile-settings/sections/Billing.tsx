@@ -284,7 +284,7 @@ export default function BillingPage() {
                                     </button>
                                 )}
                                 <Link
-                                    href="/pricing"
+                                    href="/dashboard"
                                     className="px-4 py-2 text-xs font-semibold bg-neutral-200 hover:bg-white text-black rounded-lg transition-colors shadow-lg"
                                 >
                                     Change Plan
