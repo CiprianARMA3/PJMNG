@@ -54,8 +54,6 @@ export const hasPermission = (
   requiredPermission: ProjectPermission
 ): boolean => {
   if (!userPermissions) return false;
-  // Admin bypass
   if (userPermissions.includes('all')) return true;
-  // Specific check
   return userPermissions.includes(requiredPermission);
 };
