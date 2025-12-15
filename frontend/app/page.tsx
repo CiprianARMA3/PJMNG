@@ -19,6 +19,7 @@ import {
   Check,
   Minus
 } from 'lucide-react';
+import { redirect } from 'next/dist/server/api-utils';
 
 // --- 1. Aurora Background with Grain (Lighter, Professional Sine Wave) ---
 const AuroraBackground = () => {
@@ -208,6 +209,7 @@ const Hero = () => (
 
 // --- 4. Features Grid ---
 const FeatureCard = ({ icon: Icon, title, text }: { icon: any, title: string, text: string }) => (
+  
   <div className="group relative p-10 rounded-[2rem] bg-gray-50/50 border border-transparent 
     hover:border-purple-100/50 hover:bg-gradient-to-br hover:from-white hover:to-purple-50/20 
     hover:shadow-[0_8px_30px_rgb(0,0,0,0.04)] transition-all duration-500 ease-out hover:-translate-y-2">
@@ -225,15 +227,10 @@ const FeatureCard = ({ icon: Icon, title, text }: { icon: any, title: string, te
 );
 
 const Features = () => (
-  // Removed LandingBoxes from here. Added py-32 to create space
+  
   <section className="py-32 px-6 bg-white relative z-10 flex items-center">
+    
     <div className="max-w-[1200px] mx-auto w-full">
-      <div className="text-center mb-20 max-w-3xl mx-auto">
-        <h2 className="text-4xl md:text-5xl font-medium text-[#202124] mb-6 tracking-tight">
-          Your entire workflow. <br /> In one dashboard.
-        </h2>
-      </div>
-
       <div className="grid md:grid-cols-3 gap-8">
         <FeatureCard 
           icon={GitBranch}
@@ -420,7 +417,8 @@ const PricingSection = () => {
                   ? 'bg-purple-600 text-white hover:bg-purple-700 shadow-lg shadow-purple-500/30' 
                   : 'bg-gray-50 text-[#202124] hover:bg-gray-100 border border-transparent hover:border-gray-200'
                 }`}>
-                Get Started
+                  <a href="/dashboard">Get Started</a>
+                
               </button>
             </div>
           ))}
@@ -473,9 +471,18 @@ export default function Page() {
         The negative margin is an aesthetic guess to make the boxes visually flow up into the Hero section.
       */}
       <div className="relative z-20 -mt-24">
+              <div className="text-center mb-10 mt-20 max-w-3xl mx-auto">
+        <h2 className="text-4xl md:text-5xl font-medium text-[#202124] mb-6 tracking-tight">
+          Your entire workflow. <br /> In one dashboard.
+        </h2>
+      </div>
         <LandingBoxes />
       </div>
-      
+                    <div className="text-center mt-20  max-w-3xl mx-auto">
+        <h2 className="text-4xl md:text-5xl font-medium text-[#202124] mb-6 tracking-tight">
+          Every feature in detail <br /> For you and your collaborators.
+        </h2>
+      </div>
       <Features />
       <PricingSection />
       <Footer />

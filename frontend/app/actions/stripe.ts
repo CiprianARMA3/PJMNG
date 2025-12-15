@@ -421,7 +421,7 @@ export async function getUserBillingInfo() {
     return { invoices: [], subscription: null, planDetails: null };
   }
 
-  console.log(`\n🐛 [DEBUG-START] Fetching billing info for customer: ${userData.stripe_customer_id}`);
+  console.log(`\n  [DEBUG-START] Fetching billing info for customer: ${userData.stripe_customer_id}`);
 
   // --- 1. Fetch Invoices and Find Latest Period End (For Fallback) ---
   const invoices = await stripe.invoices.list({
@@ -434,7 +434,7 @@ export async function getUserBillingInfo() {
   const invoicePeriodEndFallback = 
     latestInvoice?.lines?.data?.[0]?.period?.end || null; 
     
-  console.log(`🐛 [DEBUG] Latest Invoice Period End Fallback Timestamp: ${invoicePeriodEndFallback}`);
+  console.log(`  [DEBUG] Latest Invoice Period End Fallback Timestamp: ${invoicePeriodEndFallback}`);
 
   const formattedInvoices = invoices.data.map(inv => {
     // FIX INTEGRATED: Read period end from the line item for the table display
@@ -479,7 +479,7 @@ export async function getUserBillingInfo() {
     if (item && price) {
       amount = ((price.unit_amount || 0) / 100).toFixed(2);
       interval = price.recurring?.interval === 'year' ? 'year' : 'month';
-      console.log(`🐛 [DEBUG] Extracted Price Interval: ${interval}`);
+      console.log(`  [DEBUG] Extracted Price Interval: ${interval}`);
     }
     
     if (planId) {
@@ -502,20 +502,20 @@ export async function getUserBillingInfo() {
     if (rawItemPeriodEndTimestamp) {
         // *** PRIMARY FIX: Use the Item's period end, which is present ***
         relevantTimestamp = rawItemPeriodEndTimestamp;
-        console.log(`🐛 [DEBUG-DATE] Primary source (Item) used: ${relevantTimestamp}`);
+        console.log(`  [DEBUG-DATE] Primary source (Item) used: ${relevantTimestamp}`);
 
     } else if (sub.status === 'trialing' && rawTrialEndTimestamp) {
         relevantTimestamp = rawTrialEndTimestamp;
-        console.log(`🐛 [DEBUG-DATE] Secondary source (Trial End) used: ${relevantTimestamp}`);
+        console.log(`  [DEBUG-DATE] Secondary source (Trial End) used: ${relevantTimestamp}`);
 
     } else if (rawSubPeriodEndTimestamp) {
         relevantTimestamp = rawSubPeriodEndTimestamp;
-        console.log(`🐛 [DEBUG-DATE] Secondary source (Sub Period End) used: ${relevantTimestamp}`);
+        console.log(`  [DEBUG-DATE] Secondary source (Sub Period End) used: ${relevantTimestamp}`);
 
     } else if (sub.status === 'active' && invoicePeriodEndFallback) {
         // Fallback for active subs missing all fields
         relevantTimestamp = invoicePeriodEndFallback;
-        console.log(`🐛 [DEBUG-DATE] Fallback source (Invoice Period End) used: ${relevantTimestamp}`);
+        console.log(`  [DEBUG-DATE] Fallback source (Invoice Period End) used: ${relevantTimestamp}`);
     }
 
 
@@ -525,12 +525,12 @@ export async function getUserBillingInfo() {
         
         if (!isNaN(periodEnd.getTime())) {
              periodEndIso = periodEnd.toISOString();
-             console.log(`🐛 [DEBUG-DATE] Final ISO Date: ${periodEndIso}`);
+             console.log(`  [DEBUG-DATE] Final ISO Date: ${periodEndIso}`);
         } else {
              console.error(`❌ [STRIPE-DATE-ERR] Invalid date created from timestamp: ${relevantTimestamp}`);
         }
     } else {
-        console.log(`🐛 [DEBUG-DATE] No valid date timestamp found. Sending null.`);
+        console.log(`  [DEBUG-DATE] No valid date timestamp found. Sending null.`);
     }
     
     subscriptionDetails = {
@@ -546,7 +546,7 @@ export async function getUserBillingInfo() {
     };
   }
 
-  console.log(`🐛 [DEBUG-END] Billing Info ready. Subscription date sent to frontend: ${subscriptionDetails?.currentPeriodEnd}`);
+  console.log(`  [DEBUG-END] Billing Info ready. Subscription date sent to frontend: ${subscriptionDetails?.currentPeriodEnd}`);
 
   return {
     invoices: formattedInvoices,

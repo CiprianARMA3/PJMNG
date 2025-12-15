@@ -53,9 +53,9 @@ export async function checkSubscriptionStatus() {
     const itemPeriodEnd = firstItem?.current_period_end;
     const subPeriodEnd = subscription.current_period_end;
     
-    console.log(`🐛 [CHECK-SUB-DEBUG] Subscription ID: ${subscription.id}, Status: ${subscription.status}`);
-    console.log(`🐛 [CHECK-SUB-DEBUG] Raw Item Period End: ${itemPeriodEnd} (Type: ${typeof itemPeriodEnd})`);
-    console.log(`🐛 [CHECK-SUB-DEBUG] Raw Sub Period End: ${subPeriodEnd} (Type: ${typeof subPeriodEnd})`);
+    console.log(`  [CHECK-SUB-DEBUG] Subscription ID: ${subscription.id}, Status: ${subscription.status}`);
+    console.log(`  [CHECK-SUB-DEBUG] Raw Item Period End: ${itemPeriodEnd} (Type: ${typeof itemPeriodEnd})`);
+    console.log(`  [CHECK-SUB-DEBUG] Raw Sub Period End: ${subPeriodEnd} (Type: ${typeof subPeriodEnd})`);
     // --- DEBUG LOGS END ---
 
 
@@ -83,7 +83,7 @@ export async function checkSubscriptionStatus() {
         }
 
         periodEndDateISO = periodEndDate.toISOString();
-        console.log(`🐛 [CHECK-SUB-DEBUG] Final Period End ISO: ${periodEndDateISO}`);
+        console.log(`  [CHECK-SUB-DEBUG] Final Period End ISO: ${periodEndDateISO}`);
         
     } else {
         // Fallback if still missing (should not happen with active sub)

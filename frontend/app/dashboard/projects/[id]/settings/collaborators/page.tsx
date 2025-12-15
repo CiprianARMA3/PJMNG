@@ -21,12 +21,11 @@ import {
 } from "lucide-react";
 import { useProjectPermissions } from "@/hooks/useProjectPermissions";
 
-// --- TYPES (Member Specific) ---
 type MemberData = {
     user_id: string;
     email: string;
     full_name: string;
-    phone_number: string | null; // Added phone_number
+    phone_number: string | null; //opzionale
     avatar_url: string | null; 
     role: string;
     permissions: string[];
