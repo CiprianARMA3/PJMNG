@@ -4,12 +4,12 @@
 
 import { useEffect, useState } from "react";
 import { createClient } from "@/utils/supabase/client";
-import { 
-    ArrowRight, 
-    Loader2, 
-    FolderOpen, 
-    Users, 
-    Calendar, 
+import {
+    ArrowRight,
+    Loader2,
+    FolderOpen,
+    Users,
+    Calendar,
     Search,
     LayoutGrid,
     MoreHorizontal
@@ -19,20 +19,20 @@ import Image from "next/image";
 
 // --- Shared Component: Page Widget ---
 const PageWidget = ({ title, icon: Icon, children, action }: any) => (
-  <div className="relative z-10 w-full bg-[#111111] border border-[#222] rounded-xl flex flex-col overflow-visible shadow-[0_15px_30px_-10px_rgba(0,0,0,0.5)] hover:border-[#333] transition-colors">
-    <div className="px-5 py-4 border-b border-[#222] flex items-center justify-between bg-[#141414] rounded-t-xl">
-      <div className="flex items-center gap-3">
-        <div className="p-1.5 bg-[#1a1a1a] rounded-md border border-[#2a2a2a]">
-           <Icon size={14} className="text-neutral-400" />
+    <div className="relative z-10 w-full bg-[#111111] light:bg-white border border-[#222] light:border-gray-200 rounded-xl flex flex-col overflow-visible shadow-[0_15px_30px_-10px_rgba(0,0,0,0.5)] light:shadow-lg hover:border-[#333] light:hover:border-gray-300 transition-colors">
+        <div className="px-5 py-4 border-b border-[#222] light:border-gray-200 flex items-center justify-between bg-[#141414] light:bg-gray-50 rounded-t-xl">
+            <div className="flex items-center gap-3">
+                <div className="p-1.5 bg-[#1a1a1a] light:bg-white rounded-md border border-[#2a2a2a] light:border-gray-200">
+                    <Icon size={14} className="text-neutral-400 light:text-neutral-500" />
+                </div>
+                <h3 className="text-sm font-medium text-neutral-300 light:text-neutral-700 tracking-wide">{title}</h3>
+            </div>
+            {action}
         </div>
-        <h3 className="text-sm font-medium text-neutral-300 tracking-wide">{title}</h3>
-      </div>
-      {action}
+        <div className="flex-1 bg-[#111111] light:bg-white min-h-0 relative flex flex-col rounded-b-xl text-neutral-300 light:text-neutral-600">
+            {children}
+        </div>
     </div>
-    <div className="flex-1 bg-[#111111] min-h-0 relative flex flex-col rounded-b-xl text-neutral-300">
-      {children}
-    </div>
-  </div>
 );
 
 export default function Projects() {
@@ -77,8 +77,8 @@ export default function Projects() {
         fetchProjects();
     }, []);
 
-    const filteredProjects = projects.filter(p => 
-        p.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
+    const filteredProjects = projects.filter(p =>
+        p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
         (p.description && p.description.toLowerCase().includes(searchQuery.toLowerCase()))
     );
 
@@ -103,45 +103,45 @@ export default function Projects() {
             {/* Header */}
             <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
                 <div>
-                    <h1 className="text-xl font-medium text-white/90 mb-1">Projects</h1>
-                    <p className="text-sm text-neutral-500">Manage your projects and access team workspaces.</p>
+                    <h1 className="text-xl font-medium text-white/90 light:text-black/90 mb-1">Projects</h1>
+                    <p className="text-sm text-neutral-500 light:text-neutral-600">Manage your projects and access team workspaces.</p>
                 </div>
-                
+
                 {/* Search Bar */}
                 <div className="relative group">
                     <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                        <Search className="h-3.5 w-3.5 text-neutral-500 group-focus-within:text-white transition-colors" />
+                        <Search className="h-3.5 w-3.5 text-neutral-500 group-focus-within:text-white light:group-focus-within:text-black transition-colors" />
                     </div>
                     <input
                         type="text"
                         placeholder="Search projects..."
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
-                        className="bg-[#111] border border-[#222] text-neutral-200 text-xs rounded-lg block w-full pl-9 pr-3 py-2 placeholder-neutral-600 focus:outline-none focus:border-neutral-500 focus:bg-[#161616] transition-all w-full md:w-64"
+                        className="bg-[#111] light:bg-white border border-[#222] light:border-gray-200 text-neutral-200 light:text-black text-xs rounded-lg block w-full pl-9 pr-3 py-2 placeholder-neutral-600 light:placeholder-neutral-400 focus:outline-none focus:border-neutral-500 focus:bg-[#161616] light:focus:bg-gray-50 transition-all w-full md:w-64"
                     />
                 </div>
             </div>
 
             {/* Projects List Widget */}
-            <PageWidget 
-                title={`All Projects (${projects.length})`} 
+            <PageWidget
+                title={`All Projects (${projects.length})`}
                 icon={LayoutGrid}
                 action={
-                    <button className="text-neutral-500 hover:text-white transition-colors">
+                    <button className="text-neutral-500 hover:text-white light:hover:text-black transition-colors">
                         <MoreHorizontal size={16} />
                     </button>
                 }
             >
                 {filteredProjects.length > 0 ? (
-                    <div className="divide-y divide-[#222]">
+                    <div className="divide-y divide-[#222] light:divide-gray-200">
                         {filteredProjects.map((project) => (
-                            <div 
-                                key={project.id} 
-                                className="group grid grid-cols-12 gap-4 px-6 py-4 hover:bg-[#161616] transition-colors items-center"
+                            <div
+                                key={project.id}
+                                className="group grid grid-cols-12 gap-4 px-6 py-4 hover:bg-[#161616] light:hover:bg-gray-50 transition-colors items-center"
                             >
                                 {/* Project Info */}
                                 <div className="col-span-12 md:col-span-5 flex items-center gap-4">
-                                    <div className="relative w-10 h-10 rounded-lg overflow-hidden border border-[#2a2a2a] bg-[#1a1a1a] flex-shrink-0">
+                                    <div className="relative w-10 h-10 rounded-lg overflow-hidden border border-[#2a2a2a] light:border-gray-200 bg-[#1a1a1a] light:bg-gray-100 flex-shrink-0">
                                         {project.metadata?.["project-icon"] ? (
                                             <img
                                                 src={project.metadata["project-icon"]}
@@ -155,7 +155,7 @@ export default function Projects() {
                                         )}
                                     </div>
                                     <div className="min-w-0">
-                                        <h4 className="text-sm font-medium text-neutral-200 truncate group-hover:text-white transition-colors">
+                                        <h4 className="text-sm font-medium text-neutral-200 light:text-neutral-800 truncate group-hover:text-white light:group-hover:text-black transition-colors">
                                             {project.name}
                                         </h4>
                                         <p className="text-xs text-neutral-500 truncate max-w-[200px]">
@@ -179,7 +179,7 @@ export default function Projects() {
                                 <div className="col-span-12 md:col-span-2 flex justify-end">
                                     <button
                                         onClick={() => router.push(`/dashboard/projects/${project.id}`)}
-                                        className="w-full md:w-auto flex items-center justify-center gap-2 px-3 py-1.5 bg-[#1a1a1a] hover:bg-[#222] text-neutral-400 hover:text-white border border-[#2a2a2a] hover:border-[#333] rounded-lg transition-all text-xs font-medium group-hover:shadow-md"
+                                        className="w-full md:w-auto flex items-center justify-center gap-2 px-3 py-1.5 bg-[#1a1a1a] light:bg-white hover:bg-[#222] light:hover:bg-gray-50 text-neutral-400 light:text-neutral-600 hover:text-white light:hover:text-black border border-[#2a2a2a] light:border-gray-200 hover:border-[#333] light:hover:border-gray-300 rounded-lg transition-all text-xs font-medium group-hover:shadow-md"
                                     >
                                         <span>Open</span>
                                         <ArrowRight size={12} />
@@ -190,7 +190,7 @@ export default function Projects() {
                     </div>
                 ) : (
                     <div className="flex flex-col items-center justify-center py-16 text-center">
-                        <div className="w-12 h-12 bg-[#161616] rounded-xl flex items-center justify-center mb-4 border border-[#222]">
+                        <div className="w-12 h-12 bg-[#161616] light:bg-gray-50 rounded-xl flex items-center justify-center mb-4 border border-[#222] light:border-gray-200">
                             <FolderOpen className="w-6 h-6 text-neutral-600" />
                         </div>
                         <h3 className="text-neutral-300 font-medium text-sm mb-1">No projects found</h3>
@@ -198,9 +198,9 @@ export default function Projects() {
                             {searchQuery ? "Try adjusting your search terms." : "You haven't created or joined any projects yet."}
                         </p>
                         {!searchQuery && (
-                            <button 
+                            <button
                                 onClick={() => router.push('/create-project')}
-                                className="px-4 py-2 text-xs font-semibold bg-white text-black rounded-lg hover:bg-neutral-200 transition-colors"
+                                className="px-4 py-2 text-xs font-semibold bg-white light:bg-black text-black light:text-white rounded-lg hover:bg-neutral-200 light:hover:bg-neutral-800 transition-colors"
                             >
                                 Create Project
                             </button>

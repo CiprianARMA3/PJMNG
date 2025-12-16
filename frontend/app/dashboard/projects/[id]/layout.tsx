@@ -11,14 +11,14 @@ export default function ProjectLayout({
 }) {
   return (
     <ProjectAuthGuard>
-        {/* Your existing layout structure usually goes here */}
-        {/* For example, if you have a sidebar menu: */}
-        <div className="flex h-screen bg-[#0a0a0a]">
-            {/* <Menu projectId={params.id} /> */} 
-            <main className="flex-1 overflow-y-auto">
-                {children}
-            </main>
-        </div>
+      {/* Your existing layout structure usually goes here */}
+      {/* For example, if you have a sidebar menu: */}
+      <div className="flex h-screen bg-[#0a0a0a] light:bg-gray-50">
+        {/* <Menu projectId={params.id} /> */}
+        <main className="flex-1 overflow-y-auto">
+          {children}
+        </main>
+      </div>
     </ProjectAuthGuard>
   );
 }

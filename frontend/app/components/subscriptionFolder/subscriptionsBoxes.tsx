@@ -79,8 +79,8 @@ function ConfirmationModal({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 animate-in fade-in duration-200">
-      <div className="w-full max-w-md bg-[#111] border border-zinc-800 rounded-2xl shadow-2xl p-8 relative flex flex-col items-center text-center">
+    <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/80 light:bg-white/80 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+      <div className="w-full max-w-md bg-[#111] light:bg-white border border-zinc-800 light:border-gray-200 rounded-2xl shadow-2xl p-8 relative flex flex-col items-center text-center">
 
         {/* --- SUCCESS STATE --- */}
         {isSuccess ? (
@@ -88,8 +88,8 @@ function ConfirmationModal({
             <div className="w-16 h-16 rounded-full bg-green-500/10 flex items-center justify-center mb-6 text-green-500 shadow-[0_0_20px_rgba(34,197,94,0.2)]">
               <CheckCircle2 className="w-8 h-8" />
             </div>
-            <h3 className="text-2xl font-bold text-white mb-2">Subscription Updated!</h3>
-            <p className="text-zinc-400 mb-6">
+            <h3 className="text-2xl font-bold text-white light:text-black mb-2">Subscription Updated!</h3>
+            <p className="text-zinc-400 light:text-zinc-600 mb-6">
               Your plan has been successfully changed. <br />Reloading page...
             </p>
             <Loader2 className="w-6 h-6 animate-spin text-zinc-600" />
@@ -99,7 +99,7 @@ function ConfirmationModal({
           <>
             <button
               onClick={handleClose}
-              className="absolute top-4 right-4 text-zinc-500 hover:text-white transition-colors"
+              className="absolute top-4 right-4 text-zinc-500 light:text-zinc-400 hover:text-white light:hover:text-black transition-colors"
               disabled={isLoading}
             >
               <X className="w-5 h-5" />
@@ -113,12 +113,12 @@ function ConfirmationModal({
               Step 1 of 2
             </div>
 
-            <h3 className="text-xl font-bold text-white mb-3">
+            <h3 className="text-xl font-bold text-white light:text-black mb-3">
               Confirm {isUpgrade ? 'Upgrade' : 'Downgrade'}
             </h3>
 
-            <p className="text-zinc-400 text-sm leading-relaxed mb-8">
-              You are about to switch to the <span className="text-white font-semibold">{planName}</span> plan.
+            <p className="text-zinc-400 light:text-zinc-600 text-sm leading-relaxed mb-8">
+              You are about to switch to the <span className="text-white light:text-black font-semibold">{planName}</span> plan.
               <br />
               {isUpgrade ? (
                 <span className="text-blue-400 mt-2 block text-xs bg-blue-500/5 py-1 px-2 rounded border border-blue-500/10">
@@ -135,7 +135,7 @@ function ConfirmationModal({
               <button
                 onClick={handleClose}
                 disabled={isLoading}
-                className="flex-1 py-3 rounded-xl font-medium text-sm bg-zinc-900 text-zinc-300 hover:bg-zinc-800 hover:text-white transition-colors border border-zinc-800"
+                className="flex-1 py-3 rounded-xl font-medium text-sm bg-zinc-900 light:bg-gray-100 text-zinc-300 light:text-zinc-700 hover:bg-zinc-800 light:hover:bg-gray-200 hover:text-white light:hover:text-black transition-colors border border-zinc-800 light:border-gray-200"
               >
                 Cancel
               </button>
@@ -144,7 +144,7 @@ function ConfirmationModal({
                 disabled={isLoading}
                 className={`flex-1 py-3 rounded-xl font-medium text-sm text-white transition-all flex items-center justify-center gap-2 ${isUpgrade
                   ? 'bg-blue-600 hover:bg-blue-500 shadow-lg shadow-blue-900/20'
-                  : 'bg-zinc-700 hover:bg-zinc-600'
+                  : 'bg-zinc-700 light:bg-zinc-200 hover:bg-zinc-600 light:hover:bg-zinc-300 light:text-black'
                   }`}
               >
                 Continue
@@ -156,7 +156,7 @@ function ConfirmationModal({
           <>
             <button
               onClick={handleClose}
-              className="absolute top-4 right-4 text-zinc-500 hover:text-white transition-colors"
+              className="absolute top-4 right-4 text-zinc-500 light:text-zinc-400 hover:text-white light:hover:text-black transition-colors"
               disabled={isLoading}
             >
               <X className="w-5 h-5" />
@@ -170,24 +170,24 @@ function ConfirmationModal({
               Step 2 of 2 - Final Confirmation
             </div>
 
-            <h3 className="text-xl font-bold text-white mb-3">
+            <h3 className="text-xl font-bold text-white light:text-black mb-3">
               Are you absolutely sure?
             </h3>
 
-            <p className="text-zinc-400 text-sm leading-relaxed mb-4">
-              This action will {isUpgrade ? 'upgrade' : 'downgrade'} your subscription to <span className="text-white font-semibold">{planName}</span>.
+            <p className="text-zinc-400 light:text-zinc-600 text-sm leading-relaxed mb-4">
+              This action will {isUpgrade ? 'upgrade' : 'downgrade'} your subscription to <span className="text-white light:text-black font-semibold">{planName}</span>.
             </p>
 
             <div className="w-full mb-6 p-4 bg-red-500/5 border border-red-500/20 rounded-lg">
               <p className="text-red-400 text-xs mb-3 font-medium">
-                ⚠️ To proceed, please type <span className="text-white font-bold">CONFIRM</span> below:
+                ⚠️ To proceed, please type <span className="text-white light:text-black font-bold">CONFIRM</span> below:
               </p>
               <input
                 type="text"
                 value={confirmText}
                 onChange={(e) => setConfirmText(e.target.value)}
                 placeholder="Type CONFIRM"
-                className="w-full px-4 py-2 bg-black/50 border border-zinc-700 rounded-lg text-white text-sm focus:outline-none focus:border-red-500/50 transition-colors"
+                className="w-full px-4 py-2 bg-black/50 light:bg-white border border-zinc-700 light:border-zinc-300 rounded-lg text-white light:text-black text-sm focus:outline-none focus:border-red-500/50 transition-colors"
                 autoFocus
               />
             </div>
@@ -196,7 +196,7 @@ function ConfirmationModal({
               <button
                 onClick={() => setStep('initial')}
                 disabled={isLoading}
-                className="flex-1 py-3 rounded-xl font-medium text-sm bg-zinc-900 text-zinc-300 hover:bg-zinc-800 hover:text-white transition-colors border border-zinc-800"
+                className="flex-1 py-3 rounded-xl font-medium text-sm bg-zinc-900 light:bg-gray-100 text-zinc-300 light:text-zinc-700 hover:bg-zinc-800 light:hover:bg-gray-200 hover:text-white light:hover:text-black transition-colors border border-zinc-800 light:border-gray-200"
               >
                 Back
               </button>
@@ -236,18 +236,18 @@ const CheckIcon = () => (
 const LoadingSpinner = () => (
   <div className="flex flex-col justify-center items-center h-64 text-white gap-4">
     <Loader2 className="w-10 h-10 animate-spin text-purple-500" />
-    <p className="text-zinc-400 text-sm">Loading subscription details...</p>
+    <p className="text-zinc-400 light:text-zinc-600 text-sm">Loading subscription details...</p>
   </div>
 );
 
 const ToggleButton = ({ active, onClick, children }: { active: boolean; onClick: () => void; children: React.ReactNode; }) => (
-  <button onClick={onClick} className={`w-full text-[14px] font-medium py-2 px-4 rounded-full cursor-pointer transition-all duration-300 ${active ? "bg-purple-600 text-white shadow-md shadow-purple-900/20" : "bg-transparent text-white/60 hover:text-white"}`}>
+  <button onClick={onClick} className={`w-full text-[14px] font-medium py-2 px-4 rounded-full cursor-pointer transition-all duration-300 ${active ? "bg-purple-600 text-white shadow-md shadow-purple-900/20" : "bg-transparent text-white/60 light:text-black/60 hover:text-white light:hover:text-black"}`}>
     {children}
   </button>
 );
 
 const FeatureItem = ({ feature }: { feature: string }) => (
-  <li className="flex items-start text-[14px] text-zinc-300 font-medium leading-relaxed"><CheckIcon /><span>{feature}</span></li>
+  <li className="flex items-start text-[14px] text-zinc-300 light:text-zinc-700 font-medium leading-relaxed"><CheckIcon /><span>{feature}</span></li>
 );
 
 // --- Pricing Card (UPDATED) ---
@@ -296,25 +296,25 @@ const PricingCard = ({
   } else if (isPlanNameMatch) {
     // Case 2: Same Plan, Different Interval (Switching)
     buttonText = "Switch to " + (isMonthly ? "Monthly" : "Yearly");
-    buttonStyle = "bg-white text-black hover:bg-zinc-200 cursor-pointer border border-white";
+    buttonStyle = "bg-white light:bg-black text-black light:text-white hover:bg-zinc-200 light:hover:bg-zinc-800 cursor-pointer border border-white light:border-black";
   } else if (currentRank !== -1) {
     // Case 3: Different Plan (Upgrade/Downgrade)
     if (planRank > currentRank) {
       buttonText = "Upgrade";
-      buttonStyle = "bg-white text-black hover:bg-zinc-200 cursor-pointer border border-white";
+      buttonStyle = "bg-white light:bg-black text-black light:text-white hover:bg-zinc-200 light:hover:bg-zinc-800 cursor-pointer border border-white light:border-black";
     } else {
       buttonText = "Downgrade";
-      buttonStyle = "bg-transparent text-white border border-white/20 hover:bg-white/10 cursor-pointer";
+      buttonStyle = "bg-transparent text-white light:text-black border border-white/20 light:border-black/20 hover:bg-white/10 light:hover:bg-black/5 cursor-pointer";
     }
   }
 
   return (
     <div
-      className={`relative bg-[#0A0A0A] border rounded-3xl p-6 hover:scale-[1.02] transition-all duration-300 flex flex-col h-full ${plan.recommended && !isExactCurrentPlan
+      className={`relative bg-[#0A0A0A] light:bg-white border rounded-3xl p-6 hover:scale-[1.02] transition-all duration-300 flex flex-col h-full ${plan.recommended && !isExactCurrentPlan
         ? "border-purple-500/50 shadow-[0_0_30px_-5px_rgba(168,85,247,0.15)]"
         : isExactCurrentPlan
           ? "border-green-500/30 bg-green-900/5"
-          : "border-white/10 hover:border-white/20 hover:bg-white/5"
+          : "border-white/10 light:border-gray-200 hover:border-white/20 light:hover:border-gray-300 hover:bg-white/5 light:hover:bg-gray-50"
         }`}
     >
       <div className="flex flex-col h-full">
@@ -333,13 +333,13 @@ const PricingCard = ({
           </div>
         )}
 
-        <h4 className="text-zinc-400 text-sm font-semibold mb-2 uppercase tracking-wider">{plan.name}</h4>
+        <h4 className="text-zinc-400 light:text-zinc-600 text-sm font-semibold mb-2 uppercase tracking-wider">{plan.name}</h4>
 
         <div className="flex items-baseline mb-6">
-          <h3 className="text-4xl font-bold text-white">
+          <h3 className="text-4xl font-bold text-white light:text-black">
             €{isMonthly ? plan.monthly_price : plan.yearly_price}
           </h3>
-          <span className="text-zinc-500 font-medium ml-1.5">
+          <span className="text-zinc-500 light:text-zinc-600 font-medium ml-1.5">
             / {isMonthly ? "month" : "year"}
           </span>
         </div>
@@ -358,7 +358,7 @@ const PricingCard = ({
           </>
         </button>
 
-        <div className="border-t border-white/5 pt-6 flex-grow">
+        <div className="border-t border-white/5 light:border-black/5 pt-6 flex-grow">
           <ul className="space-y-4">
             {plan.features.map((feature, index) => (
               <FeatureItem key={`${plan.id}-${index}`} feature={feature} />
@@ -492,9 +492,9 @@ export default function PricingInterface() {
   }, [currentPlan, selectedPlan]);
 
 
-  if (loading)   
-     return (
-      <div role="status" className="flex justify-center items-center h-screen bg-[#0a0a0a]">
+  if (loading)
+    return (
+      <div role="status" className="flex justify-center items-center h-screen bg-[#0a0a0a] light:bg-white">
         <svg
           aria-hidden="true"
           className="inline w-8 h-8 text-neutral-400 animate-spin fill-white"
@@ -532,14 +532,14 @@ export default function PricingInterface() {
 
       {/* Toggle */}
       <div className="flex justify-center mb-12">
-        <div className="bg-white/5 backdrop-blur-md border border-white/10 rounded-full p-1 flex">
+        <div className="bg-white/5 light:bg-black/5 backdrop-blur-md border border-white/10 light:border-black/10 rounded-full p-1 flex">
           <ToggleButton active={isMonthly} onClick={() => setIsMonthly(true)}>
             Monthly
           </ToggleButton>
           <ToggleButton active={!isMonthly} onClick={() => setIsMonthly(false)}>
             <span className="flex items-center gap-2">
               Yearly
-              <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full transition-colors ${!isMonthly ? "bg-white text-purple-600" : "bg-purple-500/20 text-purple-200"
+              <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full transition-colors ${!isMonthly ? "bg-white light:bg-black text-purple-600 light:text-white" : "bg-purple-500/20 text-purple-200 light:text-purple-700"
                 }`}>
                 -17%
               </span>
@@ -564,7 +564,7 @@ export default function PricingInterface() {
 
       {/* Divider */}
       <div className="flex flex-col justify-center items-center mt-20 mb-10 gap-4">
-        <div className="h-px w-full max-w-xs bg-gradient-to-r from-transparent via-white/20 to-transparent"></div>
+        <div className="h-px w-full max-w-xs bg-gradient-to-r from-transparent via-white/20 light:via-black/20 to-transparent"></div>
         <p className="text-zinc-500 text-sm font-medium uppercase tracking-widest flex items-center gap-2">
           <ChevronRight className="w-4 h-4 text-zinc-600" />
           Detailed Comparison

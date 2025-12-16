@@ -31,13 +31,13 @@ interface MenuProps {
 }
 
 const isKeyboardEvent = (e: React.FormEvent | React.KeyboardEvent<HTMLInputElement>): e is React.KeyboardEvent<HTMLInputElement> => {
-    return (e as React.KeyboardEvent<HTMLInputElement>).key !== undefined;
+  return (e as React.KeyboardEvent<HTMLInputElement>).key !== undefined;
 };
 
 export default function Menu({ project, user }: MenuProps) {
   const pathname = usePathname();
   const router = useRouter();
-  
+
   const [searchQuery, setSearchQuery] = useState('');
 
   // --- Permissions Hook ---
@@ -96,12 +96,12 @@ export default function Menu({ project, user }: MenuProps) {
     // Note: We do NOT return [] here during loading if we want the public pages (Dashboard)
     // to be visible immediately, but to avoid flashing restricted content, we usually wait.
     // However, since Dashboard is always allowed, we can proceed.
-    if (loading) return []; 
+    if (loading) return [];
 
     return allSections.map(section => {
       const allowedItems = section.items.filter(item => {
         const pathSuffix = item.href.replace(`/dashboard/projects/${project.id}`, '');
-        
+
         // --- FORCE DASHBOARD TO BE ALWAYS VISIBLE ---
         if (pathSuffix === '' || pathSuffix === '/') return true;
 
@@ -119,10 +119,10 @@ export default function Menu({ project, user }: MenuProps) {
   // --- Search Logic ---
   const availableRoutes = useMemo(() => {
     return filteredSections.flatMap(section => section.items).map(item => ({
-        label: item.label,
-        href: item.href,
+      label: item.label,
+      href: item.href,
     }));
-  }, [filteredSections]); 
+  }, [filteredSections]);
 
 
   const filteredResults = availableRoutes.filter(route =>
@@ -132,33 +132,33 @@ export default function Menu({ project, user }: MenuProps) {
   const isDropdownOpen = searchQuery.length > 0;
 
   const handleResultClick = (href: string) => {
-    setSearchQuery(''); 
+    setSearchQuery('');
     router.push(href);
   };
-  
+
   const handleSearchSubmit = (e: React.FormEvent | React.KeyboardEvent<HTMLInputElement>) => {
     e.preventDefault();
     const query = searchQuery.trim();
     const isEnterPressWithResults = isKeyboardEvent(e) && e.key === 'Enter' && filteredResults.length > 0;
 
     if (isEnterPressWithResults) {
-        handleResultClick(filteredResults[0].href);
-        return;
+      handleResultClick(filteredResults[0].href);
+      return;
     }
 
     if (query) {
       router.push(`/dashboard/projects/${project.id}/search?q=${encodeURIComponent(query)}`);
-      setSearchQuery(''); 
+      setSearchQuery('');
     }
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Enter') {
-        handleSearchSubmit(e);
-        return;
+      handleSearchSubmit(e);
+      return;
     }
     if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
-        e.preventDefault();
+      e.preventDefault();
     }
   };
 
@@ -173,29 +173,29 @@ export default function Menu({ project, user }: MenuProps) {
         .custom-scrollbar { scrollbar-width: thin; scrollbar-color: #262626 transparent; }
       `}</style>
 
-      <header className="fixed top-0 left-0 right-0 h-14 bg-[#0a0a0a]/80 backdrop-blur-md border-b border-white/[0.08] z-50 flex items-center justify-between px-4 ml-64 transition-all">
+      <header className="fixed top-0 left-0 right-0 h-14 bg-[#0a0a0a]/80 light:bg-white/80 backdrop-blur-md border-b border-white/[0.08] light:border-gray-200 z-50 flex items-center justify-between px-4 ml-64 transition-all">
         <div className="flex items-center gap-4 w-full max-w-md">
-          <div className="relative group w-full"> 
+          <div className="relative group w-full">
             <form onSubmit={handleSearchSubmit} className="w-full">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500 group-focus-within:text-zinc-300 transition-colors z-10" />
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500 group-focus-within:text-zinc-300 light:group-focus-within:text-zinc-500 transition-colors z-10" />
               <input
                 type="text"
                 placeholder="Search or type command..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 onKeyDown={handleKeyDown}
-                className="bg-zinc-900/50 border border-white/5 text-sm text-zinc-200 rounded-md pl-9 pr-10 py-1.5 w-full focus:outline-none focus:ring-1 focus:ring-purple-500/50 focus:bg-zinc-900 transition-all placeholder:text-zinc-600 relative z-10"
+                className="bg-zinc-900/50 light:bg-gray-100 border border-white/5 light:border-gray-200 text-sm text-zinc-200 light:text-black rounded-md pl-9 pr-10 py-1.5 w-full focus:outline-none focus:ring-1 focus:ring-purple-500/50 focus:bg-zinc-900 light:focus:bg-white transition-all placeholder:text-zinc-600 light:placeholder:text-gray-500 relative z-10"
               />
               <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1 pointer-events-none z-10">
-                  <span className="bg-white/10 text-[10px] text-zinc-400 px-1.5 py-0.5 rounded border border-white/5 font-mono">⌘K</span>
+                <span className="bg-white/10 light:bg-gray-200 text-[10px] text-zinc-400 light:text-gray-500 px-1.5 py-0.5 rounded border border-white/5 light:border-gray-200 font-mono">⌘K</span>
               </div>
             </form>
-            
-            <div className={`absolute top-full mt-2 w-full bg-[#18181b] border border-white/10 rounded-lg shadow-2xl overflow-hidden transition-all duration-300 ease-in-out ${isDropdownOpen ? 'max-h-64 opacity-100 p-1' : 'max-h-0 opacity-0'} z-40`}>
+
+            <div className={`absolute top-full mt-2 w-full bg-[#18181b] light:bg-white border border-white/10 light:border-gray-200 rounded-lg shadow-2xl light:shadow-lg overflow-hidden transition-all duration-300 ease-in-out ${isDropdownOpen ? 'max-h-64 opacity-100 p-1' : 'max-h-0 opacity-0'} z-40`}>
               {isDropdownOpen && (
                 filteredResults.length > 0 ? (
                   filteredResults.map((result, index) => (
-                    <button key={index} onClick={() => handleResultClick(result.href)} className="flex items-center w-full px-3 py-2 text-sm text-zinc-200 hover:bg-white/5 rounded-md text-left transition-colors">
+                    <button key={index} onClick={() => handleResultClick(result.href)} className="flex items-center w-full px-3 py-2 text-sm text-zinc-200 light:text-black hover:bg-white/5 light:hover:bg-gray-100 rounded-md text-left transition-colors">
                       <Route className="w-4 h-4 mr-3 text-zinc-500" />
                       {result.label}
                       <ChevronRight className="ml-auto w-3 h-3 text-zinc-500" />
@@ -214,38 +214,38 @@ export default function Menu({ project, user }: MenuProps) {
           <div className="flex items-center gap-3 pl-2 cursor-pointer group">
             <a href={`/dashboard/projects/${project.id}/settings/project-settings`}>
               <div className="text-right hidden sm:block">
-                <p className="text-xs font-medium text-zinc-200 group-hover:text-white transition-colors">{user?.user_metadata?.full_name || "User"}</p>
+                <p className="text-xs font-medium text-zinc-200 light:text-gray-700 group-hover:text-white light:group-hover:text-black transition-colors">{user?.user_metadata?.full_name || "User"}</p>
               </div>
             </a>
-            <img src={getAvatarUrl()} alt="Avatar" className="w-7 h-7 rounded-full ring-2 ring-white/5 group-hover:ring-white/20 transition-all" />
+            <img src={getAvatarUrl()} alt="Avatar" className="w-7 h-7 rounded-full ring-2 ring-white/5 light:ring-gray-200 group-hover:ring-white/20 light:group-hover:ring-gray-300 transition-all" />
           </div>
         </div>
       </header>
 
-      <aside className="w-64 bg-[#0a0a0a] border-r border-white/[0.08] flex flex-col fixed inset-y-0 left-0 z-50">
-        <div className="h-14 flex items-center px-4 border-b border-white/[0.08]">
-        <a href={`/dashboard/projects/${project.id}`}>
-          <div className="flex items-center gap-3 w-full p-1.5 hover:bg-white/5 rounded-lg cursor-pointer transition-colors group">
-            {project.metadata?.["project-icon"] && (
-                <img src={project.metadata["project-icon"]} alt="Project logo" className="w-8 h-8 rounded-2xl border-2 border-white/20 object-cover" />
-            )}
-            <div className="flex-1 min-w-0">
-               <h2 className="text-sm font-medium text-zinc-100 truncate group-hover:text-white transition-colors">{project.name}</h2>
+      <aside className="w-64 bg-[#0a0a0a] light:bg-white border-r border-white/[0.08] light:border-gray-200 flex flex-col fixed inset-y-0 left-0 z-50">
+        <div className="h-14 flex items-center px-4 border-b border-white/[0.08] light:border-gray-200">
+          <a href={`/dashboard/projects/${project.id}`}>
+            <div className="flex items-center gap-3 w-full p-1.5 hover:bg-white/5 light:hover:bg-gray-100 rounded-lg cursor-pointer transition-colors group">
+              {project.metadata?.["project-icon"] && (
+                <img src={project.metadata["project-icon"]} alt="Project logo" className="w-8 h-8 rounded-2xl border-2 border-white/20 light:border-gray-200 object-cover" />
+              )}
+              <div className="flex-1 min-w-0">
+                <h2 className="text-sm font-medium text-zinc-100 light:text-black truncate group-hover:text-white light:group-hover:text-black transition-colors">{project.name}</h2>
+              </div>
             </div>
-          </div>
           </a>
         </div>
 
         <nav className="flex-1 overflow-y-auto py-6 px-3 space-y-6 custom-scrollbar">
           {loading ? (
-             <div className="flex flex-col gap-4 px-3 opacity-50">
-                <div className="h-4 w-20 bg-white/10 rounded animate-pulse" />
-                <div className="space-y-2">
-                    <div className="h-8 w-full bg-white/5 rounded animate-pulse" />
-                    <div className="h-8 w-full bg-white/5 rounded animate-pulse" />
-                    <div className="h-8 w-full bg-white/5 rounded animate-pulse" />
-                </div>
-             </div>
+            <div className="flex flex-col gap-4 px-3 opacity-50">
+              <div className="h-4 w-20 bg-white/10 rounded animate-pulse" />
+              <div className="space-y-2">
+                <div className="h-8 w-full bg-white/5 rounded animate-pulse" />
+                <div className="h-8 w-full bg-white/5 rounded animate-pulse" />
+                <div className="h-8 w-full bg-white/5 rounded animate-pulse" />
+              </div>
+            </div>
           ) : (
             filteredSections.map((section) => (
               <div key={section.title}>
@@ -254,8 +254,8 @@ export default function Menu({ project, user }: MenuProps) {
                   {section.items.map((item) => {
                     const active = isActive(item.href);
                     return (
-                      <Link key={item.label} href={item.href} className={`group flex items-center gap-3 px-3 py-1.5 rounded-md text-sm font-medium transition-all duration-200 ${active ? "bg-purple-500/10 text-purple-400" : "text-zinc-400 hover:text-zinc-100 hover:bg-white/5"}`}>
-                        <item.icon className={`w-4 h-4 transition-colors ${active ? "text-purple-400" : "text-zinc-500 group-hover:text-zinc-300"}`} />
+                      <Link key={item.label} href={item.href} className={`group flex items-center gap-3 px-3 py-1.5 rounded-md text-sm font-medium transition-all duration-200 ${active ? "bg-purple-500/10 light:bg-purple-50 text-purple-400 light:text-purple-600" : "text-zinc-400 light:text-gray-500 hover:text-zinc-100 light:hover:text-black hover:bg-white/5 light:hover:bg-gray-100"}`}>
+                        <item.icon className={`w-4 h-4 transition-colors ${active ? "text-purple-400 light:text-purple-600" : "text-zinc-500 light:text-gray-400 group-hover:text-zinc-300 light:group-hover:text-gray-600"}`} />
                         {item.label}
                         {active && <ChevronRight className="ml-auto w-3 h-3 text-purple-500/50" />}
                       </Link>
@@ -267,10 +267,10 @@ export default function Menu({ project, user }: MenuProps) {
           )}
         </nav>
 
-        <div className="p-4 border-t border-white/[0.08]">
-           <button onClick={() => signOut()} className="flex items-center gap-3 w-full px-3 py-2 text-sm font-medium text-zinc-400 hover:text-red-400 hover:bg-red-500/10 rounded-md transition-all cursor-pointer">
-              <LogOut className="w-4 h-4" /> Sign Out
-           </button>
+        <div className="p-4 border-t border-white/[0.08] light:border-gray-200">
+          <button onClick={() => signOut()} className="flex items-center gap-3 w-full px-3 py-2 text-sm font-medium text-zinc-400 light:text-gray-500 hover:text-red-400 hover:bg-red-500/10 light:hover:bg-red-50 rounded-md transition-all cursor-pointer">
+            <LogOut className="w-4 h-4" /> Sign Out
+          </button>
         </div>
       </aside>
     </>

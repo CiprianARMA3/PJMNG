@@ -3,7 +3,7 @@
 import React, { useMemo, memo, useState, useTransition } from 'react';
 import { ArrowRight, Check, X, HelpCircle, Loader2, CheckCircle2, AlertTriangle } from 'lucide-react';
 import { createSubscriptionCheckout } from "@/app/actions/stripe";
-import { PLAN_UUIDS } from '@/utils/stripe/config'; 
+import { PLAN_UUIDS } from '@/utils/stripe/config';
 
 // --- TYPES ---
 interface PricingTier {
@@ -34,19 +34,19 @@ const PLAN_MAPPING: Record<string, string> = {
 const PLAN_ORDER = ["Individual", "Developers", "Enterprise"];
 
 // --- MODAL COMPONENT ---
-function ConfirmationModal({ 
-  isOpen, 
-  onClose, 
-  onConfirm, 
-  isLoading, 
+function ConfirmationModal({
+  isOpen,
+  onClose,
+  onConfirm,
+  isLoading,
   isSuccess,
-  planName, 
+  planName,
   price,
   isUpgrade
-}: { 
-  isOpen: boolean; 
-  onClose: () => void; 
-  onConfirm: () => void; 
+}: {
+  isOpen: boolean;
+  onClose: () => void;
+  onConfirm: () => void;
   isLoading: boolean;
   isSuccess: boolean;
   planName: string;
@@ -56,27 +56,27 @@ function ConfirmationModal({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 animate-in fade-in duration-200">
-      <div className="w-full max-w-md bg-[#111] border border-zinc-800 rounded-2xl shadow-2xl p-8 relative flex flex-col items-center text-center">
-        
+    <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/80 light:bg-white/80 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+      <div className="w-full max-w-md bg-[#111] light:bg-white border border-zinc-800 light:border-zinc-200 rounded-2xl shadow-2xl light:shadow-lg p-8 relative flex flex-col items-center text-center">
+
         {/* --- SUCCESS STATE --- */}
         {isSuccess ? (
           <div className="animate-in zoom-in duration-300 flex flex-col items-center">
-             <div className="w-16 h-16 rounded-full bg-green-500/10 flex items-center justify-center mb-6 text-green-500 shadow-[0_0_20px_rgba(34,197,94,0.2)]">
-                <CheckCircle2 className="w-8 h-8" />
-             </div>
-             <h3 className="text-2xl font-bold text-white mb-2">Subscription Updated!</h3>
-             <p className="text-zinc-400 mb-6">
-               Your plan has been successfully changed. <br/>Reloading page...
-             </p>
-             <Loader2 className="w-6 h-6 animate-spin text-zinc-600" />
+            <div className="w-16 h-16 rounded-full bg-green-500/10 flex items-center justify-center mb-6 text-green-500 shadow-[0_0_20px_rgba(34,197,94,0.2)]">
+              <CheckCircle2 className="w-8 h-8" />
+            </div>
+            <h3 className="text-2xl font-bold text-white light:text-black mb-2">Subscription Updated!</h3>
+            <p className="text-zinc-400 light:text-zinc-600 mb-6">
+              Your plan has been successfully changed. <br />Reloading page...
+            </p>
+            <Loader2 className="w-6 h-6 animate-spin text-zinc-600" />
           </div>
         ) : (
           /* --- CONFIRMATION STATE --- */
           <>
-            <button 
+            <button
               onClick={onClose}
-              className="absolute top-4 right-4 text-zinc-500 hover:text-white transition-colors"
+              className="absolute top-4 right-4 text-zinc-500 light:text-zinc-400 hover:text-white light:hover:text-black transition-colors"
               disabled={isLoading}
             >
               <X className="w-5 h-5" />
@@ -85,13 +85,13 @@ function ConfirmationModal({
             <div className={`w-14 h-14 rounded-full flex items-center justify-center mb-5 ${isUpgrade ? 'bg-blue-500/10 text-blue-500' : 'bg-orange-500/10 text-orange-500'}`}>
               <AlertTriangle className="w-7 h-7" />
             </div>
-            
-            <h3 className="text-xl font-bold text-white mb-3">
+
+            <h3 className="text-xl font-bold text-white light:text-black mb-3">
               Confirm {isUpgrade ? 'Upgrade' : 'Downgrade'}
             </h3>
-            
-            <p className="text-zinc-400 text-sm leading-relaxed mb-8">
-              You are about to switch to the <span className="text-white font-semibold">{planName}</span> plan.
+
+            <p className="text-zinc-400 light:text-zinc-600 text-sm leading-relaxed mb-8">
+              You are about to switch to the <span className="text-white light:text-black font-semibold">{planName}</span> plan.
               <br />
               {isUpgrade ? (
                 <span className="text-blue-400 mt-2 block text-xs bg-blue-500/5 py-1 px-2 rounded border border-blue-500/10">
@@ -105,21 +105,20 @@ function ConfirmationModal({
             </p>
 
             <div className="flex gap-3 w-full">
-              <button 
+              <button
                 onClick={onClose}
                 disabled={isLoading}
-                className="flex-1 py-3 rounded-xl font-medium text-sm bg-zinc-900 text-zinc-300 hover:bg-zinc-800 hover:text-white transition-colors border border-zinc-800"
+                className="flex-1 py-3 rounded-xl font-medium text-sm bg-zinc-900 light:bg-gray-100 text-zinc-300 light:text-zinc-700 hover:bg-zinc-800 light:hover:bg-gray-200 hover:text-white light:hover:text-black transition-colors border border-zinc-800 light:border-zinc-200"
               >
                 Cancel
               </button>
-              <button 
+              <button
                 onClick={onConfirm}
                 disabled={isLoading}
-                className={`flex-1 py-3 rounded-xl font-medium text-sm text-white transition-all flex items-center justify-center gap-2 ${
-                  isUpgrade 
-                    ? 'bg-blue-600 hover:bg-blue-500 shadow-lg shadow-blue-900/20' 
-                    : 'bg-zinc-700 hover:bg-zinc-600'
-                }`}
+                className={`flex-1 py-3 rounded-xl font-medium text-sm text-white transition-all flex items-center justify-center gap-2 ${isUpgrade
+                    ? 'bg-blue-600 hover:bg-blue-500 shadow-lg shadow-blue-900/20'
+                    : 'bg-zinc-700 light:bg-zinc-800 hover:bg-zinc-600 light:hover:bg-zinc-700'
+                  }`}
               >
                 {isLoading ? (
                   <>
@@ -145,10 +144,10 @@ const FeatureValue = memo(({ value }: { value: string | boolean | number }) => {
     return value ? (
       <Check className="w-5 h-5 text-green-500 flex-shrink-0" />
     ) : (
-      <X className="w-5 h-5 text-zinc-600 flex-shrink-0" />
+      <X className="w-5 h-5 text-zinc-600 light:text-zinc-400 flex-shrink-0" />
     );
   }
-  return <p className="text-zinc-300 text-sm text-center m-0 font-medium">{value}</p>;
+  return <p className="text-zinc-300 light:text-zinc-700 text-sm text-center m-0 font-medium">{value}</p>;
 });
 FeatureValue.displayName = 'FeatureValue';
 
@@ -273,12 +272,12 @@ const featureCategories = [
 const PricingTable: React.FC<PricingTableProps> = ({ tiers = defaultTiers, className = '', currentPlanName }) => {
   const [billingInterval, setBillingInterval] = useState<'month' | 'year'>('month');
   const safeTiers = useMemo(() => tiers || defaultTiers, [tiers]);
-  
+
   // MODAL STATE
   const [isPending, startTransition] = useTransition();
   const [modalOpen, setModalOpen] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false); // Success state
-  const [selectedPlan, setSelectedPlan] = useState<{name: string, price: string} | null>(null);
+  const [selectedPlan, setSelectedPlan] = useState<{ name: string, price: string } | null>(null);
 
   const isDevelopersTier = (name: string) => name === 'Developers';
 
@@ -295,7 +294,7 @@ const PricingTable: React.FC<PricingTableProps> = ({ tiers = defaultTiers, class
 
   const confirmSubscription = async () => {
     if (!selectedPlan) return;
-    
+
     startTransition(async () => {
       try {
         const planId = PLAN_MAPPING[selectedPlan.name];
@@ -312,7 +311,7 @@ const PricingTable: React.FC<PricingTableProps> = ({ tiers = defaultTiers, class
           }, 2000);
           return;
         }
-        
+
         alert(error.message);
         setModalOpen(false);
       }
@@ -327,24 +326,22 @@ const PricingTable: React.FC<PricingTableProps> = ({ tiers = defaultTiers, class
   }, [currentPlanName, selectedPlan]);
 
   return (
-    <div className={`w-full text-white font-sans ${className}`}>
-      
+    <div className={`w-full text-white light:text-black font-sans ${className}`}>
+
       {/* Interval Toggle */}
       <div className="flex justify-center mb-10">
-        <div className="bg-zinc-900 p-1.5 rounded-xl border border-zinc-800 flex relative">
+        <div className="bg-zinc-900 light:bg-white p-1.5 rounded-xl border border-zinc-800 light:border-zinc-200 flex relative shadow-sm">
           <button
             onClick={() => setBillingInterval('month')}
-            className={`px-6 py-2 text-sm font-medium rounded-lg transition-all z-10 ${
-              billingInterval === 'month' ? 'text-white bg-zinc-700 shadow-sm ring-1 ring-white/5' : 'text-zinc-400 hover:text-white'
-            }`}
+            className={`px-6 py-2 text-sm font-medium rounded-lg transition-all z-10 ${billingInterval === 'month' ? 'text-white light:text-black bg-zinc-700 light:bg-gray-100 shadow-sm ring-1 ring-white/5 light:ring-black/5' : 'text-zinc-400 light:text-zinc-500 hover:text-white light:hover:text-black'
+              }`}
           >
             Monthly
           </button>
           <button
             onClick={() => setBillingInterval('year')}
-            className={`px-6 py-2 text-sm font-medium rounded-lg transition-all z-10 ${
-              billingInterval === 'year' ? 'text-white bg-zinc-700 shadow-sm ring-1 ring-white/5' : 'text-zinc-400 hover:text-white'
-            }`}
+            className={`px-6 py-2 text-sm font-medium rounded-lg transition-all z-10 ${billingInterval === 'year' ? 'text-white light:text-black bg-zinc-700 light:bg-gray-100 shadow-sm ring-1 ring-white/5 light:ring-black/5' : 'text-zinc-400 light:text-zinc-500 hover:text-white light:hover:text-black'
+              }`}
           >
             Yearly <span className="text-[10px] text-green-400 ml-1 font-bold bg-green-400/10 px-1.5 py-0.5 rounded uppercase tracking-wide">Save 17%</span>
           </button>
@@ -352,11 +349,11 @@ const PricingTable: React.FC<PricingTableProps> = ({ tiers = defaultTiers, class
       </div>
 
       {/* Header Grid */}
-      <div className="grid grid-cols-4 border border-zinc-800 rounded-t-2xl overflow-hidden shadow-2xl bg-[#0A0A0A]">
-        <div className="p-6 border-r border-zinc-800 bg-zinc-900/30 flex flex-col justify-end pb-8">
-          <span className="text-zinc-400 font-medium text-sm uppercase tracking-wider">Features Comparison</span>
+      <div className="grid grid-cols-4 border border-zinc-800 light:border-zinc-200 rounded-t-2xl overflow-hidden shadow-2xl light:shadow-lg bg-[#0A0A0A] light:bg-white">
+        <div className="p-6 border-r border-zinc-800 light:border-zinc-200 bg-zinc-900/30 light:bg-gray-50/50 flex flex-col justify-end pb-8">
+          <span className="text-zinc-400 light:text-zinc-500 font-medium text-sm uppercase tracking-wider">Features Comparison</span>
         </div>
-        
+
         {safeTiers.map((tier) => {
           const isCurrent = currentPlanName?.toLowerCase() === tier.name.toLowerCase();
           const isDev = isDevelopersTier(tier.name);
@@ -364,36 +361,35 @@ const PricingTable: React.FC<PricingTableProps> = ({ tiers = defaultTiers, class
           return (
             <div
               key={tier.name}
-              className={`p-6 border-r border-zinc-800 last:border-r-0 flex flex-col items-center text-center relative transition-colors duration-300 ${
-                isCurrent ? 'bg-green-900/5' : isDev ? 'bg-zinc-900/20' : ''
-              }`}
+              className={`p-6 border-r border-zinc-800 light:border-zinc-200 last:border-r-0 flex flex-col items-center text-center relative transition-colors duration-300 ${isCurrent ? 'bg-green-900/5 light:bg-green-50' : isDev ? 'bg-zinc-900/20 light:bg-gray-50' : ''
+                }`}
             >
-               {isDev && !isCurrent && (
+              {isDev && !isCurrent && (
                 <div className="absolute top-0 inset-x-0 h-1 bg-gradient-to-r from-purple-600 via-purple-400 to-purple-600"></div>
               )}
-               {isCurrent && (
+              {isCurrent && (
                 <div className="absolute top-0 inset-x-0 h-1 bg-green-500 shadow-[0_0_15px_rgba(34,197,94,0.6)]"></div>
               )}
 
-              <h4 className="text-lg font-bold mb-2 flex items-center gap-2 text-white">
-                  {tier.name}
-                  {isCurrent && <CheckCircle2 size={18} className="text-green-500 fill-green-500/10" />}
+              <h4 className="text-lg font-bold mb-2 flex items-center gap-2 text-white light:text-black">
+                {tier.name}
+                {isCurrent && <CheckCircle2 size={18} className="text-green-500 fill-green-500/10" />}
               </h4>
-              
+
               <div className="mb-6 h-14 flex flex-col justify-end items-center">
                 <div className="flex items-end gap-1">
-                    <span className="text-3xl font-bold tracking-tight">
+                  <span className="text-3xl font-bold tracking-tight text-white light:text-black">
                     €{billingInterval === 'month' ? tier.price.month : Math.round(tier.price.year / 12)}
-                    </span>
-                    <span className="text-zinc-500 text-sm mb-1 font-medium">/mo</span>
+                  </span>
+                  <span className="text-zinc-500 light:text-zinc-500 text-sm mb-1 font-medium">/mo</span>
                 </div>
                 {billingInterval === 'year' && (
-                    <div className="text-[11px] text-green-400 font-medium mt-1">
+                  <div className="text-[11px] text-green-400 font-medium mt-1">
                     Billed €{tier.price.year} yearly
-                    </div>
+                  </div>
                 )}
               </div>
-              
+
               <div className="w-full mt-auto">
 
               </div>
@@ -403,24 +399,23 @@ const PricingTable: React.FC<PricingTableProps> = ({ tiers = defaultTiers, class
       </div>
 
       {/* Feature Grid */}
-      <div className="border-x border-b border-zinc-800 rounded-b-2xl overflow-hidden bg-[#0A0A0A]">
+      <div className="border-x border-b border-zinc-800 light:border-zinc-200 rounded-b-2xl overflow-hidden bg-[#0A0A0A] light:bg-white">
         {featureCategories.map((category) => (
           <div key={category.name}>
-            <div className="bg-zinc-900/50 p-3 pl-6 text-xs font-bold uppercase tracking-wider text-zinc-500 border-b border-zinc-800 backdrop-blur-sm sticky top-0">
+            <div className="bg-zinc-900/50 light:bg-gray-100/80 p-3 pl-6 text-xs font-bold uppercase tracking-wider text-zinc-500 light:text-zinc-600 border-b border-zinc-800 light:border-zinc-200 backdrop-blur-sm sticky top-0">
               {category.name}
             </div>
 
             {category.features.map((feature) => (
-              <div key={feature.key} className="grid grid-cols-4 group hover:bg-white/[0.02] transition-colors">
-                <div className="p-4 text-sm text-zinc-400 flex items-center border-r border-zinc-800 border-b border-zinc-800/50 font-medium">
+              <div key={feature.key} className="grid grid-cols-4 group hover:bg-white/[0.02] light:hover:bg-black/[0.02] transition-colors">
+                <div className="p-4 text-sm text-zinc-400 light:text-zinc-600 flex items-center border-r border-zinc-800 light:border-zinc-200 border-b border-zinc-800/50 light:border-zinc-200/50 font-medium">
                   {feature.label}
                 </div>
                 {safeTiers.map((tier) => (
                   <div
                     key={`${tier.name}-${feature.key}`}
-                    className={`p-4 flex items-center justify-center border-r border-zinc-800 border-b border-zinc-800/50 last:border-r-0 ${
-                       currentPlanName?.toLowerCase() === tier.name.toLowerCase() ? 'bg-green-900/5' : isDevelopersTier(tier.name) ? 'bg-zinc-900/10' : ''
-                    }`}
+                    className={`p-4 flex items-center justify-center border-r border-zinc-800 light:border-zinc-200 border-b border-zinc-800/50 light:border-zinc-200/50 last:border-r-0 ${currentPlanName?.toLowerCase() === tier.name.toLowerCase() ? 'bg-green-900/5 light:bg-green-50' : isDevelopersTier(tier.name) ? 'bg-zinc-900/10 light:bg-gray-50' : ''
+                      }`}
                   >
                     <FeatureValue value={tier.features[feature.key]} />
                   </div>

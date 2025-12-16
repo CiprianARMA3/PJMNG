@@ -2,17 +2,17 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { 
-  Eye, 
-  EyeOff, 
-  Upload, 
-  Trash2, 
-  Edit2, 
-  Check, 
-  X, 
-  User, 
-  Mail, 
-  Lock, 
+import {
+  Eye,
+  EyeOff,
+  Upload,
+  Trash2,
+  Edit2,
+  Check,
+  X,
+  User,
+  Mail,
+  Lock,
   Camera,
   AlertCircle,
   CheckCircle2,
@@ -24,17 +24,17 @@ const supabase = createClient();
 
 // --- Shared Component: Page Widget ---
 const PageWidget = ({ title, icon: Icon, children, action }: any) => (
-  <div className="relative z-10 w-full bg-[#111111] border border-[#222] rounded-xl flex flex-col overflow-visible shadow-[0_15px_30px_-10px_rgba(0,0,0,0.5)] hover:border-[#333] transition-colors mb-6">
-    <div className="px-5 py-4 border-b border-[#222] flex items-center justify-between bg-[#141414] rounded-t-xl">
+  <div className="relative z-10 w-full bg-[#111111] light:bg-white border border-[#222] light:border-gray-200 rounded-xl flex flex-col overflow-visible shadow-[0_15px_30px_-10px_rgba(0,0,0,0.5)] light:shadow-lg hover:border-[#333] light:hover:border-gray-300 transition-colors mb-6">
+    <div className="px-5 py-4 border-b border-[#222] light:border-gray-200 flex items-center justify-between bg-[#141414] light:bg-gray-50 rounded-t-xl">
       <div className="flex items-center gap-3">
-        <div className="p-1.5 bg-[#1a1a1a] rounded-md border border-[#2a2a2a]">
-           <Icon size={14} className="text-neutral-400" />
+        <div className="p-1.5 bg-[#1a1a1a] light:bg-white rounded-md border border-[#2a2a2a] light:border-gray-200">
+          <Icon size={14} className="text-neutral-400 light:text-neutral-500" />
         </div>
-        <h3 className="text-sm font-medium text-neutral-300 tracking-wide">{title}</h3>
+        <h3 className="text-sm font-medium text-neutral-300 light:text-neutral-700 tracking-wide">{title}</h3>
       </div>
       {action}
     </div>
-    <div className="flex-1 p-6 bg-[#111111] min-h-0 relative flex flex-col rounded-b-xl text-neutral-300">
+    <div className="flex-1 p-6 bg-[#111111] light:bg-white min-h-0 relative flex flex-col rounded-b-xl text-neutral-300 light:text-neutral-600">
       {children}
     </div>
   </div>
@@ -57,7 +57,7 @@ export default function AccountPage({ user }: AccountPageProps) {
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [profileImage, setProfileImage] = useState("");
-  
+
   // Edit states
   const [isEditingName, setIsEditingName] = useState(false);
   const [tempFirstName, setTempFirstName] = useState("");
@@ -129,7 +129,7 @@ export default function AccountPage({ user }: AccountPageProps) {
     }
 
     setIsUploadingImage(true);
-    
+
     try {
       let fileExt = '';
       if (file.type === 'image/jpeg' || file.type === 'image/jpg') {
@@ -170,7 +170,7 @@ export default function AccountPage({ user }: AccountPageProps) {
 
       setProfileImage(`${publicUrl}?t=${Date.now()}`);
       showMessage('success', "Profile image updated successfully");
-      
+
       if (fileInputRef.current) {
         fileInputRef.current.value = '';
       }
@@ -196,7 +196,7 @@ export default function AccountPage({ user }: AccountPageProps) {
         .remove([filePath]);
 
       if (deleteError) {
-         console.warn("Storage remove error (might be okay if already gone):", deleteError);
+        console.warn("Storage remove error (might be okay if already gone):", deleteError);
       }
 
       const { error: updateError } = await supabase
@@ -236,7 +236,7 @@ export default function AccountPage({ user }: AccountPageProps) {
     }
 
     setLoading(true);
-    
+
     try {
       const { error: signInError } = await supabase.auth.signInWithPassword({
         email: user.email,
@@ -258,7 +258,7 @@ export default function AccountPage({ user }: AccountPageProps) {
 
       setFirstName(tempFirstName);
       setLastName(tempLastName);
-      
+
       setIsEditingName(false);
       setCurrentPassword("");
       showMessage('success', "Name updated successfully");
@@ -318,18 +318,17 @@ export default function AccountPage({ user }: AccountPageProps) {
   return (
     <div className="max-w-4xl mx-auto space-y-8 font-sans">
       <div className="mb-8">
-        <h1 className="text-xl font-medium text-white/90 mb-1">Account Settings</h1>
-        <p className="text-sm text-neutral-500">Manage your profile, security, and contact preferences.</p>
+        <h1 className="text-xl font-medium text-white/90 light:text-black/90 mb-1">Account Settings</h1>
+        <p className="text-sm text-neutral-500 light:text-neutral-600">Manage your profile, security, and contact preferences.</p>
       </div>
 
       {/* Message Alert */}
       {message && (
-        <div className={`p-4 rounded-xl border flex items-start gap-3 text-sm ${
-          message.type === 'success' 
-            ? 'bg-green-500/5 border-green-500/10 text-green-400' 
-            : 'bg-red-500/5 border-red-500/10 text-red-400'
-        }`}>
-          {message.type === 'success' ? <CheckCircle2 size={16} className="mt-0.5"/> : <AlertCircle size={16} className="mt-0.5"/>}
+        <div className={`p-4 rounded-xl border flex items-start gap-3 text-sm ${message.type === 'success'
+          ? 'bg-green-500/5 border-green-500/10 text-green-400'
+          : 'bg-red-500/5 border-red-500/10 text-red-400'
+          }`}>
+          {message.type === 'success' ? <CheckCircle2 size={16} className="mt-0.5" /> : <AlertCircle size={16} className="mt-0.5" />}
           <p>{message.text}</p>
         </div>
       )}
@@ -339,13 +338,13 @@ export default function AccountPage({ user }: AccountPageProps) {
         <div className="flex flex-col sm:flex-row items-start gap-8">
           <div className="flex flex-col items-center gap-4">
             <div className="relative group">
-              <div className="w-24 h-24 rounded-full overflow-hidden bg-[#161616] flex-shrink-0 border border-[#333] group-hover:border-neutral-500 transition-colors shadow-lg">
+              <div className="w-24 h-24 rounded-full overflow-hidden bg-[#161616] light:bg-gray-100 flex-shrink-0 border border-[#333] light:border-gray-200 group-hover:border-neutral-500 light:group-hover:border-neutral-400 transition-colors shadow-lg">
                 {profileImage ? (
-                  <img 
+                  <img
                     src={profileImage}
-                    alt="Profile" 
+                    alt="Profile"
                     className="w-full h-full object-cover"
-                    key={profileImage} 
+                    key={profileImage}
                     onError={(e) => {
                       const target = e.target as HTMLImageElement;
                       target.style.display = 'none';
@@ -353,7 +352,7 @@ export default function AccountPage({ user }: AccountPageProps) {
                   />
                 ) : null}
                 {!profileImage && (
-                  <div className="w-full h-full bg-gradient-to-b from-[#222] to-[#111] flex items-center justify-center text-neutral-500 text-2xl font-medium">
+                  <div className="w-full h-full bg-gradient-to-b from-[#222] to-[#111] light:from-gray-100 light:to-white flex items-center justify-center text-neutral-500 text-2xl font-medium">
                     {firstName?.[0]}{lastName?.[0]}
                   </div>
                 )}
@@ -365,15 +364,15 @@ export default function AccountPage({ user }: AccountPageProps) {
               </div>
             </div>
           </div>
-          
+
           <div className="flex-1 space-y-4">
             <div>
-                 <p className="text-sm text-neutral-300 font-medium mb-1">Upload new avatar</p>
-                 <p className="text-xs text-neutral-500 leading-relaxed max-w-sm">
-                    We recommend using an image of at least 256x256 pixels in PNG or JPEG format. Maximum file size: 15MB.
-                </p>
+              <p className="text-sm text-neutral-300 light:text-neutral-700 font-medium mb-1">Upload new avatar</p>
+              <p className="text-xs text-neutral-500 light:text-neutral-600 leading-relaxed max-w-sm">
+                We recommend using an image of at least 256x256 pixels in PNG or JPEG format. Maximum file size: 15MB.
+              </p>
             </div>
-            
+
             <div className="flex gap-3">
               <input
                 ref={fileInputRef}
@@ -383,24 +382,23 @@ export default function AccountPage({ user }: AccountPageProps) {
                 className="hidden"
                 disabled={isUploadingImage}
               />
-              <button 
+              <button
                 onClick={handleChangeImageClick}
                 disabled={isUploadingImage}
-                className={`flex items-center gap-2 px-4 py-2 text-xs font-semibold rounded-lg transition-all shadow-md ${
-                  isUploadingImage 
-                    ? 'bg-neutral-800 text-neutral-500 cursor-not-allowed' 
-                    : 'bg-white text-black hover:bg-neutral-200'
-                }`}
+                className={`flex items-center gap-2 px-4 py-2 text-xs font-semibold rounded-lg transition-all shadow-md ${isUploadingImage
+                  ? 'bg-neutral-800 text-neutral-500 cursor-not-allowed'
+                  : 'bg-white light:bg-black text-black light:text-white hover:bg-neutral-200 light:hover:bg-neutral-800'
+                  }`}
               >
                 <Upload size={14} />
                 {isUploadingImage ? 'Uploading...' : 'Upload Image'}
               </button>
-              
+
               {profileImage && (
-                <button 
+                <button
                   onClick={handleRemoveImage}
                   disabled={isUploadingImage}
-                  className="flex items-center gap-2 px-4 py-2 bg-[#1a1a1a] hover:bg-[#222] text-neutral-400 hover:text-red-400 rounded-lg transition-all border border-[#2a2a2a] hover:border-red-900/30 text-xs font-medium"
+                  className="flex items-center gap-2 px-4 py-2 bg-[#1a1a1a] light:bg-white hover:bg-[#222] light:hover:bg-gray-50 text-neutral-400 light:text-neutral-600 hover:text-red-400 light:hover:text-red-500 rounded-lg transition-all border border-[#2a2a2a] light:border-gray-200 hover:border-red-900/30 text-xs font-medium"
                 >
                   <Trash2 size={14} />
                   Remove
@@ -412,173 +410,173 @@ export default function AccountPage({ user }: AccountPageProps) {
       </PageWidget>
 
       {/* Full Name Section */}
-      <PageWidget 
-        title="Personal Information" 
+      <PageWidget
+        title="Personal Information"
         icon={User}
         action={
-            !isEditingName ? (
-                <button
-                  onClick={startEditingName}
-                  className="flex items-center gap-1.5 px-3 py-1.5 text-neutral-400 hover:text-white text-xs font-medium transition-colors bg-[#1a1a1a] hover:bg-[#222] border border-[#2a2a2a] rounded-lg"
-                >
-                  <Edit2 size={12} />
-                  Edit Details
-                </button>
-              ) : null
+          !isEditingName ? (
+            <button
+              onClick={startEditingName}
+              className="flex items-center gap-1.5 px-3 py-1.5 text-neutral-400 light:text-neutral-600 hover:text-white light:hover:text-black text-xs font-medium transition-colors bg-[#1a1a1a] light:bg-white hover:bg-[#222] light:hover:bg-gray-50 border border-[#2a2a2a] light:border-gray-200 rounded-lg"
+            >
+              <Edit2 size={12} />
+              Edit Details
+            </button>
+          ) : null
         }
       >
         <div className="space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>
-                <label className="block text-xs font-medium text-neutral-500 uppercase tracking-wide mb-2">First Name</label>
-                {isEditingName ? (
+              <label className="block text-xs font-medium text-neutral-500 light:text-neutral-600 uppercase tracking-wide mb-2">First Name</label>
+              {isEditingName ? (
                 <input
-                    type="text"
-                    value={tempFirstName}
-                    onChange={(e) => setTempFirstName(e.target.value)}
-                    className="w-full px-4 py-2.5 bg-[#161616] border border-[#333] rounded-lg text-neutral-200 placeholder-neutral-600 focus:outline-none focus:border-neutral-500 focus:bg-[#1a1a1a] transition-all text-sm"
-                    placeholder="Enter first name"
+                  type="text"
+                  value={tempFirstName}
+                  onChange={(e) => setTempFirstName(e.target.value)}
+                  className="w-full px-4 py-2.5 bg-[#161616] light:bg-white border border-[#333] light:border-gray-200 rounded-lg text-neutral-200 light:text-black placeholder-neutral-600 light:placeholder-neutral-400 focus:outline-none focus:border-neutral-500 focus:bg-[#1a1a1a] light:focus:bg-gray-50 transition-all text-sm"
+                  placeholder="Enter first name"
                 />
-                ) : (
-                <div className="w-full px-4 py-2.5 bg-[#161616] border border-[#222] rounded-lg text-neutral-300 text-sm">
-                    {firstName || "Not set"}
+              ) : (
+                <div className="w-full px-4 py-2.5 bg-[#161616] light:bg-white border border-[#222] light:border-gray-200 rounded-lg text-neutral-300 light:text-neutral-700 text-sm">
+                  {firstName || "Not set"}
                 </div>
-                )}
+              )}
             </div>
             <div>
-                <label className="block text-xs font-medium text-neutral-500 uppercase tracking-wide mb-2">Last Name</label>
-                {isEditingName ? (
+              <label className="block text-xs font-medium text-neutral-500 light:text-neutral-600 uppercase tracking-wide mb-2">Last Name</label>
+              {isEditingName ? (
                 <input
-                    type="text"
-                    value={tempLastName}
-                    onChange={(e) => setTempLastName(e.target.value)}
-                    className="w-full px-4 py-2.5 bg-[#161616] border border-[#333] rounded-lg text-neutral-200 placeholder-neutral-600 focus:outline-none focus:border-neutral-500 focus:bg-[#1a1a1a] transition-all text-sm"
-                    placeholder="Enter last name"
+                  type="text"
+                  value={tempLastName}
+                  onChange={(e) => setTempLastName(e.target.value)}
+                  className="w-full px-4 py-2.5 bg-[#161616] light:bg-white border border-[#333] light:border-gray-200 rounded-lg text-neutral-200 light:text-black placeholder-neutral-600 light:placeholder-neutral-400 focus:outline-none focus:border-neutral-500 focus:bg-[#1a1a1a] light:focus:bg-gray-50 transition-all text-sm"
+                  placeholder="Enter last name"
                 />
-                ) : (
-                <div className="w-full px-4 py-2.5 bg-[#161616] border border-[#222] rounded-lg text-neutral-300 text-sm">
-                    {lastName || "Not set"}
+              ) : (
+                <div className="w-full px-4 py-2.5 bg-[#161616] light:bg-white border border-[#222] light:border-gray-200 rounded-lg text-neutral-300 light:text-neutral-700 text-sm">
+                  {lastName || "Not set"}
                 </div>
-                )}
+              )}
             </div>
-            </div>
-            
-            {isEditingName && (
-                <div className="bg-[#161616] border border-[#222] rounded-lg p-5 animate-in fade-in slide-in-from-top-2 duration-200">
-                    <div className="flex items-start gap-3 mb-4">
-                        <AlertCircle className="w-4 h-4 text-neutral-500 mt-0.5" />
-                        <p className="text-xs text-neutral-400 leading-relaxed">
-                            To confirm these changes, please enter your current password. This is a security measure to protect your account.
-                        </p>
-                    </div>
-                    
-                    <div className="relative max-w-md">
-                        <input
-                            type={showCurrentPassword ? "text" : "password"}
-                            value={currentPassword}
-                            onChange={(e) => setCurrentPassword(e.target.value)}
-                            className="w-full px-4 py-2.5 bg-[#111] border border-[#333] rounded-lg text-neutral-200 placeholder-neutral-600 focus:outline-none focus:border-neutral-500 transition-colors pr-10 text-sm"
-                            placeholder="Current password"
-                        />
-                        <button
-                            onClick={() => setShowCurrentPassword(!showCurrentPassword)}
-                            className="absolute right-3 top-1/2 transform -translate-y-1/2 text-neutral-500 hover:text-neutral-300 transition-colors"
-                        >
-                            {showCurrentPassword ? <EyeOff size={16} /> : <Eye size={16} />}
-                        </button>
-                    </div>
+          </div>
 
-                    <div className="flex items-center gap-3 mt-6 border-t border-[#222] pt-4">
-                        <button
-                            onClick={applyNameChanges}
-                            disabled={loading}
-                            className="flex items-center gap-2 px-4 py-2 bg-white hover:bg-neutral-200 text-black text-xs font-semibold rounded-lg transition-colors disabled:opacity-50 shadow-lg shadow-black/20"
-                        >
-                            {loading ? <Loader2 size={14} className="animate-spin" /> : <Check size={14} />}
-                            {loading ? 'Saving...' : 'Save Changes'}
-                        </button>
-                        <button
-                            onClick={cancelEditingName}
-                            disabled={loading}
-                            className="flex items-center gap-2 px-4 py-2 bg-transparent hover:bg-[#222] text-neutral-400 text-xs font-medium rounded-lg transition-colors disabled:opacity-50"
-                        >
-                            <X size={14} />
-                            Cancel
-                        </button>
-                    </div>
-                </div>
-            )}
+          {isEditingName && (
+            <div className="bg-[#161616] light:bg-gray-50 border border-[#222] light:border-gray-200 rounded-lg p-5 animate-in fade-in slide-in-from-top-2 duration-200">
+              <div className="flex items-start gap-3 mb-4">
+                <AlertCircle className="w-4 h-4 text-neutral-500 mt-0.5" />
+                <p className="text-xs text-neutral-400 light:text-neutral-600 leading-relaxed">
+                  To confirm these changes, please enter your current password. This is a security measure to protect your account.
+                </p>
+              </div>
+
+              <div className="relative max-w-md">
+                <input
+                  type={showCurrentPassword ? "text" : "password"}
+                  value={currentPassword}
+                  onChange={(e) => setCurrentPassword(e.target.value)}
+                  className="w-full px-4 py-2.5 bg-[#111] light:bg-white border border-[#333] light:border-gray-200 rounded-lg text-neutral-200 light:text-black placeholder-neutral-600 light:placeholder-neutral-400 focus:outline-none focus:border-neutral-500 transition-colors pr-10 text-sm"
+                  placeholder="Current password"
+                />
+                <button
+                  onClick={() => setShowCurrentPassword(!showCurrentPassword)}
+                  className="absolute right-3 top-1/2 transform -translate-y-1/2 text-neutral-500 hover:text-neutral-300 transition-colors"
+                >
+                  {showCurrentPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                </button>
+              </div>
+
+              <div className="flex items-center gap-3 mt-6 border-t border-[#222] light:border-gray-200 pt-4">
+                <button
+                  onClick={applyNameChanges}
+                  disabled={loading}
+                  className="flex items-center gap-2 px-4 py-2 bg-white light:bg-black hover:bg-neutral-200 light:hover:bg-neutral-800 text-black light:text-white text-xs font-semibold rounded-lg transition-colors disabled:opacity-50 shadow-lg shadow-black/20"
+                >
+                  {loading ? <Loader2 size={14} className="animate-spin" /> : <Check size={14} />}
+                  {loading ? 'Saving...' : 'Save Changes'}
+                </button>
+                <button
+                  onClick={cancelEditingName}
+                  disabled={loading}
+                  className="flex items-center gap-2 px-4 py-2 bg-transparent hover:bg-[#222] light:hover:bg-gray-200 text-neutral-400 light:text-neutral-600 text-xs font-medium rounded-lg transition-colors disabled:opacity-50"
+                >
+                  <X size={14} />
+                  Cancel
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       </PageWidget>
 
       {/* Contact Email Section */}
       <PageWidget title="Contact Information" icon={Mail}>
         <div>
-            <p className="text-xs text-neutral-500 mb-4">
-                This email address is used for invoices, login, and important notifications.
-            </p>
-            <div className="space-y-3">
+          <p className="text-xs text-neutral-500 mb-4">
+            This email address is used for invoices, login, and important notifications.
+          </p>
+          <div className="space-y-3">
             {emails.map((emailValue, index) => (
-                <div key={index} className="flex items-center justify-between px-4 py-3 bg-[#161616] border border-[#222] rounded-lg group hover:border-[#333] transition-colors">
-                    <span className="text-sm text-neutral-300 font-mono">{emailValue}</span>
-                    <span className="px-2 py-0.5 rounded text-[10px] font-medium uppercase bg-green-500/10 text-green-500 border border-green-500/20 tracking-wide">Verified</span>
-                </div>
+              <div key={index} className="flex items-center justify-between px-4 py-3 bg-[#161616] light:bg-gray-50 border border-[#222] light:border-gray-200 rounded-lg group hover:border-[#333] light:hover:border-gray-300 transition-colors">
+                <span className="text-sm text-neutral-300 light:text-neutral-700 font-mono">{emailValue}</span>
+                <span className="px-2 py-0.5 rounded text-[10px] font-medium uppercase bg-green-500/10 text-green-500 border border-green-500/20 tracking-wide">Verified</span>
+              </div>
             ))}
-            </div>
+          </div>
         </div>
       </PageWidget>
 
       {/* Password Section */}
       <PageWidget title="Security & Password" icon={Lock}>
         <div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
             <div>
-                <label className="block text-xs font-medium text-neutral-500 uppercase tracking-wide mb-2">Current Password</label>
-                <div className="relative">
+              <label className="block text-xs font-medium text-neutral-500 light:text-neutral-600 uppercase tracking-wide mb-2">Current Password</label>
+              <div className="relative">
                 <input
-                    type={showCurrentPassword ? "text" : "password"}
-                    value={currentPassword}
-                    onChange={(e) => setCurrentPassword(e.target.value)}
-                    className="w-full px-4 py-2.5 bg-[#161616] border border-[#333] rounded-lg text-neutral-200 placeholder-neutral-600 focus:outline-none focus:border-neutral-500 focus:bg-[#1a1a1a] transition-all pr-10 text-sm"
-                    placeholder="••••••••••••"
+                  type={showCurrentPassword ? "text" : "password"}
+                  value={currentPassword}
+                  onChange={(e) => setCurrentPassword(e.target.value)}
+                  className="w-full px-4 py-2.5 bg-[#161616] light:bg-white border border-[#333] light:border-gray-200 rounded-lg text-neutral-200 light:text-black placeholder-neutral-600 light:placeholder-neutral-400 focus:outline-none focus:border-neutral-500 focus:bg-[#1a1a1a] light:focus:bg-gray-50 transition-all pr-10 text-sm"
+                  placeholder="••••••••••••"
                 />
                 <button
-                    onClick={() => setShowCurrentPassword(!showCurrentPassword)}
-                    className="absolute right-3 top-1/2 transform -translate-y-1/2 text-neutral-500 hover:text-neutral-300 transition-colors"
+                  onClick={() => setShowCurrentPassword(!showCurrentPassword)}
+                  className="absolute right-3 top-1/2 transform -translate-y-1/2 text-neutral-500 hover:text-neutral-300 transition-colors"
                 >
-                    {showCurrentPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                  {showCurrentPassword ? <EyeOff size={16} /> : <Eye size={16} />}
                 </button>
-                </div>
+              </div>
             </div>
             <div>
-                <label className="block text-xs font-medium text-neutral-500 uppercase tracking-wide mb-2">New Password</label>
-                <div className="relative">
+              <label className="block text-xs font-medium text-neutral-500 light:text-neutral-600 uppercase tracking-wide mb-2">New Password</label>
+              <div className="relative">
                 <input
-                    type={showNewPassword ? "text" : "password"}
-                    value={newPassword}
-                    onChange={(e) => setNewPassword(e.target.value)}
-                    className="w-full px-4 py-2.5 bg-[#161616] border border-[#333] rounded-lg text-neutral-200 placeholder-neutral-600 focus:outline-none focus:border-neutral-500 focus:bg-[#1a1a1a] transition-all pr-10 text-sm"
-                    placeholder="Minimum 6 characters"
+                  type={showNewPassword ? "text" : "password"}
+                  value={newPassword}
+                  onChange={(e) => setNewPassword(e.target.value)}
+                  className="w-full px-4 py-2.5 bg-[#161616] light:bg-white border border-[#333] light:border-gray-200 rounded-lg text-neutral-200 light:text-black placeholder-neutral-600 light:placeholder-neutral-400 focus:outline-none focus:border-neutral-500 focus:bg-[#1a1a1a] light:focus:bg-gray-50 transition-all pr-10 text-sm"
+                  placeholder="Minimum 6 characters"
                 />
                 <button
-                    onClick={() => setShowNewPassword(!showNewPassword)}
-                    className="absolute right-3 top-1/2 transform -translate-y-1/2 text-neutral-500 hover:text-neutral-300 transition-colors"
+                  onClick={() => setShowNewPassword(!showNewPassword)}
+                  className="absolute right-3 top-1/2 transform -translate-y-1/2 text-neutral-500 hover:text-neutral-300 transition-colors"
                 >
-                    {showNewPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                  {showNewPassword ? <EyeOff size={16} /> : <Eye size={16} />}
                 </button>
-                </div>
+              </div>
             </div>
-            </div>
-            
-            <div className="flex justify-end pt-4 border-t border-[#222]">
-                <button
-                onClick={handleUpdatePassword}
-                disabled={loading || !currentPassword || !newPassword}
-                className="px-6 py-2 bg-white hover:bg-neutral-200 text-black text-xs font-semibold rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-black/20"
-                >
-                {loading ? 'Updating...' : 'Update Password'}
-                </button>
-            </div>
+          </div>
+
+          <div className="flex justify-end pt-4 border-t border-[#222] light:border-gray-200">
+            <button
+              onClick={handleUpdatePassword}
+              disabled={loading || !currentPassword || !newPassword}
+              className="px-6 py-2 bg-white light:bg-black hover:bg-neutral-200 light:hover:bg-neutral-800 text-black light:text-white text-xs font-semibold rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-black/20"
+            >
+              {loading ? 'Updating...' : 'Update Password'}
+            </button>
+          </div>
         </div>
       </PageWidget>
     </div>

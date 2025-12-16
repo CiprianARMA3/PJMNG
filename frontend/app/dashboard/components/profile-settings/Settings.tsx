@@ -2,8 +2,8 @@
 
 import { JSX, useState } from "react";
 import { User, CreditCard, Bell, Shield, HelpCircle, Users, Home, FileText } from "lucide-react";
-import Agreements from  "./sections/Agreements";
-import SUPPORT from  "./sections/HelpSupport";
+import Agreements from "./sections/Agreements";
+import SUPPORT from "./sections/HelpSupport";
 
 // Import your setting sub-pages here
 import PublicProfilePage from "./sections/Profile";
@@ -36,10 +36,10 @@ export default function UserSettings({ user }: UserSettingsProps) {
     "billing": <BillingPage />,
     "notifications": <div className="text-neutral-500 text-sm p-4">Notifications Settings - Coming Soon</div>,
     "security": <div className="text-neutral-500 text-sm p-4">Security Settings - Coming Soon</div>,
-    "support": <div className="text-neutral-500 text-sm p-4"><SUPPORT/></div>,
+    "support": <div className="text-neutral-500 text-sm p-4"><SUPPORT /></div>,
     "team": <div className="text-neutral-500 text-sm p-4">Team Management - Coming Soon</div>,
     "properties": <div className="text-neutral-300"><Projects /></div>,
-    "documents": <div className="text-neutral-300"><Agreements/></div>,
+    "documents": <div className="text-neutral-300"><Agreements /></div>,
   };
 
   const menuSections = [
@@ -69,20 +69,20 @@ export default function UserSettings({ user }: UserSettingsProps) {
   ];
 
   return (
-    <div className="flex w-full min-h-screen font-sans text-neutral-200 mt-[30px] overflow-y-hidden scrollbar-hide">
-      
+    <div className="flex w-full min-h-screen font-sans text-neutral-200 light:text-neutral-700 mt-[30px] overflow-y-hidden scrollbar-hide">
+
       {/* LEFT SIDEBAR */}
-      <aside className="w-80 pr-8 border-r border-[#222]">
+      <aside className="w-80 pr-8 border-r border-[#222] light:border-gray-200">
         <div className="sticky top-6">
           <div className="mb-10 pl-2">
-            <h2 className="text-xl font-medium mb-1 text-white/90">Settings</h2>
-            <p className="text-xs text-neutral-500 font-medium">Manage your account and project preferences</p>
+            <h2 className="text-xl font-medium mb-1 text-white/90 light:text-black/90">Settings</h2>
+            <p className="text-xs text-neutral-500 light:text-neutral-600 font-medium">Manage your account and project preferences</p>
           </div>
-          
+
           <nav className="space-y-10">
             {menuSections.map((section) => (
               <div key={section.title}>
-                <h3 className="text-[10px] font-semibold text-neutral-500 uppercase tracking-widest mb-3 pl-2">
+                <h3 className="text-[10px] font-semibold text-neutral-500 light:text-neutral-600 uppercase tracking-widest mb-3 pl-2">
                   {section.title}
                 </h3>
                 <div className="space-y-1">
@@ -93,25 +93,22 @@ export default function UserSettings({ user }: UserSettingsProps) {
                       <button
                         key={item.id}
                         onClick={() => setCurrentPage(item.id)}
-                        className={`group block w-full text-left p-3 rounded-xl cursor-pointer transition-all border ${
-                          isActive
-                            ? "bg-[#161616] border-[#2a2a2a] shadow-sm"
-                            : "bg-transparent border-transparent hover:bg-[#111111] hover:border-[#222]"
-                        }`}
+                        className={`group block w-full text-left p-3 rounded-xl cursor-pointer transition-all border ${isActive
+                            ? "bg-[#161616] light:bg-gray-100 border-[#2a2a2a] light:border-gray-200 shadow-sm"
+                            : "bg-transparent border-transparent hover:bg-[#111111] light:hover:bg-gray-50 hover:border-[#222] light:hover:border-gray-200"
+                          }`}
                       >
                         <div className="flex items-start gap-3">
-                          <div className={`p-1.5 rounded-lg border transition-colors ${
-                            isActive 
-                              ? "bg-[#1a1a1a] border-[#2a2a2a] text-white" 
-                              : "bg-[#111111] border-[#1a1a1a] text-neutral-500 group-hover:text-neutral-300 group-hover:border-[#2a2a2a]"
-                          }`}>
+                          <div className={`p-1.5 rounded-lg border transition-colors ${isActive
+                              ? "bg-[#1a1a1a] light:bg-white border-[#2a2a2a] light:border-gray-200 text-white light:text-black"
+                              : "bg-[#111111] light:bg-gray-50 border-[#1a1a1a] light:border-gray-200 text-neutral-500 light:text-neutral-600 group-hover:text-neutral-300 light:group-hover:text-neutral-800 group-hover:border-[#2a2a2a] light:group-hover:border-gray-300"
+                            }`}>
                             <Icon size={16} />
                           </div>
                           <div className="flex-1 min-w-0 py-0.5">
                             <div className="flex items-center gap-2">
-                              <span className={`text-sm font-medium transition-colors ${
-                                isActive ? "text-white" : "text-neutral-400 group-hover:text-neutral-200"
-                              }`}>
+                              <span className={`text-sm font-medium transition-colors ${isActive ? "text-white light:text-black" : "text-neutral-400 light:text-neutral-600 group-hover:text-neutral-200 light:group-hover:text-neutral-800"
+                                }`}>
                                 {item.label}
                               </span>
                               {item.id === "documents" && (
@@ -120,9 +117,8 @@ export default function UserSettings({ user }: UserSettingsProps) {
                                 </span>
                               )}
                             </div>
-                            <p className={`text-[11px] mt-0.5 leading-tight transition-colors ${
-                                isActive ? "text-neutral-400" : "text-neutral-600 group-hover:text-neutral-500"
-                            }`}>
+                            <p className={`text-[11px] mt-0.5 leading-tight transition-colors ${isActive ? "text-neutral-400 light:text-neutral-600" : "text-neutral-600 light:text-neutral-500 group-hover:text-neutral-500 light:group-hover:text-neutral-700"
+                              }`}>
                               {item.description}
                             </p>
                           </div>

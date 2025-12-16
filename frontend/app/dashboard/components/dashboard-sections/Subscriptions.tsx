@@ -3,9 +3,9 @@ import PricingInterface from "../../../components/subscriptionFolder/subscriptio
 export default function QuickActionsSection() {
   return (
     <div>
-      <h1 className="text-3xl font-semibold mb-2 text-white">Subscriptions</h1>
+      <h1 className="text-3xl font-semibold mb-2 text-white light:text-black">Subscriptions</h1>
       <PricingInterface></PricingInterface>
     </div>
-    
+
   );
 }
