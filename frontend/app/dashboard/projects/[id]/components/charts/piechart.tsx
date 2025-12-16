@@ -30,9 +30,9 @@ const COLOR_PALETTE = [
 const CustomTooltip = ({ active, payload }: any) => {
   if (active && payload && payload.length) {
     return (
-      <div className="bg-[#0a0a0a]/95 backdrop-blur border border-white/10 p-3 rounded-lg shadow-xl">
-        <p className="text-white font-medium text-sm mb-1 capitalize">{payload[0].name}</p>
-        <p className="text-white/60 text-xs">
+      <div className="bg-[#0a0a0a]/95 light:bg-white/95 backdrop-blur border border-white/10 light:border-gray-200 p-3 rounded-lg shadow-xl">
+        <p className="text-white light:text-gray-900 font-medium text-sm mb-1 capitalize">{payload[0].name}</p>
+        <p className="text-white/60 light:text-gray-500 text-xs">
           {payload[0].value} {payload[0].value === 1 ? 'member' : 'members'}
         </p>
       </div>
@@ -45,7 +45,7 @@ export default function TeamCompositionChart() {
   const supabase = createClient();
   const params = useParams();
   const projectId = params.id as string;
-  
+
   const [data, setData] = useState<ChartData[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -57,7 +57,7 @@ export default function TeamCompositionChart() {
       member: '#3b82f6',  // Blue
       viewer: '#06b6d4',  // Cyan
     };
-    
+
     if (standardColors[role.toLowerCase()]) {
       return standardColors[role.toLowerCase()];
     }
@@ -101,7 +101,7 @@ export default function TeamCompositionChart() {
 
         // Transform to ChartData with dynamic colors
         const formattedData: ChartData[] = Object.entries(roleCounts).map(([name, value], index) => ({
-          name: name.charAt(0).toUpperCase() + name.slice(1), 
+          name: name.charAt(0).toUpperCase() + name.slice(1),
           value,
           color: getColorForRole(name, index)
         }));
@@ -124,26 +124,26 @@ export default function TeamCompositionChart() {
 
   if (loading) {
     return (
-      <div className="bg-[#0a0a0a] rounded-xl p-6 h-full flex flex-col items-center justify-center animate-pulse">
-        <div className="w-32 h-32 bg-white/5 rounded-full mb-4"></div>
+      <div className="bg-[#0a0a0a] light:bg-white light:border light:border-gray-200 rounded-xl p-6 h-full flex flex-col items-center justify-center animate-pulse">
+        <div className="w-32 h-32 bg-white/5 light:bg-gray-100 rounded-full mb-4"></div>
       </div>
     );
   }
 
   if (total === 0) {
     return (
-      <div className="bg-[#0a0a0a] rounded-xl p-6 h-full flex flex-col items-center justify-center">
-         <p className="text-white/40 text-sm">No team members found.</p>
+      <div className="bg-[#0a0a0a] light:bg-white light:border light:border-gray-200 rounded-xl p-6 h-full flex flex-col items-center justify-center">
+        <p className="text-white/40 light:text-gray-500 text-sm">No team members found.</p>
       </div>
     );
   }
 
   return (
-    <div className="bg-[#0a0a0a] rounded-xl p-6 h-full flex flex-col">
+    <div className="bg-[#0a0a0a] light:bg-white light:border light:border-gray-200 rounded-xl p-6 h-full flex flex-col">
       <div className="flex items-center justify-between mb-4">
-        <h3 className="text-white font-semibold text-lg">Team Composition</h3>
+        <h3 className="text-white light:text-gray-900 font-semibold text-lg">Team Composition</h3>
       </div>
-      
+
       <div className="flex-1 flex flex-col items-center justify-center">
         {/* Chart */}
         <div className="h-[200px] w-full relative">
@@ -166,30 +166,30 @@ export default function TeamCompositionChart() {
               <Tooltip content={<CustomTooltip />} />
             </PieChart>
           </ResponsiveContainer>
-          
+
           {/* Center Text */}
           <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-            <span className="text-3xl font-bold text-white">{total}</span>
-            <span className="text-xs text-white/40 uppercase tracking-wider font-medium">Members</span>
+            <span className="text-3xl font-bold text-white light:text-gray-900">{total}</span>
+            <span className="text-xs text-white/40 light:text-gray-500 uppercase tracking-wider font-medium">Members</span>
           </div>
         </div>
 
         {/* Legend */}
         <div className="w-full mt-4 space-y-1 max-h-[150px] overflow-y-auto scrollbar-hide">
           {data.map((item) => {
-             const percentage = ((item.value / total) * 100).toFixed(0);
-             return (
-              <div key={item.name} className="flex items-center justify-between p-2 rounded hover:bg-white/5 transition-colors cursor-default group">
+            const percentage = ((item.value / total) * 100).toFixed(0);
+            return (
+              <div key={item.name} className="flex items-center justify-between p-2 rounded hover:bg-white/5 light:hover:bg-gray-50 transition-colors cursor-default group">
                 <div className="flex items-center gap-3">
-                  <div className="w-2 h-2 rounded-full shadow-lg shadow-white/10" style={{ backgroundColor: item.color }} />
-                  <span className="text-sm text-white/70 group-hover:text-white transition-colors">{item.name}</span>
+                  <div className="w-2 h-2 rounded-full shadow-lg shadow-white/10 light:shadow-black/5" style={{ backgroundColor: item.color }} />
+                  <span className="text-sm text-white/70 light:text-gray-600 group-hover:text-white light:group-hover:text-gray-900 transition-colors">{item.name}</span>
                 </div>
                 <div className="flex items-center gap-3">
-                  <span className="text-sm font-medium text-white">{item.value}</span>
-                  <span className="text-xs text-white/30 w-8 text-right">{percentage}%</span>
+                  <span className="text-sm font-medium text-white light:text-gray-900">{item.value}</span>
+                  <span className="text-xs text-white/30 light:text-gray-400 w-8 text-right">{percentage}%</span>
                 </div>
               </div>
-             )
+            )
           })}
         </div>
       </div>
