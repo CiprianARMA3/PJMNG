@@ -4,27 +4,27 @@ import { useEffect, useState } from "react";
 import { createClient } from "@/utils/supabase/client";
 import { useParams, useRouter } from "next/navigation";
 import Menu from "../../components/menu";
-import ProjectCodeGeneration from "./components/projectCodeGeneration"; 
-import React from "react"; 
+import ProjectCodeGeneration from "./components/projectCodeGeneration";
+import React from "react";
 import { PhoneNumberDisplay } from "../../settings/collaborators/components/identifyPhoneNumberProvenience";
-import RoleManagementModal from "./components/manageRoles"; 
+import RoleManagementModal from "./components/manageRoles";
 import { useProjectPermissions } from "@/hooks/useProjectPermissions";
 
-import { 
-  Search, 
-  RefreshCw, Filter, ChevronDown, 
-  ChevronUp, 
-  Users as UsersIcon,
-  Mail, GitBranch, User as UserIcon, Calendar,
-  Check,
-  ShieldAlert,
-  MoreHorizontal,
-  Copy,
-  Phone,
-  Plus,
-  Trash2,
-  X,
-  Settings
+import {
+    Search,
+    RefreshCw, Filter, ChevronDown,
+    ChevronUp,
+    Users as UsersIcon,
+    Mail, GitBranch, User as UserIcon, Calendar,
+    Check,
+    ShieldAlert,
+    MoreHorizontal,
+    Copy,
+    Phone,
+    Plus,
+    Trash2,
+    X,
+    Settings
 } from "lucide-react";
 
 // --- TYPES ---
@@ -33,7 +33,7 @@ type MemberData = {
     email: string;
     full_name: string;
     phone_number: string | null;
-    avatar_url: string | null; 
+    avatar_url: string | null;
     role: string;
     permissions: string[];
     joined_at: string;
@@ -93,871 +93,876 @@ const CreatorPfp: React.FC<CreatorPfpProps> = ({
 
 // --- MAIN COMPONENT: ProjectManagementPage ---
 export default function ProjectManagementPage() {
-    
-  const supabase = createClient();
-  const params = useParams();
-  const router = useRouter();
-  const projectId = params.id as string;
-  
-  // 1. CALL CUSTOM HOOKS
-  const { checkAccess, loading: authLoading } = useProjectPermissions(projectId);
 
-  // 2. DECLARE ALL STATE (Must be before any return)
-  const [user, setUser] = useState<any>(null);
-  const [project, setProject] = useState<any>(null);
-  const [availableRoles, setAvailableRoles] = useState<Record<string, string[]>>(DEFAULT_ROLES);
-  
-  const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
-  const [actionLoading, setActionLoading] = useState<string | null>(null);
+    const supabase = createClient();
+    const params = useParams();
+    const router = useRouter();
+    const projectId = params.id as string;
 
-  const [allMembers, setAllMembers] = useState<MemberData[]>([]);
-  const [filteredMembers, setFilteredMembers] = useState<MemberData[]>([]);
-  const [expandedUserId, setExpandedUserId] = useState<string | null>(null);
+    // 1. CALL CUSTOM HOOKS
+    const { checkAccess, loading: authLoading } = useProjectPermissions(projectId);
 
-  const [searchQuery, setSearchQuery] = useState("");
-  const [roleFilters, setRoleFilters] = useState<RoleFilter[]>([]);
-  const [showRoleMenu, setShowRoleMenu] = useState(false);
+    // 2. DECLARE ALL STATE (Must be before any return)
+    const [user, setUser] = useState<any>(null);
+    const [project, setProject] = useState<any>(null);
+    const [availableRoles, setAvailableRoles] = useState<Record<string, string[]>>(DEFAULT_ROLES);
 
-  // Invite Modal State
-  const [isInviteOpen, setIsInviteOpen] = useState(false);
-  const [inviteEmail, setInviteEmail] = useState("");
-  const [inviteRole, setInviteRole] = useState(""); // Will default to first available role
+    const [loading, setLoading] = useState(true);
+    const [refreshing, setRefreshing] = useState(false);
+    const [actionLoading, setActionLoading] = useState<string | null>(null);
 
-  // Role Management Modal State
-  const [isRoleManagementOpen, setIsRoleManagementOpen] = useState(false);
+    const [allMembers, setAllMembers] = useState<MemberData[]>([]);
+    const [filteredMembers, setFilteredMembers] = useState<MemberData[]>([]);
+    const [expandedUserId, setExpandedUserId] = useState<string | null>(null);
 
-  // 3. DECLARE EFFECTS FOR REDIRECTS (Side effects)
-  useEffect(() => {
-    if (!authLoading && !checkAccess('manage-team')) {
-        router.push(`/dashboard/projects/${projectId}`);
-    }
-  }, [authLoading, checkAccess, projectId, router]);
+    const [searchQuery, setSearchQuery] = useState("");
+    const [roleFilters, setRoleFilters] = useState<RoleFilter[]>([]);
+    const [showRoleMenu, setShowRoleMenu] = useState(false);
 
-  // --- DATA FETCHING HELPERS ---
+    // Invite Modal State
+    const [isInviteOpen, setIsInviteOpen] = useState(false);
+    const [inviteEmail, setInviteEmail] = useState("");
+    const [inviteRole, setInviteRole] = useState(""); // Will default to first available role
 
-  /**
-   * Helper to extract the Role Name from the user's stored role_info.
-   */
-  const resolveMemberRole = (roleInfoRaw: any, roleDefinitions: Record<string, string[]>) => {
-    let assignedRoleName = 'viewer'; // default fallback
+    // Role Management Modal State
+    const [isRoleManagementOpen, setIsRoleManagementOpen] = useState(false);
 
-    // 1. Try to parse the stored info
-    if (typeof roleInfoRaw === 'string') {
-        try {
-            const parsed = JSON.parse(roleInfoRaw);
-            assignedRoleName = parsed.role || assignedRoleName;
-        } catch {
-            if (typeof roleInfoRaw === 'string' && roleInfoRaw.length > 0) {
-                assignedRoleName = roleInfoRaw;
+    // 3. DECLARE EFFECTS FOR REDIRECTS (Side effects)
+    useEffect(() => {
+        if (!authLoading && !checkAccess('manage-team')) {
+            router.push(`/dashboard/projects/${projectId}`);
+        }
+    }, [authLoading, checkAccess, projectId, router]);
+
+    // --- DATA FETCHING HELPERS ---
+
+    /**
+     * Helper to extract the Role Name from the user's stored role_info.
+     */
+    const resolveMemberRole = (roleInfoRaw: any, roleDefinitions: Record<string, string[]>) => {
+        let assignedRoleName = 'viewer'; // default fallback
+
+        // 1. Try to parse the stored info
+        if (typeof roleInfoRaw === 'string') {
+            try {
+                const parsed = JSON.parse(roleInfoRaw);
+                assignedRoleName = parsed.role || assignedRoleName;
+            } catch {
+                if (typeof roleInfoRaw === 'string' && roleInfoRaw.length > 0) {
+                    assignedRoleName = roleInfoRaw;
+                }
             }
-        }
-    } else if (typeof roleInfoRaw === 'object' && roleInfoRaw !== null) {
-        assignedRoleName = roleInfoRaw.role || assignedRoleName;
-    }
-
-    // 2. Look up permissions
-    const permissions = roleDefinitions[assignedRoleName] || ["no_permission_defined"];
-
-    return { role: assignedRoleName, permissions };
-  };
-
-  /**
-   * Fetch Members and merge with User Details
-   */
-  async function fetchAllMemberData(id: string, roleDefinitions: Record<string, string[]> = DEFAULT_ROLES): Promise<MemberData[]> {
-    setRefreshing(true);
-    
-    // 1. Get Project Links
-    const { data: projectUsersData, error: puError } = await supabase
-        .from("project_users")
-        .select(`user_id, role_info, joined_at`)
-        .eq("project_id", id);
-
-    if (puError || !projectUsersData) {
-        console.error("Error fetching members", puError);
-        setRefreshing(false);
-        return [];
-    }
-
-    const userIds = projectUsersData.map(pu => pu.user_id);
-    if (userIds.length === 0) {
-        setRefreshing(false);
-        return [];
-    }
-
-    // 2. Get User Profiles
-    const { data: usersData } = await supabase
-        .from("users")
-        .select(`id, email, name, surname, metadata, created_at, phone_number`)
-        .in("id", userIds);
-    
-    const userMap = (usersData || []).reduce((acc, u) => {
-        const full_name = (u.name || '') + (u.surname ? ` ${u.surname}` : '');
-        const avatar_url = (u.metadata as any)?.avatar_url || null;
-
-        acc[u.id] = {
-            id: u.id,
-            email: u.email || 'N/A',
-            full_name: full_name || 'Name Unavailable',
-            phone_number: u.phone_number || null,
-            avatar_url: avatar_url,
-            user_created_at: u.created_at,
-        };
-        return acc;
-    }, {} as Record<string, any>);
-
-    // 3. Merge and Resolve Permissions
-    const combinedMembers: MemberData[] = projectUsersData.map(pu => {
-        const userData = userMap[pu.user_id] || { 
-            id: pu.user_id, email: 'Unavailable', full_name: 'User Deleted', phone_number: null, avatar_url: null, user_created_at: pu.joined_at
-        };
-        
-        const { role, permissions } = resolveMemberRole(pu.role_info, roleDefinitions);
-
-        return {
-            user_id: pu.user_id,
-            email: userData.email,
-            full_name: userData.full_name,
-            phone_number: userData.phone_number,
-            avatar_url: userData.avatar_url,
-            role: role,
-            permissions: permissions,
-            joined_at: userData.user_created_at, 
-        };
-    });
-    setRefreshing(false);
-    return combinedMembers;
-  }
-
-  // --- INITIAL LOAD ---
-  useEffect(() => {
-    const init = async () => {
-        const id = projectId;
-        if (!id) return;
-
-        // 1. Auth Check
-        const { data: { user: authUser }, error: authError } = await supabase.auth.getUser();
-        if (authError || !authUser) { 
-            router.push("/auth/login"); 
-            return; 
+        } else if (typeof roleInfoRaw === 'object' && roleInfoRaw !== null) {
+            assignedRoleName = roleInfoRaw.role || assignedRoleName;
         }
 
-        // 2. Fetch User Profile (To fix Menu Name/Avatar)
-        const { data: userProfile } = await supabase
-            .from("users")
-            .select("name, surname, metadata")
-            .eq("id", authUser.id)
-            .single();
+        // 2. Look up permissions
+        const permissions = roleDefinitions[assignedRoleName] || ["no_permission_defined"];
 
-        // 3. Create merged user object
-        const finalUser = {
-            ...authUser,
-            user_metadata: {
-                ...authUser.user_metadata,
-                full_name: userProfile?.name 
-                    ? `${userProfile.name} ${userProfile.surname || ""}`.trim() 
-                    : authUser.user_metadata?.full_name || "User",
-                avatar_url: userProfile?.metadata?.avatar_url || authUser.user_metadata?.avatar_url
-            }
-        };
-        
-        setUser(finalUser);
-    
-        // 4. Fetch Project Data & Roles
-        const { data: projectData } = await supabase
-            .from("projects")
-            .select("id, name, metadata")
-            .eq("id", id)
-            .single();
-
-        let currentRoles = DEFAULT_ROLES;
-
-        if (projectData) {
-             const iconUrl = projectData.metadata?.project_icon_url || projectData.metadata?.logo_url || null; 
-             setProject({ ...projectData, icon_url: iconUrl });
-
-             // Extract roles
-             if (projectData.metadata?.roles) {
-                 currentRoles = projectData.metadata.roles;
-             }
-        } else {
-             setProject(null);
-        }
-        setAvailableRoles(currentRoles);
-
-        // 5. Fetch Members (Pass the roles we just found)
-        const members = await fetchAllMemberData(id, currentRoles);
-        setAllMembers(members);
-
-        // 6. Setup Filters
-        const uniqueRoles = [...new Set(members
-            .filter(m => m.role && m.role !== 'No Role Assigned')
-            .map(m => m.role)
-        )];
-
-        const initialFilters: RoleFilter[] = uniqueRoles.map(role => ({ name: role, isSelected: true }));
-        setRoleFilters(initialFilters);
-        setLoading(false);
+        return { role: assignedRoleName, permissions };
     };
-    init();
-  }, [projectId]);
 
-  // --- UI FILTERING LOGIC ---
-  useEffect(() => {
-    if (loading) return;
-    const isSearchEmpty = !searchQuery.trim();
-    const activeRoles = roleFilters.filter(f => f.isSelected).map(f => (f.name || "").toLowerCase());
-    const searchLower = searchQuery.toLowerCase();
+    /**
+     * Fetch Members and merge with User Details
+     */
+    async function fetchAllMemberData(id: string, roleDefinitions: Record<string, string[]> = DEFAULT_ROLES): Promise<MemberData[]> {
+        setRefreshing(true);
 
-    const filtered = allMembers.filter(member => {
-      const matchesSearch = isSearchEmpty ||
-                            member.full_name.toLowerCase().includes(searchLower) ||
-                            member.email.toLowerCase().includes(searchLower);
-      const matchesRole = activeRoles.includes(member.role.toLowerCase());
-      return matchesSearch && matchesRole;
-    });
+        // 1. Get Project Links
+        const { data: projectUsersData, error: puError } = await supabase
+            .from("project_users")
+            .select(`user_id, role_info, joined_at`)
+            .eq("project_id", id);
 
-    setFilteredMembers(filtered.sort((a, b) => a.full_name.localeCompare(b.full_name)));
-  }, [allMembers, searchQuery, roleFilters, loading]);
-
-  // 4. CONDITIONAL RETURNS (Only safe AFTER all hooks)
-  if (authLoading || !checkAccess('manage-team')) {
-
-       return (
-      <div role="status" className="flex justify-center items-center h-screen bg-[#0a0a0a]">
-        <svg
-          aria-hidden="true"
-          className="inline w-8 h-8 text-neutral-400 animate-spin fill-white"
-          viewBox="0 0 100 101"
-          fill="none"
-          xmlns="http://www.w3.org/2000/svg"
-        >
-          <path
-            d="M100 50.5908C100 78.2051 77.6142 100.591 50 100.591C22.3858 100.591 0 78.2051 0 50.5908C0 22.9766 22.3858 0.59082 50 0.59082C77.6142 0.59082 100 22.9766 100 50.5908ZM9.08144 50.5908C9.08144 73.1895 27.4013 91.5094 50 91.5094C72.5987 91.5094 90.9186 73.1895 90.9186 50.5908C90.9186 27.9921 72.5987 9.67226 50 9.67226C27.4013 9.67226 9.08144 27.9921 9.08144 50.5908Z"
-            fill="currentColor"
-          />
-          <path
-            d="M93.9676 39.0409C96.393 38.4038 97.8624 35.9116 97.0079 33.5539C95.2932 28.8227 92.871 24.3692 89.8167 20.348C85.8452 15.1192 80.8826 10.7238 75.2124 7.41289C69.5422 4.10194 63.2754 1.94025 56.7698 1.05124C51.7666 0.367541 46.6976 0.446843 41.7345 1.27873C39.2613 1.69328 37.813 4.19778 38.4501 6.62326C39.0873 9.04874 41.5694 10.4717 44.0505 10.1071C47.8511 9.54855 51.7191 9.52689 55.5402 10.0491C60.8642 10.7766 65.9928 12.5457 70.6331 15.2552C75.2735 17.9648 79.3347 21.5619 82.5849 25.841C84.9175 28.9121 86.7997 32.2913 88.1811 35.8758C89.083 38.2158 91.5421 39.6781 93.9676 39.0409Z"
-            fill="currentFill"
-          />
-        </svg>
-        <span className="sr-only">Loading...</span>
-      </div>
-    );
-  }
-
-  // --- ACTIONS ---
-
-  const handleAddPermission = async (userId: string, permissionToAdd: string) => {
-    if (!projectId || !userId) return;
-    setActionLoading(userId);
-    
-    try {
-        const member = allMembers.find(m => m.user_id === userId);
-        if (!member) return;
-        
-        const updatedPermissions = [...member.permissions, permissionToAdd];
-        const newRoleInfo = { 
-            role: member.role, 
-            permissions: updatedPermissions,
-            custom_permissions: true // Mark as custom
-        };
-        
-        const { error } = await supabase
-            .from('project_users')
-            .update({ role_info: JSON.stringify(newRoleInfo) })
-            .eq('project_id', projectId)
-            .eq('user_id', userId);
-            
-        if (error) {
-            alert("Failed to add permission: " + error.message);
-        } else {
-            // Optimistic update
-            setAllMembers(prev => prev.map(m => 
-                m.user_id === userId 
-                ? { ...m, permissions: updatedPermissions } 
-                : m
-            ));
+        if (puError || !projectUsersData) {
+            console.error("Error fetching members", puError);
+            setRefreshing(false);
+            return [];
         }
-    } catch (err) {
-        console.error("Error adding permission:", err);
-    } finally {
-        setActionLoading(null);
-    }
-};
 
-const handleRemovePermission = async (userId: string, permissionToRemove: string) => {
-    if (!projectId || !userId) return;
-    setActionLoading(userId);
-    
-    try {
-        const member = allMembers.find(m => m.user_id === userId);
-        if (!member) return;
-        
-        const updatedPermissions = member.permissions.filter(p => p !== permissionToRemove);
-        const newRoleInfo = { 
-            role: member.role, 
-            permissions: updatedPermissions,
-            custom_permissions: updatedPermissions.length > 0 // Mark as custom if any permissions remain
-        };
-        
-        const { error } = await supabase
-            .from('project_users')
-            .update({ role_info: JSON.stringify(newRoleInfo) })
-            .eq('project_id', projectId)
-            .eq('user_id', userId);
-            
-        if (error) {
-            alert("Failed to remove permission: " + error.message);
-        } else {
-            // Optimistic update
-            setAllMembers(prev => prev.map(m => 
-                m.user_id === userId 
-                ? { ...m, permissions: updatedPermissions } 
-                : m
-            ));
+        const userIds = projectUsersData.map(pu => pu.user_id);
+        if (userIds.length === 0) {
+            setRefreshing(false);
+            return [];
         }
-    } catch (err) {
-        console.error("Error removing permission:", err);
-    } finally {
-        setActionLoading(null);
+
+        // 2. Get User Profiles
+        const { data: usersData } = await supabase
+            .from("users")
+            .select(`id, email, name, surname, metadata, created_at, phone_number`)
+            .in("id", userIds);
+
+        const userMap = (usersData || []).reduce((acc, u) => {
+            const full_name = (u.name || '') + (u.surname ? ` ${u.surname}` : '');
+            const avatar_url = (u.metadata as any)?.avatar_url || null;
+
+            acc[u.id] = {
+                id: u.id,
+                email: u.email || 'N/A',
+                full_name: full_name || 'Name Unavailable',
+                phone_number: u.phone_number || null,
+                avatar_url: avatar_url,
+                user_created_at: u.created_at,
+            };
+            return acc;
+        }, {} as Record<string, any>);
+
+        // 3. Merge and Resolve Permissions
+        const combinedMembers: MemberData[] = projectUsersData.map(pu => {
+            const userData = userMap[pu.user_id] || {
+                id: pu.user_id, email: 'Unavailable', full_name: 'User Deleted', phone_number: null, avatar_url: null, user_created_at: pu.joined_at
+            };
+
+            const { role, permissions } = resolveMemberRole(pu.role_info, roleDefinitions);
+
+            return {
+                user_id: pu.user_id,
+                email: userData.email,
+                full_name: userData.full_name,
+                phone_number: userData.phone_number,
+                avatar_url: userData.avatar_url,
+                role: role,
+                permissions: permissions,
+                joined_at: userData.user_created_at,
+            };
+        });
+        setRefreshing(false);
+        return combinedMembers;
     }
-};
 
-  const handleUpdateRole = async (targetUserId: string, newRole: string) => {
-      if(!projectId) return;
-      setActionLoading(targetUserId);
+    // --- INITIAL LOAD ---
+    useEffect(() => {
+        const init = async () => {
+            const id = projectId;
+            if (!id) return;
 
-      // We only store the role name and derived perms in the JSON for caching purposes, 
-      // but logic relies on metadata.
-      const perms = availableRoles[newRole] || [];
-      const newRoleInfo = { role: newRole, permissions: perms };
+            // 1. Auth Check
+            const { data: { user: authUser }, error: authError } = await supabase.auth.getUser();
+            if (authError || !authUser) {
+                router.push("/auth/login");
+                return;
+            }
 
-      const { error } = await supabase
-        .from('project_users')
-        .update({ role_info: JSON.stringify(newRoleInfo) })
-        .eq('project_id', projectId)
-        .eq('user_id', targetUserId);
+            // 2. Fetch User Profile (To fix Menu Name/Avatar)
+            const { data: userProfile } = await supabase
+                .from("users")
+                .select("name, surname, metadata")
+                .eq("id", authUser.id)
+                .single();
 
-      if (error) {
-          alert("Failed to update role: " + error.message);
-      } else {
-          // Optimistic Update
-          setAllMembers(prev => prev.map(m => 
-              m.user_id === targetUserId 
-              ? { ...m, role: newRole, permissions: perms } 
-              : m
-          ));
-      }
-      setActionLoading(null);
-  };
+            // 3. Create merged user object
+            const finalUser = {
+                ...authUser,
+                user_metadata: {
+                    ...authUser.user_metadata,
+                    full_name: userProfile?.name
+                        ? `${userProfile.name} ${userProfile.surname || ""}`.trim()
+                        : authUser.user_metadata?.full_name || "User",
+                    avatar_url: userProfile?.metadata?.avatar_url || authUser.user_metadata?.avatar_url
+                }
+            };
 
-  const handleRemoveMember = async (targetUserId: string) => {
-      if(!confirm("Are you sure you want to remove this user from the project?")) return;
-      if(!projectId) return;
-      setActionLoading(targetUserId);
+            setUser(finalUser);
 
-      const { error } = await supabase
-        .from('project_users')
-        .delete()
-        .eq('project_id', projectId)
-        .eq('user_id', targetUserId);
+            // 4. Fetch Project Data & Roles
+            const { data: projectData } = await supabase
+                .from("projects")
+                .select("id, name, metadata")
+                .eq("id", id)
+                .single();
 
-      if (error) {
-          alert("Failed to remove user: " + error.message);
-      } else {
-          setAllMembers(prev => prev.filter(m => m.user_id !== targetUserId));
-          setExpandedUserId(null);
-      }
-      setActionLoading(null);
-  };
+            let currentRoles = DEFAULT_ROLES;
 
-  const handleInviteMember = async () => {
-      if(!inviteEmail) return;
-      setActionLoading("invite");
+            if (projectData) {
+                const iconUrl = projectData.metadata?.project_icon_url || projectData.metadata?.logo_url || null;
+                setProject({ ...projectData, icon_url: iconUrl });
 
-      // 1. Resolve Permissions based on Project Metadata
-      const perms = availableRoles[inviteRole] || [];
+                // Extract roles
+                if (projectData.metadata?.roles) {
+                    currentRoles = projectData.metadata.roles;
+                }
+            } else {
+                setProject(null);
+            }
+            setAvailableRoles(currentRoles);
 
-      // 2. Find User
-      const { data: existingUser } = await supabase
-        .from('users')
-        .select('id')
-        .eq('email', inviteEmail)
-        .single();
+            // 5. Fetch Members (Pass the roles we just found)
+            const members = await fetchAllMemberData(id, currentRoles);
+            setAllMembers(members);
 
-      if (!existingUser) {
-          alert("User email not found in the system.");
-          setActionLoading(null);
-          return;
-      }
+            // 6. Setup Filters
+            const uniqueRoles = [...new Set(members
+                .filter(m => m.role && m.role !== 'No Role Assigned')
+                .map(m => m.role)
+            )];
 
-      // 3. Insert into project_users
-      const { error } = await supabase
-        .from('project_users')
-        .insert({
-            project_id: projectId,
-            user_id: existingUser.id,
-            role_info: JSON.stringify({ role: inviteRole, permissions: perms })
+            const initialFilters: RoleFilter[] = uniqueRoles.map(role => ({ name: role, isSelected: true }));
+            setRoleFilters(initialFilters);
+            setLoading(false);
+        };
+        init();
+    }, [projectId]);
+
+    // --- UI FILTERING LOGIC ---
+    useEffect(() => {
+        if (loading) return;
+        const isSearchEmpty = !searchQuery.trim();
+        const activeRoles = roleFilters.filter(f => f.isSelected).map(f => (f.name || "").toLowerCase());
+        const searchLower = searchQuery.toLowerCase();
+
+        const filtered = allMembers.filter(member => {
+            const matchesSearch = isSearchEmpty ||
+                member.full_name.toLowerCase().includes(searchLower) ||
+                member.email.toLowerCase().includes(searchLower);
+            const matchesRole = activeRoles.includes(member.role.toLowerCase());
+            return matchesSearch && matchesRole;
         });
 
-      if (error) {
-          if (error.code === '23505') alert("User is already in this project.");
-          else alert("Error adding user: " + error.message);
-      } else {
-          setInviteEmail("");
-          setIsInviteOpen(false);
-          // Refresh list from DB to get joined_at etc correctly
-          const members = await fetchAllMemberData(projectId, availableRoles);
-          setAllMembers(members);
-      }
-      setActionLoading(null);
-  };
+        setFilteredMembers(filtered.sort((a, b) => a.full_name.localeCompare(b.full_name)));
+    }, [allMembers, searchQuery, roleFilters, loading]);
 
-  const handleRolesUpdated = async (updatedRoles: Record<string, string[]>) => {
-    // Update the project's metadata with new roles
-    const { error } = await supabase
-      .from('projects')
-      .update({
-        metadata: {
-          ...project?.metadata,
-          roles: updatedRoles
-        }
-      })
-      .eq('id', projectId);
+    // 4. CONDITIONAL RETURNS (Only safe AFTER all hooks)
+    if (authLoading || !checkAccess('manage-team')) {
 
-    if (error) {
-      console.error('Failed to update project roles:', error);
-      alert('Failed to update project roles');
-    } else {
-      // Update local state
-      setAvailableRoles(updatedRoles);
-      
-      // Update the project object with new metadata
-      if (project) {
-        setProject({
-          ...project,
-          metadata: {
-            ...project.metadata,
-            roles: updatedRoles
-          }
-        });
-      }
-      
-      // Refresh members to reflect role changes
-      const members = await fetchAllMemberData(projectId, updatedRoles);
-      setAllMembers(members);
-      
-      // Update role filters based on new roles
-      const uniqueRoles = [...new Set(members
-        .filter(m => m.role && m.role !== 'No Role Assigned')
-        .map(m => m.role)
-      )];
-      const updatedFilters: RoleFilter[] = uniqueRoles.map(role => ({ name: role, isSelected: true }));
-      setRoleFilters(updatedFilters);
-    }
-  };
-
-  // --- UI CONSTANTS ---
-  const currentUserId = user?.id || "";
-  const currentUserPfp = user?.user_metadata?.avatar_url || "";
-  const currentUserName = user?.user_metadata?.full_name || "You";
-
-  const handleMemberClick = (userId: string) => setExpandedUserId(userId === expandedUserId ? null : userId);
-  const toggleRoleFilter = (roleName: string) => {
-    setRoleFilters(prev => prev.map(filter =>
-      filter.name === roleName ? { ...filter, isSelected: !filter.isSelected } : filter
-    ));
-  };
-  const handleRefresh = async () => {
-    const members = await fetchAllMemberData(projectId, availableRoles);
-    setAllMembers(members);
-    location.reload();
-  }
-
-  if (loading) {
-    return (
-      <div role="status" className="flex justify-center items-center h-screen bg-[#0a0a0a]">
-        <svg
-          aria-hidden="true"
-          className="inline w-8 h-8 text-neutral-400 animate-spin fill-white"
-          viewBox="0 0 100 101"
-          fill="none"
-          xmlns="http://www.w3.org/2000/svg"
-        >
-          <path
-            d="M100 50.5908C100 78.2051 77.6142 100.591 50 100.591C22.3858 100.591 0 78.2051 0 50.5908C0 22.9766 22.3858 0.59082 50 0.59082C77.6142 0.59082 100 22.9766 100 50.5908ZM9.08144 50.5908C9.08144 73.1895 27.4013 91.5094 50 91.5094C72.5987 91.5094 90.9186 73.1895 90.9186 50.5908C90.9186 27.9921 72.5987 9.67226 50 9.67226C27.4013 9.67226 9.08144 27.9921 9.08144 50.5908Z"
-            fill="currentColor"
-          />
-          <path
-            d="M93.9676 39.0409C96.393 38.4038 97.8624 35.9116 97.0079 33.5539C95.2932 28.8227 92.871 24.3692 89.8167 20.348C85.8452 15.1192 80.8826 10.7238 75.2124 7.41289C69.5422 4.10194 63.2754 1.94025 56.7698 1.05124C51.7666 0.367541 46.6976 0.446843 41.7345 1.27873C39.2613 1.69328 37.813 4.19778 38.4501 6.62326C39.0873 9.04874 41.5694 10.4717 44.0505 10.1071C47.8511 9.54855 51.7191 9.52689 55.5402 10.0491C60.8642 10.7766 65.9928 12.5457 70.6331 15.2552C75.2735 17.9648 79.3347 21.5619 82.5849 25.841C84.9175 28.9121 86.7997 32.2913 88.1811 35.8758C89.083 38.2158 91.5421 39.6781 93.9676 39.0409Z"
-            fill="currentFill"
-          />
-        </svg>
-        <span className="sr-only">Loading...</span>
-      </div>
-    );
-  }
-  
-  return (
-    <div className="h-screen bg-[#0a0a0a] text-zinc-100 flex overflow-hidden selection:bg-indigo-500/30">
-      
-      {/* SIDEBAR */}
-      <Menu project={project} user={user} />
-      
-      <main className="flex-1 ml-64 flex flex-col h-full bg-[#09090b] relative">
-        
-        {/* HEADER */}
-        <div className="flex-none h-14 mt-[55px] px-6 border-b border-white/5 flex items-center justify-between bg-[#0a0a0a]/50 backdrop-blur-sm z-10">
-          <div className="flex items-center gap-4">
-            <h1 className="text-xl font-bold tracking-tight">Team <span className="text-white/30 text-lg font-light">Management</span></h1>
-          </div>
-          <div className="flex items-center gap-3">
-             {/* CHANGED: Show FILTERED count instead of TOTAL count */}
-             <div className="h-6 px-2 bg-zinc-900 border border-zinc-800 rounded text-[12px] font-mono text-zinc-500 flex items-center gap-2">
-                <span>SHOWING:</span>
-                <span className="text-zinc-300">{filteredMembers.length}</span>
-                <span className="text-zinc-600">/</span>
-                <span className="text-zinc-500">{allMembers.length}</span>
-             </div>
-          </div>
-        </div>
-
-        {/* TOOLBAR */}
-        <div className="flex-none px-6 py-5 flex items-center justify-between">
-            <div className="flex items-center gap-3 w-full max-w-4xl">
-                {/* Search */}
-                <div className="relative flex-1 group max-w-md">
-                   <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500 group-focus-within:text-zinc-300 transition-colors" />
-                   <input 
-                      type="text" 
-                      placeholder="Find member..." 
-                      className="w-full bg-zinc-900/50 border border-zinc-800/80 rounded-lg pl-9 pr-4 py-2 text-sm text-zinc-200 focus:outline-none focus:ring-1 focus:ring-zinc-700 focus:border-zinc-700 transition-all shadow-sm" 
-                      value={searchQuery}
-                      onChange={e => setSearchQuery(e.target.value)}
-                   />
-                </div>
-                
-                {/* Invite Button */}
-                <button 
-                    onClick={() => setIsInviteOpen(true)}
-                    className="flex items-center gap-2 px-4 py-2 bg-purple-600 hover:bg-purple-500 text-white text-xs font-semibold rounded-lg transition-all shadow-sm shadow-indigo-900/20 active:scale-95"
+        return (
+            <div role="status" className="flex justify-center items-center h-screen bg-[#0a0a0a] light:bg-gray-50">
+                <svg
+                    aria-hidden="true"
+                    className="inline w-8 h-8 text-neutral-400 animate-spin fill-white"
+                    viewBox="0 0 100 101"
+                    fill="none"
+                    xmlns="http://www.w3.org/2000/svg"
                 >
-                    <Plus size={14} />
-                    <span>Invite Collaborator</span>
-                </button>
-                
-                {/* Manage Roles Button */}
-                <button 
-                    onClick={() => setIsRoleManagementOpen(true)}
-                    className="flex items-center gap-2 px-4 py-2 bg-white hover:bg-zinc-300 text-[#0a0a0a] text-xs font-semibold rounded-lg transition-all shadow-sm shadow-indigo-900/20 active:scale-95"
-                >
-                    <Settings size={14} />
-                    <span>Manage Roles</span>
-                </button>
-
-                {/* Role Filter */}
-                <div className="relative">
-                    <button 
-                        onClick={() => setShowRoleMenu(!showRoleMenu)} 
-                        className={`flex items-center gap-2 px-3 py-2 border rounded-lg text-xs font-medium transition-all shadow-sm
-                            ${showRoleMenu 
-                                ? 'bg-zinc-800 border-zinc-700 text-white' 
-                                : 'bg-zinc-900/50 border-zinc-800 text-zinc-400 hover:text-zinc-200 hover:bg-zinc-900'}`}
-                    >
-                        <Filter size={14} /> 
-                        <span>Roles</span>
-                        <ChevronDown size={12} />
-                    </button>
-                    
-                    {showRoleMenu && (
-                        <div className="absolute top-full right-0 mt-2 w-48 bg-[#0C0C0E] border border-zinc-800 rounded-lg shadow-2xl z-30 p-1.5">
-                             <div className="space-y-0.5">
-                                <div className="px-2 py-1.5 text-[10px] font-bold text-zinc-500 uppercase tracking-wider">Show Roles</div>
-                                {roleFilters.map(filter => (
-                                    <button
-                                        key={filter.name}
-                                        onClick={() => toggleRoleFilter(filter.name)}
-                                        className="w-full text-left flex items-center justify-between px-2 py-1.5 text-xs text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800/50 rounded-md transition-colors"
-                                    >
-                                        <span className="capitalize">{filter.name}</span>
-                                        {filter.isSelected && <Check size={12} className="text-indigo-500" />}
-                                    </button>
-                                ))}
-                            </div>
-                        </div>
-                    )}
-                </div>
-                
-                {/* Refresh */}
-                <button 
-                    onClick={handleRefresh} 
-                    className="p-2 bg-zinc-900/50 border border-zinc-800 rounded-lg text-zinc-500 hover:text-zinc-200 hover:bg-zinc-900"
-                >
-                    <RefreshCw size={14} className={refreshing ? "animate-spin" : ""}  />
-                </button>
+                    <path
+                        d="M100 50.5908C100 78.2051 77.6142 100.591 50 100.591C22.3858 100.591 0 78.2051 0 50.5908C0 22.9766 22.3858 0.59082 50 0.59082C77.6142 0.59082 100 22.9766 100 50.5908ZM9.08144 50.5908C9.08144 73.1895 27.4013 91.5094 50 91.5094C72.5987 91.5094 90.9186 73.1895 90.9186 50.5908C90.9186 27.9921 72.5987 9.67226 50 9.67226C27.4013 9.67226 9.08144 27.9921 9.08144 50.5908Z"
+                        fill="currentColor"
+                    />
+                    <path
+                        d="M93.9676 39.0409C96.393 38.4038 97.8624 35.9116 97.0079 33.5539C95.2932 28.8227 92.871 24.3692 89.8167 20.348C85.8452 15.1192 80.8826 10.7238 75.2124 7.41289C69.5422 4.10194 63.2754 1.94025 56.7698 1.05124C51.7666 0.367541 46.6976 0.446843 41.7345 1.27873C39.2613 1.69328 37.813 4.19778 38.4501 6.62326C39.0873 9.04874 41.5694 10.4717 44.0505 10.1071C47.8511 9.54855 51.7191 9.52689 55.5402 10.0491C60.8642 10.7766 65.9928 12.5457 70.6331 15.2552C75.2735 17.9648 79.3347 21.5619 82.5849 25.841C84.9175 28.9121 86.7997 32.2913 88.1811 35.8758C89.083 38.2158 91.5421 39.6781 93.9676 39.0409Z"
+                        fill="currentFill"
+                    />
+                </svg>
+                <span className="sr-only">Loading...</span>
             </div>
-        </div>
+        );
+    }
 
-        {/* TABLE HEADER */}
-        <div className="flex-none grid grid-cols-12 gap-4 px-6 py-2 border-b border-zinc-800/50 text-[10px] font-semibold uppercase tracking-wider text-zinc-500 select-none bg-zinc-900/20">
-            <div className="col-span-5 pl-2">User</div>
-            <div className="col-span-2">Current Role</div>
-            <div className="col-span-3">Status</div>
-            <div className="col-span-2 text-right pr-2">Manage</div>
-        </div>
+    // --- ACTIONS ---
 
-        {/* LIST */}
-        <div className="flex-1 overflow-y-auto custom-scrollbar">
-            {filteredMembers.length === 0 ? (
-                <div className="flex flex-col items-center justify-center h-64 text-center px-6">
-                    <div className="p-4 bg-zinc-900/30 rounded-full border border-zinc-800 mb-4">
-                        <UsersIcon size={24} className="text-zinc-600" />
+    const handleAddPermission = async (userId: string, permissionToAdd: string) => {
+        if (!projectId || !userId) return;
+        setActionLoading(userId);
+
+        try {
+            const member = allMembers.find(m => m.user_id === userId);
+            if (!member) return;
+
+            const updatedPermissions = [...member.permissions, permissionToAdd];
+            const newRoleInfo = {
+                role: member.role,
+                permissions: updatedPermissions,
+                custom_permissions: true // Mark as custom
+            };
+
+            const { error } = await supabase
+                .from('project_users')
+                .update({ role_info: JSON.stringify(newRoleInfo) })
+                .eq('project_id', projectId)
+                .eq('user_id', userId);
+
+            if (error) {
+                alert("Failed to add permission: " + error.message);
+            } else {
+                // Optimistic update
+                setAllMembers(prev => prev.map(m =>
+                    m.user_id === userId
+                        ? { ...m, permissions: updatedPermissions }
+                        : m
+                ));
+            }
+        } catch (err) {
+            console.error("Error adding permission:", err);
+        } finally {
+            setActionLoading(null);
+        }
+    };
+
+    const handleRemovePermission = async (userId: string, permissionToRemove: string) => {
+        if (!projectId || !userId) return;
+        setActionLoading(userId);
+
+        try {
+            const member = allMembers.find(m => m.user_id === userId);
+            if (!member) return;
+
+            const updatedPermissions = member.permissions.filter(p => p !== permissionToRemove);
+            const newRoleInfo = {
+                role: member.role,
+                permissions: updatedPermissions,
+                custom_permissions: updatedPermissions.length > 0 // Mark as custom if any permissions remain
+            };
+
+            const { error } = await supabase
+                .from('project_users')
+                .update({ role_info: JSON.stringify(newRoleInfo) })
+                .eq('project_id', projectId)
+                .eq('user_id', userId);
+
+            if (error) {
+                alert("Failed to remove permission: " + error.message);
+            } else {
+                // Optimistic update
+                setAllMembers(prev => prev.map(m =>
+                    m.user_id === userId
+                        ? { ...m, permissions: updatedPermissions }
+                        : m
+                ));
+            }
+        } catch (err) {
+            console.error("Error removing permission:", err);
+        } finally {
+            setActionLoading(null);
+        }
+    };
+
+    const handleUpdateRole = async (targetUserId: string, newRole: string) => {
+        if (!projectId) return;
+        setActionLoading(targetUserId);
+
+        // We only store the role name and derived perms in the JSON for caching purposes, 
+        // but logic relies on metadata.
+        const perms = availableRoles[newRole] || [];
+        const newRoleInfo = { role: newRole, permissions: perms };
+
+        const { error } = await supabase
+            .from('project_users')
+            .update({ role_info: JSON.stringify(newRoleInfo) })
+            .eq('project_id', projectId)
+            .eq('user_id', targetUserId);
+
+        if (error) {
+            alert("Failed to update role: " + error.message);
+        } else {
+            // Optimistic Update
+            setAllMembers(prev => prev.map(m =>
+                m.user_id === targetUserId
+                    ? { ...m, role: newRole, permissions: perms }
+                    : m
+            ));
+        }
+        setActionLoading(null);
+    };
+
+    const handleRemoveMember = async (targetUserId: string) => {
+        if (!confirm("Are you sure you want to remove this user from the project?")) return;
+        if (!projectId) return;
+        setActionLoading(targetUserId);
+
+        const { error } = await supabase
+            .from('project_users')
+            .delete()
+            .eq('project_id', projectId)
+            .eq('user_id', targetUserId);
+
+        if (error) {
+            alert("Failed to remove user: " + error.message);
+        } else {
+            setAllMembers(prev => prev.filter(m => m.user_id !== targetUserId));
+            setExpandedUserId(null);
+        }
+        setActionLoading(null);
+    };
+
+    const handleInviteMember = async () => {
+        if (!inviteEmail) return;
+        setActionLoading("invite");
+
+        // 1. Resolve Permissions based on Project Metadata
+        const perms = availableRoles[inviteRole] || [];
+
+        // 2. Find User
+        const { data: existingUser } = await supabase
+            .from('users')
+            .select('id')
+            .eq('email', inviteEmail)
+            .single();
+
+        if (!existingUser) {
+            alert("User email not found in the system.");
+            setActionLoading(null);
+            return;
+        }
+
+        // 3. Insert into project_users
+        const { error } = await supabase
+            .from('project_users')
+            .insert({
+                project_id: projectId,
+                user_id: existingUser.id,
+                role_info: JSON.stringify({ role: inviteRole, permissions: perms })
+            });
+
+        if (error) {
+            if (error.code === '23505') alert("User is already in this project.");
+            else alert("Error adding user: " + error.message);
+        } else {
+            setInviteEmail("");
+            setIsInviteOpen(false);
+            // Refresh list from DB to get joined_at etc correctly
+            const members = await fetchAllMemberData(projectId, availableRoles);
+            setAllMembers(members);
+        }
+        setActionLoading(null);
+    };
+
+    const handleRolesUpdated = async (updatedRoles: Record<string, string[]>) => {
+        // Update the project's metadata with new roles
+        const { error } = await supabase
+            .from('projects')
+            .update({
+                metadata: {
+                    ...project?.metadata,
+                    roles: updatedRoles
+                }
+            })
+            .eq('id', projectId);
+
+        if (error) {
+            console.error('Failed to update project roles:', error);
+            alert('Failed to update project roles');
+        } else {
+            // Update local state
+            setAvailableRoles(updatedRoles);
+
+            // Update the project object with new metadata
+            if (project) {
+                setProject({
+                    ...project,
+                    metadata: {
+                        ...project.metadata,
+                        roles: updatedRoles
+                    }
+                });
+            }
+
+            // Refresh members to reflect role changes
+            const members = await fetchAllMemberData(projectId, updatedRoles);
+            setAllMembers(members);
+
+            // Update role filters based on new roles
+            const uniqueRoles = [...new Set(members
+                .filter(m => m.role && m.role !== 'No Role Assigned')
+                .map(m => m.role)
+            )];
+            const updatedFilters: RoleFilter[] = uniqueRoles.map(role => ({ name: role, isSelected: true }));
+            setRoleFilters(updatedFilters);
+        }
+    };
+
+    // --- UI CONSTANTS ---
+    const currentUserId = user?.id || "";
+    const currentUserPfp = user?.user_metadata?.avatar_url || "";
+    const currentUserName = user?.user_metadata?.full_name || "You";
+
+    const handleMemberClick = (userId: string) => setExpandedUserId(userId === expandedUserId ? null : userId);
+    const toggleRoleFilter = (roleName: string) => {
+        setRoleFilters(prev => prev.map(filter =>
+            filter.name === roleName ? { ...filter, isSelected: !filter.isSelected } : filter
+        ));
+    };
+    const handleRefresh = async () => {
+        const members = await fetchAllMemberData(projectId, availableRoles);
+        setAllMembers(members);
+        location.reload();
+    }
+
+    if (loading) {
+        return (
+            <div role="status" className="flex justify-center items-center h-screen bg-[#0a0a0a]">
+                <svg
+                    aria-hidden="true"
+                    className="inline w-8 h-8 text-neutral-400 animate-spin fill-white"
+                    viewBox="0 0 100 101"
+                    fill="none"
+                    xmlns="http://www.w3.org/2000/svg"
+                >
+                    <path
+                        d="M100 50.5908C100 78.2051 77.6142 100.591 50 100.591C22.3858 100.591 0 78.2051 0 50.5908C0 22.9766 22.3858 0.59082 50 0.59082C77.6142 0.59082 100 22.9766 100 50.5908ZM9.08144 50.5908C9.08144 73.1895 27.4013 91.5094 50 91.5094C72.5987 91.5094 90.9186 73.1895 90.9186 50.5908C90.9186 27.9921 72.5987 9.67226 50 9.67226C27.4013 9.67226 9.08144 27.9921 9.08144 50.5908Z"
+                        fill="currentColor"
+                    />
+                    <path
+                        d="M93.9676 39.0409C96.393 38.4038 97.8624 35.9116 97.0079 33.5539C95.2932 28.8227 92.871 24.3692 89.8167 20.348C85.8452 15.1192 80.8826 10.7238 75.2124 7.41289C69.5422 4.10194 63.2754 1.94025 56.7698 1.05124C51.7666 0.367541 46.6976 0.446843 41.7345 1.27873C39.2613 1.69328 37.813 4.19778 38.4501 6.62326C39.0873 9.04874 41.5694 10.4717 44.0505 10.1071C47.8511 9.54855 51.7191 9.52689 55.5402 10.0491C60.8642 10.7766 65.9928 12.5457 70.6331 15.2552C75.2735 17.9648 79.3347 21.5619 82.5849 25.841C84.9175 28.9121 86.7997 32.2913 88.1811 35.8758C89.083 38.2158 91.5421 39.6781 93.9676 39.0409Z"
+                        fill="currentFill"
+                    />
+                </svg>
+                <span className="sr-only">Loading...</span>
+            </div>
+        );
+    }
+
+    return (
+        <div className="h-screen bg-[#0a0a0a] light:bg-gray-50 text-zinc-100 light:text-gray-900 flex overflow-hidden selection:bg-indigo-500/30 light:selection:bg-indigo-500/20">
+
+            {/* SIDEBAR */}
+            <Menu project={project} user={user} />
+
+            <main className="flex-1 ml-64 flex flex-col h-full bg-[#09090b] light:bg-gray-50 relative">
+
+                {/* HEADER */}
+                <div className="flex-none h-14 mt-[55px] px-6 border-b border-white/5 light:border-gray-200 flex items-center justify-between bg-[#0a0a0a]/50 light:bg-white/50 backdrop-blur-sm z-10">
+                    <div className="flex items-center gap-4">
+                        <h1 className="text-xl font-bold tracking-tight text-white light:text-gray-900">Team <span className="text-white/30 light:text-gray-400 text-lg font-light">Management</span></h1>
                     </div>
-                    <h3 className="text-sm font-medium text-zinc-300 mb-2">No members found</h3>
-                    <p className="text-xs text-zinc-500 max-w-sm">
-                        {searchQuery ? `No members match "${searchQuery}"` : "No members match the selected filters"}
-                    </p>
-                    {(searchQuery || roleFilters.some(f => !f.isSelected)) && (
-                        <button 
-                            onClick={() => {
-                                setSearchQuery("");
-                                setRoleFilters(prev => prev.map(f => ({ ...f, isSelected: true })));
-                            }}
-                            className="mt-4 px-3 py-1.5 text-xs text-indigo-400 hover:text-indigo-300 hover:bg-indigo-500/10 rounded-lg transition-colors"
-                        >
-                            Clear filters
-                        </button>
-                    )}
+                    <div className="flex items-center gap-3">
+                        {/* CHANGED: Show FILTERED count instead of TOTAL count */}
+                        <div className="h-6 px-2 bg-zinc-900 light:bg-white border border-zinc-800 light:border-gray-200 rounded text-[12px] font-mono text-zinc-500 light:text-gray-500 flex items-center gap-2">
+                            <span>SHOWING:</span>
+                            <span className="text-zinc-300 light:text-gray-900">{filteredMembers.length}</span>
+                            <span className="text-zinc-600 light:text-gray-400">/</span>
+                            <span className="text-zinc-500 light:text-gray-500">{allMembers.length}</span>
+                        </div>
+                    </div>
                 </div>
-            ) : (
-                filteredMembers.map(member => {
-                    const isExpanded = expandedUserId === member.user_id;
-                    const isMe = member.user_id === currentUserId;
-                    
-                    return (
-                    <React.Fragment key={member.user_id}>
-                        <div 
-                            onClick={() => handleMemberClick(member.user_id)}
-                            className={`grid grid-cols-12 gap-4 px-6 py-3.5 border-b border-zinc-800/30 items-center transition-all cursor-pointer group
-                                ${isExpanded ? 'bg-zinc-900/30 border-zinc-800' : 'hover:bg-zinc-900/20'}`}
-                        >
-                            {/* 1. Identity */}
-                            <div className="col-span-5 flex items-center gap-3">
-                                <CreatorPfp
-                                    userId={member.user_id}
-                                    currentUserId={currentUserId}
-                                    currentUserPfp={currentUserPfp}
-                                    currentUserName={currentUserName}
-                                    pfpUrl={member.avatar_url} 
-                                    name={member.full_name}
-                                    size="w-8 h-8"
-                                    showNameOnHover={false}
-                                />
-                                <div className="flex flex-col">
-                                    <span className={`text-sm font-medium transition-colors ${isExpanded ? 'text-indigo-400' : 'text-zinc-200 group-hover:text-white'}`}>
-                                        {member.full_name} {isMe && <span className="text-zinc-600 text-[10px] ml-2">(You)</span>}
-                                    </span>
-                                    <span className="text-xs text-zinc-500 font-mono tracking-tight truncate max-w-[200px]">
-                                        {member.email}
-                                    </span>
-                                </div>
-                            </div>
 
-                            {/* 2. Role */}
-                            <div className="col-span-2">
-                                <span className="text-xs font-medium text-zinc-300 capitalize bg-zinc-800/50 px-2 py-1 rounded border border-zinc-800">
-                                    {member.role}
-                                </span>
-                            </div>
-
-                            {/* 3. Status/Date */}
-                            <div className="col-span-3 text-xs text-zinc-500 flex items-center gap-2">
-                                <div className="w-1.5 h-1.5 rounded-full bg-emerald-500/50 shadow-[0_0_8px_rgba(16,185,129,0.4)]"></div>
-                                <span>Active since {new Date(member.joined_at).toLocaleDateString()}</span>
-                            </div>
-
-                            {/* 4. Action Trigger */}
-                            <div className="col-span-2 flex items-center justify-end gap-3 text-right">
-                                <button className={`p-1.5 rounded-md transition-colors ${isExpanded ? 'bg-zinc-800 text-zinc-100' : 'text-zinc-600 hover:text-zinc-300'}`}>
-                                    {isExpanded ? <ChevronUp size={14} /> : <MoreHorizontal size={14} />}
-                                </button>
-                            </div>
+                {/* TOOLBAR */}
+                <div className="flex-none px-6 py-5 flex items-center justify-between">
+                    <div className="flex items-center gap-3 w-full max-w-4xl">
+                        {/* Search */}
+                        <div className="relative flex-1 group max-w-md">
+                            <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500 light:text-gray-400 group-focus-within:text-zinc-300 light:group-focus-within:text-gray-600 transition-colors" />
+                            <input
+                                type="text"
+                                placeholder="Find member..."
+                                className="w-full bg-zinc-900/50 light:bg-white border border-zinc-800/80 light:border-gray-200 rounded-lg pl-9 pr-4 py-2 text-sm text-zinc-200 light:text-gray-900 focus:outline-none focus:ring-1 focus:ring-zinc-700 light:focus:ring-gray-300 focus:border-zinc-700 light:focus:border-gray-300 transition-all shadow-sm"
+                                value={searchQuery}
+                                onChange={e => setSearchQuery(e.target.value)}
+                            />
                         </div>
 
-                        {/* EXPANDED MANAGEMENT PANEL */}
-                        {isExpanded && (
-                            <div className="border-b border-zinc-800 bg-[#0C0C0E] px-6 py-6 animate-in slide-in-from-top-2 duration-200 cursor-default">
-                                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                                    
-                                    {/* Col 1: Read Only Info */}
-                                    <div className="space-y-4">
-                                        <h3 className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest">Contact Info</h3>
-                                        <div className="p-4 rounded-xl border border-zinc-800/60 bg-zinc-900/20 space-y-3">
-                                            <div className="flex items-center gap-3">
-                                                <Mail size={14} className="text-zinc-500" />
-                                                <span className="text-xs text-zinc-400 font-mono">{member.email}</span>
-                                            </div>
-                                            <div className="text-sm text-zinc-400 flex items-center gap-2 font-mono" title="Phone Number">
-                                                <Phone size={10} /> <PhoneNumberDisplay phoneNumber={member.phone_number}/>
-                                            </div>
-                                            <div className="flex items-center gap-3">
-                                                <UserIcon size={14} className="text-zinc-400" />
-                                                <span className="text-xs text-zinc-400 font-mono truncate w-full" title={member.user_id}>
-                                                    ID: {member.user_id}
+                        {/* Invite Button */}
+                        <button
+                            onClick={() => setIsInviteOpen(true)}
+                            className="flex items-center gap-2 px-4 py-2 bg-purple-600 hover:bg-purple-500 text-white text-xs font-semibold rounded-lg transition-all shadow-sm shadow-indigo-900/20 active:scale-95"
+                        >
+                            <Plus size={14} />
+                            <span>Invite Collaborator</span>
+                        </button>
+
+                        {/* Manage Roles Button */}
+                        <button
+                            onClick={() => setIsRoleManagementOpen(true)}
+                            className="flex items-center gap-2 px-4 py-2 bg-white light:bg-gray-900 hover:bg-zinc-300 light:hover:bg-gray-800 text-[#0a0a0a] light:text-white text-xs font-semibold rounded-lg transition-all shadow-sm shadow-indigo-900/20 active:scale-95"
+                        >
+                            <Settings size={14} />
+                            <span>Manage Roles</span>
+                        </button>
+
+                        {/* Role Filter */}
+                        <div className="relative">
+                            <button
+                                onClick={() => setShowRoleMenu(!showRoleMenu)}
+                                className={`flex items-center gap-2 px-3 py-2 border rounded-lg text-xs font-medium transition-all shadow-sm
+                            ${showRoleMenu
+                                        ? 'bg-zinc-800 light:bg-gray-200 border-zinc-700 light:border-gray-300 text-white light:text-gray-900'
+                                        : 'bg-zinc-900/50 light:bg-white border-zinc-800 light:border-gray-200 text-zinc-400 light:text-gray-600 hover:text-zinc-200 light:hover:text-gray-900 hover:bg-zinc-900 light:hover:bg-gray-50'}`}
+                            >
+                                <Filter size={14} />
+                                <span>Roles</span>
+                                <ChevronDown size={12} />
+                            </button>
+
+                            {showRoleMenu && (
+                                <div className="absolute top-full right-0 mt-2 w-48 bg-[#0C0C0E] light:bg-white border border-zinc-800 light:border-gray-200 rounded-lg shadow-2xl z-30 p-1.5">
+                                    <div className="space-y-0.5">
+                                        <div className="px-2 py-1.5 text-[10px] font-bold text-zinc-500 light:text-gray-500 uppercase tracking-wider">Show Roles</div>
+                                        {roleFilters.map(filter => (
+                                            <button
+                                                key={filter.name}
+                                                onClick={() => toggleRoleFilter(filter.name)}
+                                                className="w-full text-left flex items-center justify-between px-2 py-1.5 text-xs text-zinc-400 light:text-gray-600 hover:text-zinc-100 light:hover:text-gray-900 hover:bg-zinc-800/50 light:hover:bg-gray-100 rounded-md transition-colors"
+                                            >
+                                                <span className="capitalize">{filter.name}</span>
+                                                {filter.isSelected && <Check size={12} className="text-indigo-500" />}
+                                            </button>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+
+                        {/* Refresh */}
+                        <button
+                            onClick={handleRefresh}
+                            className="p-2 bg-zinc-900/50 light:bg-white border border-zinc-800 light:border-gray-200 rounded-lg text-zinc-500 light:text-gray-500 hover:text-zinc-200 light:hover:text-gray-900 hover:bg-zinc-900 light:hover:bg-gray-50"
+                        >
+                            <RefreshCw size={14} className={refreshing ? "animate-spin" : ""} />
+                        </button>
+                    </div>
+                </div>
+
+                {/* TABLE HEADER */}
+                <div className="flex-none grid grid-cols-12 gap-4 px-6 py-2 border-b border-zinc-800/50 light:border-gray-200 text-[10px] font-semibold uppercase tracking-wider text-zinc-500 light:text-gray-500 select-none bg-zinc-900/20 light:bg-gray-100">
+                    <div className="col-span-5 pl-2">User</div>
+                    <div className="col-span-2">Current Role</div>
+                    <div className="col-span-3">Status</div>
+                    <div className="col-span-2 text-right pr-2">Manage</div>
+                </div>
+
+                {/* LIST */}
+                <div className="flex-1 overflow-y-auto custom-scrollbar">
+                    {filteredMembers.length === 0 ? (
+                        <div className="flex flex-col items-center justify-center h-64 text-center px-6">
+                            <div className="p-4 bg-zinc-900/30 light:bg-gray-100 rounded-full border border-zinc-800 light:border-gray-200 mb-4">
+                                <UsersIcon size={24} className="text-zinc-600 light:text-gray-400" />
+                            </div>
+                            <h3 className="text-sm font-medium text-zinc-300 light:text-gray-900 mb-2">No members found</h3>
+                            <p className="text-xs text-zinc-500 light:text-gray-500 max-w-sm">
+                                {searchQuery ? `No members match "${searchQuery}"` : "No members match the selected filters"}
+                            </p>
+                            {(searchQuery || roleFilters.some(f => !f.isSelected)) && (
+                                <button
+                                    onClick={() => {
+                                        setSearchQuery("");
+                                        setRoleFilters(prev => prev.map(f => ({ ...f, isSelected: true })));
+                                    }}
+                                    className="mt-4 px-3 py-1.5 text-xs text-indigo-400 hover:text-indigo-300 hover:bg-indigo-500/10 rounded-lg transition-colors"
+                                >
+                                    Clear filters
+                                </button>
+                            )}
+                        </div>
+                    ) : (
+                        filteredMembers.map(member => {
+                            const isExpanded = expandedUserId === member.user_id;
+                            const isMe = member.user_id === currentUserId;
+
+                            return (
+                                <React.Fragment key={member.user_id}>
+                                    <div
+                                        onClick={() => handleMemberClick(member.user_id)}
+                                        className={`grid grid-cols-12 gap-4 px-6 py-3.5 border-b border-zinc-800/30 light:border-gray-200 items-center transition-all cursor-pointer group
+                                ${isExpanded ? 'bg-zinc-900/30 light:bg-gray-100 border-zinc-800 light:border-gray-200' : 'hover:bg-zinc-900/20 light:hover:bg-gray-50'}`}
+                                    >
+                                        {/* 1. Identity */}
+                                        <div className="col-span-5 flex items-center gap-3">
+                                            <CreatorPfp
+                                                userId={member.user_id}
+                                                currentUserId={currentUserId}
+                                                currentUserPfp={currentUserPfp}
+                                                currentUserName={currentUserName}
+                                                pfpUrl={member.avatar_url}
+                                                name={member.full_name}
+                                                size="w-8 h-8"
+                                                showNameOnHover={false}
+                                            />
+                                            <div className="flex flex-col">
+                                                <span className={`text-sm font-medium transition-colors ${isExpanded ? 'text-indigo-400 light:text-indigo-600' : 'text-zinc-200 light:text-gray-900 group-hover:text-white light:group-hover:text-black'}`}>
+                                                    {member.full_name} {isMe && <span className="text-zinc-600 light:text-gray-400 text-[10px] ml-2">(You)</span>}
+                                                </span>
+                                                <span className="text-xs text-zinc-500 light:text-gray-500 font-mono tracking-tight truncate max-w-[200px]">
+                                                    {member.email}
                                                 </span>
                                             </div>
                                         </div>
-                                    </div>
 
-{/* Col 2: Role Management */}
-<div className="space-y-4">
-    <h3 className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest">Access Control</h3>
-    <div className="p-4 rounded-xl border border-zinc-800/60 bg-zinc-900/20 flex flex-col gap-4">
-        
-        <div>
-            <label className="text-xs text-zinc-400 block mb-2">Assign Role</label>
-            <div className="relative">
-                <select 
-                    value={member.role} 
-                    onChange={(e) => handleUpdateRole(member.user_id, e.target.value)}
-                    disabled={isMe || actionLoading === member.user_id}
-                    className="w-full appearance-none bg-zinc-950 border border-zinc-800 text-zinc-200 text-sm rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none disabled:opacity-50 capitalize"
-                >
-                    {Object.keys(availableRoles).map(r => (
-                        <option key={r} value={r}>{r}</option>
-                    ))}
-                </select>
-                <ChevronDown size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-500 pointer-events-none"/>
-            </div>
-            {actionLoading === member.user_id && <span className="text-[10px] text-indigo-400 mt-1 block">Updating...</span>}
-        </div>
+                                        {/* 2. Role */}
+                                        <div className="col-span-2">
+                                            <span className="text-xs font-medium text-zinc-300 light:text-gray-700 capitalize bg-zinc-800/50 light:bg-gray-200 px-2 py-1 rounded border border-zinc-800 light:border-gray-300">
+                                                {member.role}
+                                            </span>
+                                        </div>
 
-        <div>
-            <div className="flex items-center justify-between mb-2">
-                <div className="text-[10px] text-zinc-500 uppercase tracking-wider">Custom Permissions</div>
-                <div className="text-[10px] text-zinc-600">
-                    {member.permissions.length} of {Object.values(availableRoles).flat().length} enabled
-                </div>
-            </div>
-<div className="flex flex-wrap gap-1.5">
-    {member.permissions.map((perm, i) => (
-        <div key={i} className="relative group">
-            <span className="px-2 py-1 rounded bg-zinc-800/40 border border-zinc-800 text-[10px] text-zinc-400 font-mono flex items-center gap-1 hover:bg-zinc-800/60 transition-colors">
-                {perm}
-                {!isMe && (
-                    <button 
-                        onClick={() => handleRemovePermission(member.user_id, perm)}
-                        className="ml-1 p-0.5 rounded hover:bg-rose-500/20 text-zinc-500 hover:text-rose-400 transition-colors"
-                        title="Remove permission"
-                    >
-                        <X size={8} />
-                    </button>
-                )}
-            </span>
-        </div>
-    ))}
-</div>
-            
-{/* Add Permission Section */}
-{!isMe && (
-    <div className="mt-3 pt-3 border-t border-zinc-800/50">
-        <div className="flex items-center justify-between mb-2">
-            <div className="text-[10px] text-zinc-500 uppercase tracking-wider">Add Permission</div>
-            <div className="text-[10px] text-zinc-600">
-                {Object.values(availableRoles).flat().filter(perm => !member.permissions.includes(perm) && perm !== "all" && perm !== "no_permission_defined").length} available
-            </div>
-        </div>
-        <div className="flex flex-wrap gap-1.5 max-h-32 overflow-y-auto p-1 custom-scrollbar">
-            {Object.values(availableRoles)
-                .flat()
-                .filter(perm => 
-                    !member.permissions.includes(perm) && 
-                    perm !== "all" && 
-                    perm !== "no_permission_defined" &&
-                    perm.trim() !== ""
-                )
-                .filter((perm, index, self) => self.indexOf(perm) === index) // Remove duplicates
-                .sort() // Alphabetical order
-                .map((perm, i) => (
-                    <button
-                        key={i}
-                        onClick={() => handleAddPermission(member.user_id, perm)}
-                        className="px-2 py-1 rounded bg-zinc-950 border border-zinc-700 hover:border-indigo-500/50 hover:bg-indigo-500/10 text-[10px] text-zinc-500 hover:text-indigo-400 font-mono transition-all flex items-center gap-1 group"
-                        title={`Add ${perm} permission`}
-                    >
-                        <Plus size={8} className="opacity-0 group-hover:opacity-100 transition-opacity" />
-                        {perm}
-                    </button>
-                ))}
-        </div>
-    </div>
-)}
-        </div>
-    </div>
-</div>
+                                        {/* 3. Status/Date */}
+                                        <div className="col-span-3 text-xs text-zinc-500 light:text-gray-500 flex items-center gap-2">
+                                            <div className="w-1.5 h-1.5 rounded-full bg-emerald-500/50 shadow-[0_0_8px_rgba(16,185,129,0.4)]"></div>
+                                            <span>Active since {new Date(member.joined_at).toLocaleDateString()}</span>
+                                        </div>
 
-                                    {/* Col 3: Danger Zone */}
-                                    <div className="space-y-4">
-                                        <h3 className="text-[10px] font-bold text-rose-900/50 uppercase tracking-widest">Danger Zone</h3>
-                                        <div className="p-4 rounded-xl border border-rose-900/20 bg-rose-950/5 flex flex-col justify-between h-auto gap-3">
-                                            <div className="text-xs text-zinc-500">
-                                                Removing this user will revoke all access to the project immediately.
-                                            </div>
-                                            
-                                            <button 
-                                                onClick={(e) => { e.stopPropagation(); handleRemoveMember(member.user_id); }}
-                                                disabled={isMe || actionLoading === member.user_id}
-                                                className="w-full flex items-center justify-center gap-2 py-2 text-xs font-medium text-rose-500 bg-rose-500/10 border border-rose-500/20 rounded hover:bg-rose-500/20 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                                            >
-                                                <Trash2 size={12} />
-                                                {actionLoading === member.user_id ? "Processing..." : "Remove from Project"}
+                                        {/* 4. Action Trigger */}
+                                        <div className="col-span-2 flex items-center justify-end gap-3 text-right">
+                                            <button className={`p-1.5 rounded-md transition-colors ${isExpanded ? 'bg-zinc-800 light:bg-gray-200 text-zinc-100 light:text-gray-900' : 'text-zinc-600 light:text-gray-400 hover:text-zinc-300 light:hover:text-gray-600'}`}>
+                                                {isExpanded ? <ChevronUp size={14} /> : <MoreHorizontal size={14} />}
                                             </button>
                                         </div>
                                     </div>
-                                </div>
-                            </div>
-                        )}
-                    </React.Fragment>
-                )})
+
+                                    {/* EXPANDED MANAGEMENT PANEL */}
+                                    {isExpanded && (
+                                        <div className="border-b border-zinc-800 light:border-gray-200 bg-[#0C0C0E] light:bg-gray-50 px-6 py-6 animate-in slide-in-from-top-2 duration-200 cursor-default">
+                                            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+
+                                                {/* Col 1: Read Only Info */}
+                                                <div className="space-y-4">
+                                                    <h3 className="text-[10px] font-bold text-zinc-500 light:text-gray-500 uppercase tracking-widest">Contact Info</h3>
+                                                    <div className="p-4 rounded-xl border border-zinc-800/60 light:border-gray-200 bg-zinc-900/20 light:bg-white space-y-3">
+                                                        <div className="flex items-center gap-3">
+                                                            <Mail size={14} className="text-zinc-500 light:text-gray-400" />
+                                                            <span className="text-xs text-zinc-400 light:text-gray-600 font-mono">{member.email}</span>
+                                                        </div>
+                                                        <div className="text-sm text-zinc-400 light:text-gray-600 flex items-center gap-2 font-mono" title="Phone Number">
+                                                            <Phone size={10} /> <PhoneNumberDisplay phoneNumber={member.phone_number} />
+                                                        </div>
+                                                        <div className="flex items-center gap-3">
+                                                            <UserIcon size={14} className="text-zinc-400 light:text-gray-400" />
+                                                            <span className="text-xs text-zinc-400 light:text-gray-600 font-mono truncate w-full" title={member.user_id}>
+                                                                ID: {member.user_id}
+                                                            </span>
+                                                        </div>
+                                                    </div>
+                                                </div>
+
+                                                {/* Col 2: Role Management */}
+                                                <div className="space-y-4">
+                                                    <h3 className="text-[10px] font-bold text-zinc-500 light:text-gray-500 uppercase tracking-widest">Access Control</h3>
+                                                    <div className="p-4 rounded-xl border border-zinc-800/60 light:border-gray-200 bg-zinc-900/20 light:bg-white flex flex-col gap-4">
+
+                                                        <div>
+                                                            <label className="text-xs text-zinc-400 light:text-gray-600 block mb-2">Assign Role</label>
+                                                            <div className="relative">
+                                                                <select
+                                                                    value={member.role}
+                                                                    onChange={(e) => handleUpdateRole(member.user_id, e.target.value)}
+                                                                    disabled={isMe || actionLoading === member.user_id}
+                                                                    className="w-full appearance-none bg-zinc-950 light:bg-gray-50 border border-zinc-800 light:border-gray-200 text-zinc-200 light:text-gray-900 text-sm rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none disabled:opacity-50 capitalize"
+                                                                >
+                                                                    {Object.keys(availableRoles).map(r => (
+                                                                        <option key={r} value={r}>{r}</option>
+                                                                    ))}
+                                                                </select>
+                                                                <ChevronDown size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-500 light:text-gray-400 pointer-events-none" />
+                                                            </div>
+                                                            {actionLoading === member.user_id && <span className="text-[10px] text-indigo-400 light:text-indigo-600 mt-1 block">Updating...</span>}
+                                                        </div>
+
+                                                        <div>
+                                                            <div className="flex items-center justify-between mb-2">
+                                                                <div className="text-[10px] text-zinc-500 light:text-gray-500 uppercase tracking-wider">Custom Permissions</div>
+                                                                <div className="text-[10px] text-zinc-600 light:text-gray-400">
+                                                                    {member.permissions.length} of {Object.values(availableRoles).flat().length} enabled
+                                                                </div>
+                                                            </div>
+                                                            <div className="flex flex-wrap gap-1.5">
+                                                                {member.permissions.map((perm, i) => (
+                                                                    <div key={i} className="relative group">
+                                                                        <span className="px-2 py-1 rounded bg-zinc-800/40 light:bg-gray-100 border border-zinc-800 light:border-gray-200 text-[10px] text-zinc-400 light:text-gray-600 font-mono flex items-center gap-1 hover:bg-zinc-800/60 light:hover:bg-gray-200 transition-colors">
+                                                                            {perm}
+                                                                            {!isMe && (
+                                                                                <button
+                                                                                    onClick={() => handleRemovePermission(member.user_id, perm)}
+                                                                                    className="ml-1 p-0.5 rounded hover:bg-rose-500/20 text-zinc-500 light:text-gray-400 hover:text-rose-400 transition-colors"
+                                                                                    title="Remove permission"
+                                                                                >
+                                                                                    <X size={8} />
+                                                                                </button>
+                                                                            )}
+                                                                        </span>
+                                                                    </div>
+                                                                ))}
+                                                            </div>
+
+                                                            {/* Add Permission Section */}
+                                                            {!isMe && (
+                                                                <div className="mt-3 pt-3 border-t border-zinc-800/50 light:border-gray-200">
+                                                                    <div className="flex items-center justify-between mb-2">
+                                                                        <div className="text-[10px] text-zinc-500 light:text-gray-500 uppercase tracking-wider">Add Permission</div>
+                                                                        <div className="text-[10px] text-zinc-600 light:text-gray-400">
+                                                                            {Object.values(availableRoles).flat().filter(perm => !member.permissions.includes(perm) && perm !== "all" && perm !== "no_permission_defined").length} available
+                                                                        </div>
+                                                                    </div>
+                                                                    <div className="flex flex-wrap gap-1.5 max-h-32 overflow-y-auto p-1 custom-scrollbar">
+                                                                        {Object.values(availableRoles)
+                                                                            .flat()
+                                                                            .filter(perm =>
+                                                                                !member.permissions.includes(perm) &&
+                                                                                perm !== "all" &&
+                                                                                perm !== "no_permission_defined" &&
+                                                                                perm.trim() !== ""
+                                                                            )
+                                                                            .filter((perm, index, self) => self.indexOf(perm) === index) // Remove duplicates
+                                                                            .sort() // Alphabetical order
+                                                                            .map((perm, i) => (
+                                                                                <button
+                                                                                    key={i}
+                                                                                    onClick={() => handleAddPermission(member.user_id, perm)}
+                                                                                    className="px-2 py-1 rounded bg-zinc-950 light:bg-white border border-zinc-700 light:border-gray-200 hover:border-indigo-500/50 hover:bg-indigo-500/10 text-[10px] text-zinc-500 light:text-gray-600 hover:text-indigo-400 light:hover:text-indigo-600 font-mono transition-all flex items-center gap-1 group"
+                                                                                    title={`Add ${perm} permission`}
+                                                                                >
+                                                                                    <Plus size={8} className="opacity-0 group-hover:opacity-100 transition-opacity" />
+                                                                                    {perm}
+                                                                                </button>
+                                                                            ))}
+                                                                    </div>
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                    </div>
+                                                </div>
+
+                                                {/* Col 3: Danger Zone */}
+                                                <div className="space-y-4">
+                                                    <h3 className="text-[10px] font-bold text-rose-900/50 uppercase tracking-widest">Danger Zone</h3>
+                                                    <div className="p-4 rounded-xl border border-rose-900/20 bg-rose-950/5 flex flex-col justify-between h-auto gap-3">
+                                                        <div className="text-xs text-zinc-500">
+                                                            Removing this user will revoke all access to the project immediately.
+                                                        </div>
+
+                                                        <button
+                                                            onClick={(e) => { e.stopPropagation(); handleRemoveMember(member.user_id); }}
+                                                            disabled={isMe || actionLoading === member.user_id}
+                                                            className="w-full flex items-center justify-center gap-2 py-2 text-xs font-medium text-rose-500 bg-rose-500/10 border border-rose-500/20 rounded hover:bg-rose-500/20 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                                                        >
+                                                            <Trash2 size={12} />
+                                                            {actionLoading === member.user_id ? "Processing..." : "Remove from Project"}
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    )}
+                                </React.Fragment>
+                            )
+                        })
+                    )}
+
+                </div>
+            </main>
+
+            {/* INVITE MODAL OVERLAY */}
+            {isInviteOpen && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 light:bg-gray-900/50 backdrop-blur-sm animate-in fade-in duration-200">
+                    <div className="bg-[#18181b] light:bg-white border border-zinc-800 light:border-gray-200 rounded-xl shadow-2xl w-full max-w-md p-6 relative animate-in zoom-in-95 duration-200">
+                        <button onClick={() => setIsInviteOpen(false)} className="absolute top-4 right-4 text-zinc-500 light:text-gray-400 hover:text-white light:hover:text-gray-900">
+                            <X size={16} />
+                        </button>
+
+                        <h2 className="text-lg font-bold text-white light:text-gray-900 mb-4">Invite Team Member</h2>
+
+                        {/* 1. INVITE CODE COMPONENT */}
+                        <ProjectCodeGeneration projectId={projectId} />
+                    </div>
+                </div>
             )}
-            
-        </div>
-      </main>
 
-      {/* INVITE MODAL OVERLAY */}
-      {isInviteOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm animate-in fade-in duration-200">
-            <div className="bg-[#18181b] border border-zinc-800 rounded-xl shadow-2xl w-full max-w-md p-6 relative animate-in zoom-in-95 duration-200">
-                <button onClick={() => setIsInviteOpen(false)} className="absolute top-4 right-4 text-zinc-500 hover:text-white">
-                    <X size={16} />
-                </button>
-                
-                <h2 className="text-lg font-bold text-white mb-4">Invite Team Member</h2>
+            {/* ROLE MANAGEMENT MODAL OVERLAY */}
+            <RoleManagementModal
+                projectId={projectId}
+                availableRoles={availableRoles}
+                isOpen={isRoleManagementOpen}
+                onClose={() => setIsRoleManagementOpen(false)}
+                onRolesUpdated={handleRolesUpdated}
+            />
 
-                {/* 1. INVITE CODE COMPONENT */}
-                <ProjectCodeGeneration projectId={projectId} />
-            </div>
-        </div>
-      )}
-
-      {/* ROLE MANAGEMENT MODAL OVERLAY */}
-      <RoleManagementModal
-        projectId={projectId}
-        availableRoles={availableRoles}
-        isOpen={isRoleManagementOpen}
-        onClose={() => setIsRoleManagementOpen(false)}
-        onRolesUpdated={handleRolesUpdated}
-      />
-
-      {/* Global Styles for Scrollbar */}
-      <style jsx global>{`
+            {/* Global Styles for Scrollbar */}
+            <style jsx global>{`
         .custom-scrollbar::-webkit-scrollbar { width: 6px; }
         .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
         .custom-scrollbar::-webkit-scrollbar-thumb { background: #27272a; border-radius: 4px; }
         .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #3f3f46; }
+        @media (prefers-color-scheme: light) {
+            .custom-scrollbar::-webkit-scrollbar-thumb { background: #d1d5db; }
+            .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #9ca3af; }
+        }
       `}</style>
-    </div>
-  );
+        </div>
+    );
 }

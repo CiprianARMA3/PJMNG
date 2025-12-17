@@ -6,16 +6,16 @@ import Menu from "../../components/menu";
 import Image from 'next/image';
 import { useProjectPermissions } from "@/hooks/useProjectPermissions";
 import { useRouter, useParams } from "next/navigation";
-import { 
-  Check, 
-  MoreHorizontal, 
-  Plus, 
-  X, 
-  Settings, 
-  Tag as TagIcon, 
-  Trash2, 
-  Layout, 
-  FileText 
+import {
+  Check,
+  MoreHorizontal,
+  Plus,
+  X,
+  Settings,
+  Tag as TagIcon,
+  Trash2,
+  Layout,
+  FileText
 } from "lucide-react";
 import router from "next/router";
 
@@ -98,7 +98,7 @@ export default function Board({ params }: PageProps) {
   const [draggingId, setDraggingId] = useState<string | null>(null);
 
   // INITIAL LOAD
-useEffect(() => {
+  useEffect(() => {
     async function load() {
       // 1. Get ID
       const { id } = await params;
@@ -106,14 +106,14 @@ useEffect(() => {
 
       // 2. Get Auth User
       const { data: { user: authUser }, error: authError } = await supabase.auth.getUser();
-      if (authError || !authUser) { 
-        window.location.href = "/auth/login"; 
-        return; 
+      if (authError || !authUser) {
+        window.location.href = "/auth/login";
+        return;
       }
-        if (!authLoading && !checkAccess('board')) {
-    router.push(`/dashboard/projects/${projectId}`);
-    return null;
-  }
+      if (!authLoading && !checkAccess('board')) {
+        router.push(`/dashboard/projects/${projectId}`);
+        return null;
+      }
 
       // 3. Fetch User Profile (Fix for Menu Name/Avatar)
       const { data: userProfile } = await supabase
@@ -127,13 +127,13 @@ useEffect(() => {
         ...authUser,
         user_metadata: {
           ...authUser.user_metadata,
-          full_name: userProfile?.name 
-            ? `${userProfile.name} ${userProfile.surname || ""}`.trim() 
+          full_name: userProfile?.name
+            ? `${userProfile.name} ${userProfile.surname || ""}`.trim()
             : authUser.user_metadata?.full_name || "User",
           avatar_url: userProfile?.metadata?.avatar_url || authUser.user_metadata?.avatar_url
         }
       };
-      
+
       setUser(finalUser);
 
       // 5. Fetch Project Data
@@ -142,7 +142,7 @@ useEffect(() => {
         .select("*")
         .eq("id", id)
         .single();
-        
+
       if (projectData) setProject(projectData);
 
       // 6. Fetch Groups
@@ -151,7 +151,7 @@ useEffect(() => {
         .select("*")
         .eq("project_id", id)
         .order("created_at", { ascending: true });
-        
+
       setGroups(groupsData ?? []);
 
       // 7. Fetch Concepts (Your existing logic)
@@ -205,11 +205,11 @@ useEffect(() => {
 
   async function addGlobalTag() {
     if (!globalTagName.trim() || !project) return;
-    
+
     const newTag: Tag = { name: globalTagName, color: globalTagColor, textColor: "#ffffff" };
     const currentGlobalTags = project.metadata?.global_tags || [];
     const updatedTags = [...currentGlobalTags, newTag];
-    
+
     // Update local state immediately
     const updatedProject = { ...project, metadata: { ...project.metadata, global_tags: updatedTags } };
     setProject(updatedProject);
@@ -220,7 +220,7 @@ useEffect(() => {
       .from("projects")
       .update({ metadata: updatedProject.metadata })
       .eq("id", projectId);
-      
+
     if (error) alert("Error saving global tag");
   }
 
@@ -323,9 +323,9 @@ useEffect(() => {
   const closeGroupModal = () => { setEditingGroup(null); setGroupName(""); setGroupTags([]); setShowGroupModal(false); };
   const closeConceptModal = () => { setCurrentConcept(null); setNewTitle(""); setNewDescription(""); setNewTags([]); setShowConceptModal(false); };
 
- if (loading) {
+  if (loading) {
     return (
-      <div role="status" className="flex justify-center items-center h-screen bg-[#0a0a0a]">
+      <div role="status" className="flex justify-center items-center h-screen bg-[#0a0a0a] light:bg-gray-50">
         <svg
           aria-hidden="true"
           className="inline w-8 h-8 text-neutral-400 animate-spin fill-white"
@@ -348,7 +348,7 @@ useEffect(() => {
   }
 
   return (
-    <div className="h-screen bg-[#0a0a0a] text-white flex overflow-hidden">
+    <div className="h-screen bg-[#0a0a0a] light:bg-gray-50 text-white light:text-gray-900 flex overflow-hidden">
       <style jsx global>{`
         ::-webkit-scrollbar { width: 8px; height: 8px; }
         ::-webkit-scrollbar-track { background: transparent; }
@@ -358,28 +358,28 @@ useEffect(() => {
 
       <Menu project={project} user={user} />
 
-      <main className="flex-1 flex flex-col h-full ml-64 relative bg-gradient-to-br from-[#0a0a0a] to-[#111]">
-        
+      <main className="flex-1 flex flex-col h-full ml-64 relative bg-gradient-to-br from-[#0a0a0a] to-[#111] light:from-gray-50 light:to-gray-100">
+
         {/* Header */}
-        <div className="flex-none h-14 mt-[55px] px-6 border-b border-white/5 flex items-center justify-between bg-[#0a0a0a]/50 backdrop-blur-sm z-10">
+        <div className="flex-none h-14 mt-[55px] px-6 border-b border-white/5 light:border-gray-200 flex items-center justify-between bg-[#0a0a0a]/50 light:bg-white/50 backdrop-blur-sm z-10">
           <div className="flex items-center gap-4">
-             {/* <h1 className="text-lg font-bold tracking-tight">{project?.name || "Project Board"}</h1>
+            {/* <h1 className="text-lg font-bold tracking-tight">{project?.name || "Project Board"}</h1>
              <span className="px-2 py-0.5 bg-white/5 text-white/40 text-[10px] uppercase font-bold tracking-wider rounded border border-white/5">Board View</span> */}
-            <h1 className="text-xl font-bold tracking-tight">Board <span className="text-white/30 text-lg font-light">Overview</span></h1>
+            <h1 className="text-xl font-bold tracking-tight text-white light:text-gray-900">Board <span className="text-white/30 light:text-gray-400 text-lg font-light">Overview</span></h1>
 
             {/* <h1 className="text-xl font-bold tracking-tight">{project.name} <span className="text-white/30 text-lg font-light ml-2">Board</span></h1> */}
 
           </div>
           <div className="flex items-center gap-2">
-            <button 
-              onClick={() => setShowGroupModal(true)} 
+            <button
+              onClick={() => setShowGroupModal(true)}
               className="flex items-center gap-2 px-3 py-1.5 bg-purple-600 hover:bg-purple-500 text-white text-sm font-medium rounded shadow-sm shadow-purple-900/20 transition-colors"
             >
               <Plus size={16} /> Add List
             </button>
-            <button 
+            <button
               onClick={() => setShowSettingsModal(true)}
-              className="p-1.5 bg-white/5 hover:bg-white/10 border border-white/10 rounded text-white/60 hover:text-white transition-colors"
+              className="p-1.5 bg-white/5 light:bg-gray-200 hover:bg-white/10 light:hover:bg-gray-300 border border-white/10 light:border-gray-300 rounded text-white/60 light:text-gray-600 hover:text-white light:hover:text-gray-900 transition-colors"
             >
               <MoreHorizontal size={20} />
             </button>
@@ -390,134 +390,132 @@ useEffect(() => {
         <div className="flex-1 relative w-full">
           <div className="absolute inset-0 overflow-x-auto overflow-y-hidden">
             <div className="h-full flex items-start px-6 py-6 gap-6 min-w-max">
-              
+
               {groups.map(group => (
-                <div 
-                  key={group.id} 
-                  className="w-80 flex-shrink-0 max-h-full flex flex-col bg-[#161616] rounded-xl border border-white/5 shadow-xl"
+                <div
+                  key={group.id}
+                  className="w-80 flex-shrink-0 max-h-full flex flex-col bg-[#161616] light:bg-gray-100 rounded-xl border border-white/5 light:border-gray-200 shadow-xl light:shadow-sm"
                   onDragOver={e => e.preventDefault()}
                   onDrop={e => { const id = e.dataTransfer.getData("text/plain"); if (id) handleDrop(id, group.id); }}
                 >
-                   <div className="p-3 pl-4 flex justify-between items-start group cursor-grab active:cursor-grabbing">
-                      <div className="flex flex-col gap-1">
-                        <h2 className="text-sm font-bold text-gray-200 uppercase tracking-wider">{group.name}</h2>
-                        {/* NEW CODE: Full pill tags with text */}
-                        <div className="flex flex-wrap gap-1.5">
-                          {group.metadata?.tags?.map((t, i) => (
-                            <span 
-                              key={i} 
-                              style={{ backgroundColor: `${t.color}20`, color: t.color }} 
-                              className="text-[10px] font-bold px-2 py-0.5 rounded border border-transparent"
-                            >
-                              {t.name}
-                            </span>
-                          ))}
-                        </div>
+                  <div className="p-3 pl-4 flex justify-between items-start group cursor-grab active:cursor-grabbing">
+                    <div className="flex flex-col gap-1">
+                      <h2 className="text-sm font-bold text-gray-200 light:text-gray-700 uppercase tracking-wider">{group.name}</h2>
+                      {/* NEW CODE: Full pill tags with text */}
+                      <div className="flex flex-wrap gap-1.5">
+                        {group.metadata?.tags?.map((t, i) => (
+                          <span
+                            key={i}
+                            style={{ backgroundColor: `${t.color}20`, color: t.color }}
+                            className="text-[10px] font-bold px-2 py-0.5 rounded border border-transparent"
+                          >
+                            {t.name}
+                          </span>
+                        ))}
                       </div>
-                      <button onClick={() => { setEditingGroup(group); setGroupName(group.name); setGroupTags(group.metadata?.tags ?? []); setShowGroupModal(true); }} className="text-white/20 hover:text-white transition-colors p-1 rounded hover:bg-white/10">
-                        <Settings size={14} />
-                      </button>
                     </div>
+                    <button onClick={() => { setEditingGroup(group); setGroupName(group.name); setGroupTags(group.metadata?.tags ?? []); setShowGroupModal(true); }} className="text-white/20 light:text-gray-400 hover:text-white light:hover:text-gray-900 transition-colors p-1 rounded hover:bg-white/10 light:hover:bg-gray-200">
+                      <Settings size={14} />
+                    </button>
+                  </div>
 
-                    <div className="flex-1 overflow-y-auto px-2 pb-2 space-y-2 custom-scrollbar">
-                      {concepts.filter(c => c.group_name === group.name).map(c => (
-                        <div 
-                          key={c.id} 
-                          draggable 
-                          onDragStart={e => { setDraggingId(c.id); e.dataTransfer.setData("text/plain", c.id); }}
-                          onDragEnd={() => setDraggingId(null)}
-                          onClick={() => { setCurrentConcept(c); setConceptGroup(group.name); setNewTitle(c.title); setNewDescription(c.description ?? ""); setNewTags(c.metadata?.tags ?? []); setShowConceptModal(true); }}
-                          className={`group relative p-3 bg-[#222] hover:bg-[#2a2a2a] rounded-lg shadow-sm border border-transparent hover:border-white/10 cursor-pointer transition-all duration-200 ${draggingId === c.id ? "opacity-50" : "opacity-100"}`}
-                        >
-                          <h3 className={`text-sm font-medium leading-snug ${c.metadata?.completed ? "text-white/40 line-through" : "text-gray-100"}`}>{c.title}</h3>
-                          {c.metadata?.tags && c.metadata.tags.length > 0 && (
-                            <div className="flex flex-wrap gap-1.5 mt-2">
-                              {c.metadata.tags.map((t, idx) => (
-                                <span key={idx} style={{ backgroundColor: `${t.color}20`, color: t.color }} className="text-[10px] font-bold px-2 py-0.5 rounded border border-transparent">
-                                  {t.name}
-                                </span>
-                              ))}
-                            </div>
+                  <div className="flex-1 overflow-y-auto px-2 pb-2 space-y-2 custom-scrollbar">
+                    {concepts.filter(c => c.group_name === group.name).map(c => (
+                      <div
+                        key={c.id}
+                        draggable
+                        onDragStart={e => { setDraggingId(c.id); e.dataTransfer.setData("text/plain", c.id); }}
+                        onDragEnd={() => setDraggingId(null)}
+                        onClick={() => { setCurrentConcept(c); setConceptGroup(group.name); setNewTitle(c.title); setNewDescription(c.description ?? ""); setNewTags(c.metadata?.tags ?? []); setShowConceptModal(true); }}
+                        className={`group relative p-3 bg-[#222] light:bg-white hover:bg-[#2a2a2a] light:hover:bg-gray-50 rounded-lg shadow-sm border border-transparent hover:border-white/10 light:border-gray-200 light:hover:border-gray-300 cursor-pointer transition-all duration-200 ${draggingId === c.id ? "opacity-50" : "opacity-100"}`}
+                      >
+                        <h3 className={`text-sm font-medium leading-snug ${c.metadata?.completed ? "text-white/40 light:text-gray-400 line-through" : "text-gray-100 light:text-gray-900"}`}>{c.title}</h3>
+                        {c.metadata?.tags && c.metadata.tags.length > 0 && (
+                          <div className="flex flex-wrap gap-1.5 mt-2">
+                            {c.metadata.tags.map((t, idx) => (
+                              <span key={idx} style={{ backgroundColor: `${t.color}20`, color: t.color }} className="text-[10px] font-bold px-2 py-0.5 rounded border border-transparent">
+                                {t.name}
+                              </span>
+                            ))}
+                          </div>
+                        )}
+                        {c.description && <div className="mt-2 text-xs text-white/50 light:text-gray-500 line-clamp-2">{c.description}</div>}
+                        {/* pfp_ */}
+                        {/* Top-right: conditional row if no description and no tags */}
+                        <div className="absolute top-2 right-2 z-20 flex items-center gap-2">
+                          {(!c.metadata?.tags || c.metadata.tags.length === 0) ? (
+                            // Top row inline: button left, avatar right (description can exist)
+                            <>
+                              <button
+                                onClick={(e) => { e.stopPropagation(); toggleCompleted(c); }}
+                                className={`w-7 h-7 flex items-center justify-center rounded-full transition-all duration-200 ${c.metadata?.completed
+                                  ? "bg-green-900/50 text-green-500"
+                                  : "bg-black/40 text-white/20 opacity-0 group-hover:opacity-100 hover:bg-green-900/30 hover:text-green-400"
+                                  }`}
+                              >
+                                <Check size={12} strokeWidth={3} />
+                              </button>
+
+                              <div className="relative group/avatar">
+                                <img
+                                  src={c.creator?.metadata?.avatar_url}
+                                  className="w-7 h-7 rounded-full border border-white/10 shadow-sm"
+                                />
+                                {(c.creator?.name || c.creator?.surname) && (
+                                  <div className="absolute top-8 right-0 whitespace-nowrap px-3 py-2 rounded-md bg-[#111] text-white text-xs opacity-0 group-hover/avatar:opacity-100 transition-opacity duration-200 shadow-lg pointer-events-none">
+                                    {c.creator.name} {c.creator.surname}
+                                  </div>
+                                )}
+                              </div>
+                            </>
+                          ) : (
+                            // Default: avatar top-right, button bottom-right
+                            <>
+                              {c.creator?.metadata?.avatar_url && (
+                                <div className="relative group/avatar">
+                                  <img
+                                    src={c.creator.metadata.avatar_url}
+                                    className="w-7 h-7 rounded-full border border-white/10 shadow-sm"
+                                  />
+                                  {(c.creator.name || c.creator.surname) && (
+                                    <div className="absolute top-[-2] right-10 whitespace-nowrap px-3 py-2 rounded-md bg-[#111] text-white text-xs opacity-0 group-hover/avatar:opacity-100 transition-opacity duration-200 shadow-lg pointer-events-none">
+                                      {c.creator.name} {c.creator.surname}
+                                    </div>
+                                  )}
+                                </div>
+                              )}
+                            </>
                           )}
-                          {c.description && <div className="mt-2 text-xs text-white/50 line-clamp-2">{c.description}</div>}
-                          {/* pfp_ */}
-                            {/* Top-right: conditional row if no description and no tags */}
-<div className="absolute top-2 right-2 z-20 flex items-center gap-2">
-  {(!c.metadata?.tags || c.metadata.tags.length === 0) ? (
-    // Top row inline: button left, avatar right (description can exist)
-    <>
-      <button
-        onClick={(e) => { e.stopPropagation(); toggleCompleted(c); }}
-        className={`w-7 h-7 flex items-center justify-center rounded-full transition-all duration-200 ${
-          c.metadata?.completed
-            ? "bg-green-900/50 text-green-500"
-            : "bg-black/40 text-white/20 opacity-0 group-hover:opacity-100 hover:bg-green-900/30 hover:text-green-400"
-        }`}
-      >
-        <Check size={12} strokeWidth={3} />
-      </button>
-
-      <div className="relative group/avatar">
-        <img
-          src={c.creator?.metadata?.avatar_url}
-          className="w-7 h-7 rounded-full border border-white/10 shadow-sm"
-        />
-        {(c.creator?.name || c.creator?.surname) && (
-          <div className="absolute top-8 right-0 whitespace-nowrap px-3 py-2 rounded-md bg-[#111] text-white text-xs opacity-0 group-hover/avatar:opacity-100 transition-opacity duration-200 shadow-lg pointer-events-none">
-            {c.creator.name} {c.creator.surname}
-          </div>
-        )}
-      </div>
-    </>
-  ) : (
-    // Default: avatar top-right, button bottom-right
-    <>
-      {c.creator?.metadata?.avatar_url && (
-        <div className="relative group/avatar">
-          <img
-            src={c.creator.metadata.avatar_url}
-            className="w-7 h-7 rounded-full border border-white/10 shadow-sm"
-          />
-          {(c.creator.name || c.creator.surname) && (
-            <div className="absolute top-[-2] right-10 whitespace-nowrap px-3 py-2 rounded-md bg-[#111] text-white text-xs opacity-0 group-hover/avatar:opacity-100 transition-opacity duration-200 shadow-lg pointer-events-none">
-              {c.creator.name} {c.creator.surname}
-            </div>
-          )}
-        </div>
-      )}
-    </>
-  )}
-</div>
-
-{/* Bottom-right check button for normal cards (only if there are tags) */}
-{(c.metadata?.tags && c.metadata.tags.length > 0) && (
-  <button
-    onClick={(e) => { e.stopPropagation(); toggleCompleted(c); }}
-    className={`absolute bottom-2 right-2 w-7 h-7 flex items-center justify-center rounded-full transition-all duration-200 z-10 ${
-      c.metadata?.completed
-        ? "bg-green-900/50 text-green-500 opacity-100"
-        : "bg-black/40 text-white/20 opacity-0 group-hover:opacity-100 hover:bg-green-900/30 hover:text-green-400"
-    }`}
-  >
-    <Check size={12} strokeWidth={3} />
-  </button>
-)}
                         </div>
-                      ))}
-                    </div>
-                    <div className="p-2 pt-0">
-                      <button onClick={() => { setCurrentConcept(null); setConceptGroup(group.name); setNewTitle(""); setNewDescription(""); setNewTags([]); setShowConceptModal(true); }} className="w-full py-2 px-2 text-left text-white/50 hover:text-white hover:bg-white/5 rounded-lg flex items-center gap-2 transition-colors text-sm">
-                        <Plus size={16} /> Add a card
-                      </button>
-                    </div>
+
+                        {/* Bottom-right check button for normal cards (only if there are tags) */}
+                        {(c.metadata?.tags && c.metadata.tags.length > 0) && (
+                          <button
+                            onClick={(e) => { e.stopPropagation(); toggleCompleted(c); }}
+                            className={`absolute bottom-2 right-2 w-7 h-7 flex items-center justify-center rounded-full transition-all duration-200 z-10 ${c.metadata?.completed
+                              ? "bg-green-900/50 text-green-500 opacity-100"
+                              : "bg-black/40 text-white/20 opacity-0 group-hover:opacity-100 hover:bg-green-900/30 hover:text-green-400"
+                              }`}
+                          >
+                            <Check size={12} strokeWidth={3} />
+                          </button>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                  <div className="p-2 pt-0">
+                    <button onClick={() => { setCurrentConcept(null); setConceptGroup(group.name); setNewTitle(""); setNewDescription(""); setNewTags([]); setShowConceptModal(true); }} className="w-full py-2 px-2 text-left text-white/50 light:text-gray-500 hover:text-white light:hover:text-gray-900 hover:bg-white/5 light:hover:bg-gray-200 rounded-lg flex items-center gap-2 transition-colors text-sm">
+                      <Plus size={16} /> Add a card
+                    </button>
+                  </div>
                 </div>
               ))}
 
               {/* "Add List" Placeholder */}
               <div className="w-80 flex-shrink-0">
-                 <button onClick={() => setShowGroupModal(true)} className="w-full py-3 bg-white/5 hover:bg-white/10 border border-dashed border-white/10 hover:border-white/20 rounded-xl text-white/50 hover:text-white transition-all flex items-center justify-center gap-2">
-                   <Plus size={18} /> Add another list
-                 </button>
+                <button onClick={() => setShowGroupModal(true)} className="w-full py-3 bg-white/5 light:bg-gray-200 hover:bg-white/10 light:hover:bg-gray-300 border border-dashed border-white/10 light:border-gray-300 hover:border-white/20 light:hover:border-gray-400 rounded-xl text-white/50 light:text-gray-500 hover:text-white light:hover:text-gray-900 transition-all flex items-center justify-center gap-2">
+                  <Plus size={18} /> Add another list
+                </button>
               </div>
 
             </div>
@@ -528,125 +526,125 @@ useEffect(() => {
       {/* --- MODAL: SETTINGS --- */}
       {showSettingsModal && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-in fade-in duration-200">
-           <div className="bg-[#161616] w-full max-w-md rounded-2xl border border-white/10 shadow-2xl overflow-hidden flex flex-col max-h-[80vh]">
-             <div className="p-6 border-b border-white/5 flex justify-between items-center bg-[#161616]">
-                <h2 className="text-lg font-semibold text-white flex items-center gap-2">
-                   <Settings size={18} className="text-purple-500" /> Board Settings
-                </h2>
-                <button onClick={() => setShowSettingsModal(false)} className="text-white/40 hover:text-white"><X size={20} /></button>
-             </div>
+          <div className="bg-[#161616] light:bg-white w-full max-w-md rounded-2xl border border-white/10 light:border-gray-200 shadow-2xl overflow-hidden flex flex-col max-h-[80vh]">
+            <div className="p-6 border-b border-white/5 light:border-gray-100 flex justify-between items-center bg-[#161616] light:bg-white">
+              <h2 className="text-lg font-semibold text-white light:text-gray-900 flex items-center gap-2">
+                <Settings size={18} className="text-purple-500" /> Board Settings
+              </h2>
+              <button onClick={() => setShowSettingsModal(false)} className="text-white/40 light:text-gray-400 hover:text-white light:hover:text-gray-900"><X size={20} /></button>
+            </div>
 
-             <div className="p-6 overflow-y-auto custom-scrollbar space-y-6">
-                {/* STATS */}
-                <div className="grid grid-cols-2 gap-4">
-                   <div className="bg-[#0a0a0a] p-4 rounded-xl border border-white/5 flex items-center gap-3">
-                      <div className="p-2 bg-blue-500/10 rounded-lg text-blue-500"><Layout size={20} /></div>
-                      <div>
-                         <div className="text-2xl font-bold text-white">{groups.length}</div>
-                         <div className="text-xs text-white/40 font-medium uppercase">Lists</div>
-                      </div>
-                   </div>
-                   <div className="bg-[#0a0a0a] p-4 rounded-xl border border-white/5 flex items-center gap-3">
-                      <div className="p-2 bg-purple-500/10 rounded-lg text-purple-500"><FileText size={20} /></div>
-                      <div>
-                         <div className="text-2xl font-bold text-white">{concepts.length}</div>
-                         <div className="text-xs text-white/40 font-medium uppercase">Cards</div>
-                      </div>
-                   </div>
+            <div className="p-6 overflow-y-auto custom-scrollbar space-y-6">
+              {/* STATS */}
+              <div className="grid grid-cols-2 gap-4">
+                <div className="bg-[#0a0a0a] light:bg-gray-50 p-4 rounded-xl border border-white/5 light:border-gray-200 flex items-center gap-3">
+                  <div className="p-2 bg-blue-500/10 rounded-lg text-blue-500"><Layout size={20} /></div>
+                  <div>
+                    <div className="text-2xl font-bold text-white light:text-gray-900">{groups.length}</div>
+                    <div className="text-xs text-white/40 light:text-gray-500 font-medium uppercase">Lists</div>
+                  </div>
                 </div>
+                <div className="bg-[#0a0a0a] light:bg-gray-50 p-4 rounded-xl border border-white/5 light:border-gray-200 flex items-center gap-3">
+                  <div className="p-2 bg-purple-500/10 rounded-lg text-purple-500"><FileText size={20} /></div>
+                  <div>
+                    <div className="text-2xl font-bold text-white light:text-gray-900">{concepts.length}</div>
+                    <div className="text-xs text-white/40 light:text-gray-500 font-medium uppercase">Cards</div>
+                  </div>
+                </div>
+              </div>
 
-                {/* GLOBAL TAGS MANAGER */}
-                <div>
-                   <h3 className="text-xs font-bold text-white/40 uppercase mb-3 flex items-center gap-2">
-                      <TagIcon size={12} /> Global Tags Library
-                   </h3>
-                   
-                   <div className="space-y-2 mb-4">
-                      {project?.metadata?.global_tags?.length > 0 ? (
-                        project.metadata.global_tags.map((tag: Tag, idx: number) => (
-                           <div key={idx} className="flex items-center justify-between p-2 bg-[#0a0a0a] rounded-lg border border-white/5 group">
-                              <div className="flex items-center gap-3">
-                                 <div className="w-3 h-3 rounded-full" style={{ backgroundColor: tag.color }}></div>
-                                 <span className="text-sm text-white font-medium">{tag.name}</span>
-                              </div>
-                              <button onClick={() => removeGlobalTag(tag.name)} className="text-white/20 hover:text-red-500 transition-colors">
-                                 <Trash2 size={14} />
-                              </button>
-                           </div>
-                        ))
-                      ) : (
-                        <div className="text-center py-6 border border-dashed border-white/10 rounded-lg text-white/30 text-sm">
-                           No global tags created yet.
+              {/* GLOBAL TAGS MANAGER */}
+              <div>
+                <h3 className="text-xs font-bold text-white/40 light:text-gray-500 uppercase mb-3 flex items-center gap-2">
+                  <TagIcon size={12} /> Global Tags Library
+                </h3>
+
+                <div className="space-y-2 mb-4">
+                  {project?.metadata?.global_tags?.length > 0 ? (
+                    project.metadata.global_tags.map((tag: Tag, idx: number) => (
+                      <div key={idx} className="flex items-center justify-between p-2 bg-[#0a0a0a] light:bg-gray-50 rounded-lg border border-white/5 light:border-gray-200 group">
+                        <div className="flex items-center gap-3">
+                          <div className="w-3 h-3 rounded-full" style={{ backgroundColor: tag.color }}></div>
+                          <span className="text-sm text-white light:text-gray-900 font-medium">{tag.name}</span>
                         </div>
-                      )}
-                   </div>
-
-                   <div className="flex gap-2 p-2 bg-[#0a0a0a] rounded-lg border border-white/10">
-                      <input 
-                        type="text" 
-                        className="bg-transparent text-sm p-1 flex-1 outline-none" 
-                        placeholder="New global tag name..." 
-                        value={globalTagName} 
-                        onChange={e => setGlobalTagName(e.target.value)}
-                        onKeyDown={(e) => { if(e.key === 'Enter') addGlobalTag(); }}
-                      />
-                      <input 
-                        type="color" 
-                        className="w-6 h-6 rounded cursor-pointer bg-transparent border-none self-center" 
-                        value={globalTagColor} 
-                        onChange={e => setGlobalTagColor(e.target.value)} 
-                      />
-                      <button 
-                        onClick={addGlobalTag}
-                        disabled={!globalTagName}
-                        className="px-3 py-1 bg-purple-600 hover:bg-purple-500 disabled:opacity-50 disabled:cursor-not-allowed rounded text-xs font-medium transition-colors"
-                      >
-                        Create
-                      </button>
-                   </div>
+                        <button onClick={() => removeGlobalTag(tag.name)} className="text-white/20 light:text-gray-400 hover:text-red-500 transition-colors">
+                          <Trash2 size={14} />
+                        </button>
+                      </div>
+                    ))
+                  ) : (
+                    <div className="text-center py-6 border border-dashed border-white/10 light:border-gray-300 rounded-lg text-white/30 light:text-gray-400 text-sm">
+                      No global tags created yet.
+                    </div>
+                  )}
                 </div>
-             </div>
-           </div>
+
+                <div className="flex gap-2 p-2 bg-[#0a0a0a] light:bg-gray-50 rounded-lg border border-white/10 light:border-gray-200">
+                  <input
+                    type="text"
+                    className="bg-transparent text-sm p-1 flex-1 outline-none text-white light:text-gray-900 placeholder:text-white/30 light:placeholder:text-gray-400"
+                    placeholder="New global tag name..."
+                    value={globalTagName}
+                    onChange={e => setGlobalTagName(e.target.value)}
+                    onKeyDown={(e) => { if (e.key === 'Enter') addGlobalTag(); }}
+                  />
+                  <input
+                    type="color"
+                    className="w-6 h-6 rounded cursor-pointer bg-transparent border-none self-center"
+                    value={globalTagColor}
+                    onChange={e => setGlobalTagColor(e.target.value)}
+                  />
+                  <button
+                    onClick={addGlobalTag}
+                    disabled={!globalTagName}
+                    className="px-3 py-1 bg-purple-600 hover:bg-purple-500 disabled:opacity-50 disabled:cursor-not-allowed rounded text-xs font-medium transition-colors"
+                  >
+                    Create
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
       )}
 
       {/* --- MODAL: ADD/EDIT LIST (Group) --- */}
       {showGroupModal && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-in fade-in duration-200">
-          <div className="bg-[#161616] w-full max-w-md rounded-2xl border border-white/10 shadow-2xl overflow-hidden">
-            <div className="p-6 border-b border-white/5 flex justify-between items-center">
-              <h2 className="text-lg font-semibold text-white">{editingGroup ? "Edit List" : "Add List"}</h2>
-              <button onClick={closeGroupModal} className="text-white/40 hover:text-white"><X size={20} /></button>
+          <div className="bg-[#161616] light:bg-white w-full max-w-md rounded-2xl border border-white/10 light:border-gray-200 shadow-2xl overflow-hidden">
+            <div className="p-6 border-b border-white/5 light:border-gray-100 flex justify-between items-center">
+              <h2 className="text-lg font-semibold text-white light:text-gray-900">{editingGroup ? "Edit List" : "Add List"}</h2>
+              <button onClick={closeGroupModal} className="text-white/40 light:text-gray-400 hover:text-white light:hover:text-gray-900"><X size={20} /></button>
             </div>
             <div className="p-6 space-y-4">
               <div>
-                <label className="text-xs font-bold text-white/40 uppercase mb-1.5 block">List Name</label>
-                <input autoFocus className="w-full bg-[#0a0a0a] text-white p-3 rounded-lg border border-white/10 focus:border-purple-500 focus:ring-1 focus:ring-purple-500 outline-none transition-all" placeholder="e.g. To Do, In Progress" value={groupName} onChange={e => setGroupName(e.target.value)} />
+                <label className="text-xs font-bold text-white/40 light:text-gray-500 uppercase mb-1.5 block">List Name</label>
+                <input autoFocus className="w-full bg-[#0a0a0a] light:bg-gray-50 text-white light:text-gray-900 p-3 rounded-lg border border-white/10 light:border-gray-200 focus:border-purple-500 focus:ring-1 focus:ring-purple-500 outline-none transition-all" placeholder="e.g. To Do, In Progress" value={groupName} onChange={e => setGroupName(e.target.value)} />
               </div>
               <div>
-                 <label className="text-xs font-bold text-white/40 uppercase mb-1.5 block">List Tags</label>
-                 <div className="flex gap-2 mb-3 flex-wrap min-h-[30px]">
+                <label className="text-xs font-bold text-white/40 light:text-gray-500 uppercase mb-1.5 block">List Tags</label>
+                <div className="flex gap-2 mb-3 flex-wrap min-h-[30px]">
                   {groupTags.map((t, idx) => (
                     <span key={idx} style={{ backgroundColor: t.color, color: t.textColor ?? "#fff" }} className="text-xs px-2.5 py-1 rounded-md font-medium flex items-center gap-2">
                       {t.name}<button onClick={() => setGroupTags(prev => prev.filter((_, i) => i !== idx))}><X size={12} /></button>
                     </span>
                   ))}
                 </div>
-                <div className="flex gap-2 p-2 bg-[#0a0a0a] rounded-lg border border-white/10">
-                  <input type="text" className="bg-transparent text-sm p-1 flex-1 outline-none" placeholder="New tag name..." value={newGroupTagName} onChange={e => setNewGroupTagName(e.target.value)} />
+                <div className="flex gap-2 p-2 bg-[#0a0a0a] light:bg-gray-50 rounded-lg border border-white/10 light:border-gray-200">
+                  <input type="text" className="bg-transparent text-sm p-1 flex-1 outline-none text-white light:text-gray-900 placeholder:text-white/30 light:placeholder:text-gray-400" placeholder="New tag name..." value={newGroupTagName} onChange={e => setNewGroupTagName(e.target.value)} />
                   <input type="color" className="w-6 h-6 rounded cursor-pointer bg-transparent border-none" value={newGroupTagColor} onChange={e => setNewGroupTagColor(e.target.value)} />
-                  <button onClick={() => { if(newGroupTagName){ setGroupTags([...groupTags,{name:newGroupTagName,color:newGroupTagColor,textColor:"#fff"}]); setNewGroupTagName(""); } }} className="px-3 py-1 bg-white/10 hover:bg-white/20 rounded text-xs font-medium">Add</button>
+                  <button onClick={() => { if (newGroupTagName) { setGroupTags([...groupTags, { name: newGroupTagName, color: newGroupTagColor, textColor: "#fff" }]); setNewGroupTagName(""); } }} className="px-3 py-1 bg-white/10 light:bg-gray-200 hover:bg-white/20 light:hover:bg-gray-300 rounded text-xs font-medium text-white light:text-gray-900">Add</button>
                 </div>
               </div>
             </div>
-            <div className="p-4 bg-[#0a0a0a]/50 border-t border-white/5 flex justify-between items-center gap-3">
+            <div className="p-4 bg-[#0a0a0a]/50 light:bg-gray-50 border-t border-white/5 light:border-gray-200 flex justify-between items-center gap-3">
               {editingGroup && (
-                 <button onClick={deleteGroup} className="flex items-center gap-2 px-3 py-2 text-red-400 hover:bg-red-500/10 rounded-lg text-sm transition-colors">
-                    <Trash2 size={16} /> Delete
-                 </button>
+                <button onClick={deleteGroup} className="flex items-center gap-2 px-3 py-2 text-red-400 hover:bg-red-500/10 rounded-lg text-sm transition-colors">
+                  <Trash2 size={16} /> Delete
+                </button>
               )}
               <div className="flex gap-3 ml-auto">
-                <button onClick={closeGroupModal} className="px-4 py-2 text-white/60 hover:text-white text-sm font-medium">Cancel</button>
+                <button onClick={closeGroupModal} className="px-4 py-2 text-white/60 light:text-gray-600 hover:text-white light:hover:text-gray-900 text-sm font-medium">Cancel</button>
                 <button onClick={saveGroup} className="px-6 py-2 bg-purple-600 hover:bg-purple-500 text-white text-sm font-medium rounded-lg shadow-lg shadow-purple-900/20 transition-all">Save List</button>
               </div>
             </div>
@@ -655,167 +653,167 @@ useEffect(() => {
       )}
 
       {/* --- MODAL: ADD/EDIT CARD (Concept) --- */}
- {showConceptModal && (
-  <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-in fade-in duration-200">
-    <div className="bg-[#161616] w-full max-w-lg rounded-2xl border border-white/10 shadow-2xl overflow-hidden">
-      
-      {/* --- Modal Header --- */}
-      <div className="p-6 border-b border-white/5 flex justify-between items-start">
-        <div className="flex flex-col gap-1">
-          <h2 className="text-lg font-semibold text-white">{currentConcept ? "Edit Card" : "New Card"}</h2>
-          <p className="text-xs text-white/40 mt-0.5">
-            In list <span className="text-white/70 font-medium">{conceptGroup}</span>
-          </p>
+      {showConceptModal && (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-in fade-in duration-200">
+          <div className="bg-[#161616] light:bg-white w-full max-w-lg rounded-2xl border border-white/10 light:border-gray-200 shadow-2xl overflow-hidden">
 
-          {/* --- Creator + Timestamps --- */}
-          {currentConcept?.creator && (
-            <div className="flex items-center gap-2 text-xs text-white/50 mt-1">
-              {currentConcept.creator.metadata?.avatar_url && (
-                <img
-                  src={currentConcept.creator.metadata.avatar_url}
-                  className="w-5 h-5 rounded-full border border-white/10 shadow-sm "
-                />
-              )}
-              <span>
-                Created by{" "}
-                <strong>
-                  {currentConcept.creator.name || currentConcept.creator.id}{" "}
-                  {currentConcept.creator.surname || ""}
-                </strong>
-                , {currentConcept.created_at ? new Date(currentConcept.created_at).toLocaleString() : "unknown"}
-              </span>
-              {currentConcept.updated_at && (
-                <span className="ml-2">
-                  • Updated: {new Date(currentConcept.updated_at).toLocaleString()}
-                </span>
-              )}
+            {/* --- Modal Header --- */}
+            <div className="p-6 border-b border-white/5 light:border-gray-100 flex justify-between items-start">
+              <div className="flex flex-col gap-1">
+                <h2 className="text-lg font-semibold text-white light:text-gray-900">{currentConcept ? "Edit Card" : "New Card"}</h2>
+                <p className="text-xs text-white/40 light:text-gray-500 mt-0.5">
+                  In list <span className="text-white/70 light:text-gray-700 font-medium">{conceptGroup}</span>
+                </p>
+
+                {/* --- Creator + Timestamps --- */}
+                {currentConcept?.creator && (
+                  <div className="flex items-center gap-2 text-xs text-white/50 light:text-gray-500 mt-1">
+                    {currentConcept.creator.metadata?.avatar_url && (
+                      <img
+                        src={currentConcept.creator.metadata.avatar_url}
+                        className="w-5 h-5 rounded-full border border-white/10 light:border-gray-200 shadow-sm "
+                      />
+                    )}
+                    <span>
+                      Created by{" "}
+                      <strong>
+                        {currentConcept.creator.name || currentConcept.creator.id}{" "}
+                        {currentConcept.creator.surname || ""}
+                      </strong>
+                      , {currentConcept.created_at ? new Date(currentConcept.created_at).toLocaleString() : "unknown"}
+                    </span>
+                    {currentConcept.updated_at && (
+                      <span className="ml-2">
+                        • Updated: {new Date(currentConcept.updated_at).toLocaleString()}
+                      </span>
+                    )}
+                  </div>
+                )}
+              </div>
+
+              <button onClick={closeConceptModal} className="text-white/40 light:text-gray-400 hover:text-white light:hover:text-gray-900">
+                <X size={20} />
+              </button>
             </div>
-          )}
-        </div>
 
-        <button onClick={closeConceptModal} className="text-white/40 hover:text-white">
-          <X size={20} />
-        </button>
-      </div>
+            {/* --- Modal Body --- */}
+            <div className="p-6 space-y-5">
+              <input
+                autoFocus
+                className="w-full bg-transparent text-xl font-semibold placeholder:text-white/20 light:placeholder:text-gray-300 outline-none border-none p-0 focus:ring-0 text-white light:text-gray-900"
+                placeholder="Card Title"
+                value={newTitle}
+                onChange={e => setNewTitle(e.target.value)}
+              />
 
-      {/* --- Modal Body --- */}
-      <div className="p-6 space-y-5">
-        <input
-          autoFocus
-          className="w-full bg-transparent text-xl font-semibold placeholder:text-white/20 outline-none border-none p-0 focus:ring-0"
-          placeholder="Card Title"
-          value={newTitle}
-          onChange={e => setNewTitle(e.target.value)}
-        />
+              {/* Description */}
+              <div>
+                <label className="text-xs font-bold text-white/40 light:text-gray-500 uppercase mb-2 block">Description</label>
+                <textarea
+                  className="w-full bg-[#0a0a0a] light:bg-gray-50 text-white/90 light:text-gray-900 text-sm p-4 rounded-lg border border-white/10 light:border-gray-200 focus:border-purple-500 focus:ring-1 focus:ring-purple-500 outline-none transition-all resize-none min-h-[120px]"
+                  placeholder="Add a more detailed description..."
+                  value={newDescription}
+                  onChange={e => setNewDescription(e.target.value)}
+                />
+              </div>
 
-        {/* Description */}
-        <div>
-          <label className="text-xs font-bold text-white/40 uppercase mb-2 block">Description</label>
-          <textarea
-            className="w-full bg-[#0a0a0a] text-white/90 text-sm p-4 rounded-lg border border-white/10 focus:border-purple-500 focus:ring-1 focus:ring-purple-500 outline-none transition-all resize-none min-h-[120px]"
-            placeholder="Add a more detailed description..."
-            value={newDescription}
-            onChange={e => setNewDescription(e.target.value)}
-          />
-        </div>
+              {/* Tags */}
+              <div>
+                <label className="text-xs font-bold text-white/40 light:text-gray-500 uppercase mb-2 block">Tags</label>
 
-        {/* Tags */}
-        <div>
-          <label className="text-xs font-bold text-white/40 uppercase mb-2 block">Tags</label>
-
-          {/* Active Tags */}
-          <div className="flex flex-wrap gap-2 mb-3 min-h-[28px]">
-            {newTags.map((t, idx) => (
-              <span
-                key={idx}
-                style={{ backgroundColor: t.color, color: t.textColor ?? "#fff" }}
-                className="text-xs px-2.5 py-1 rounded-md font-medium flex items-center gap-2"
-              >
-                {t.name}
-                <button onClick={() => setNewTags(prev => prev.filter((_, i) => i !== idx))}><X size={12} /></button>
-              </span>
-            ))}
-          </div>
-
-          {/* Quick Add Global Tags */}
-          {project?.metadata?.global_tags && project.metadata.global_tags.length > 0 && (
-            <div className="mb-3">
-              <p className="text-[10px] text-white/30 uppercase font-bold mb-2">Quick Add Global Tags</p>
-              <div className="flex flex-wrap gap-2">
-                {project.metadata.global_tags.map((gt: Tag, idx: number) => {
-                  const isAlreadyAdded = newTags.some(t => t.name === gt.name);
-                  if (isAlreadyAdded) return null;
-                  return (
-                    <button
+                {/* Active Tags */}
+                <div className="flex flex-wrap gap-2 mb-3 min-h-[28px]">
+                  {newTags.map((t, idx) => (
+                    <span
                       key={idx}
-                      onClick={() => setNewTags([...newTags, gt])}
-                      className="text-xs px-2 py-1 rounded border border-white/10 hover:bg-white/5 transition-colors flex items-center gap-2 opacity-70 hover:opacity-100"
+                      style={{ backgroundColor: t.color, color: t.textColor ?? "#fff" }}
+                      className="text-xs px-2.5 py-1 rounded-md font-medium flex items-center gap-2"
                     >
-                      <div className="w-2 h-2 rounded-full" style={{ backgroundColor: gt.color }}></div>
-                      {gt.name}
-                    </button>
-                  );
-                })}
+                      {t.name}
+                      <button onClick={() => setNewTags(prev => prev.filter((_, i) => i !== idx))}><X size={12} /></button>
+                    </span>
+                  ))}
+                </div>
+
+                {/* Quick Add Global Tags */}
+                {project?.metadata?.global_tags && project.metadata.global_tags.length > 0 && (
+                  <div className="mb-3">
+                    <p className="text-[10px] text-white/30 light:text-gray-400 uppercase font-bold mb-2">Quick Add Global Tags</p>
+                    <div className="flex flex-wrap gap-2">
+                      {project.metadata.global_tags.map((gt: Tag, idx: number) => {
+                        const isAlreadyAdded = newTags.some(t => t.name === gt.name);
+                        if (isAlreadyAdded) return null;
+                        return (
+                          <button
+                            key={idx}
+                            onClick={() => setNewTags([...newTags, gt])}
+                            className="text-xs px-2 py-1 rounded border border-white/10 light:border-gray-200 hover:bg-white/5 light:hover:bg-gray-100 transition-colors flex items-center gap-2 opacity-70 hover:opacity-100 text-white light:text-gray-900"
+                          >
+                            <div className="w-2 h-2 rounded-full" style={{ backgroundColor: gt.color }}></div>
+                            {gt.name}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+
+                {/* Manual Tag Creation */}
+                <div className="flex gap-2 items-center">
+                  <div className="flex-1 flex gap-2 bg-[#0a0a0a] light:bg-gray-50 p-1.5 rounded-lg border border-white/10 light:border-gray-200">
+                    <input
+                      type="text"
+                      className="bg-transparent text-sm p-1 flex-1 outline-none ml-1 text-white light:text-gray-900 placeholder:text-white/30 light:placeholder:text-gray-400"
+                      placeholder="Or create new tag..."
+                      value={newTagName}
+                      onChange={e => setNewTagName(e.target.value)}
+                      onKeyDown={(e) => { if (e.key === 'Enter' && newTagName) { setNewTags([...newTags, { name: newTagName, color: newTagColor, textColor: "#fff" }]); setNewTagName(""); } }}
+                    />
+                    <input
+                      type="color"
+                      className="w-6 h-6 rounded cursor-pointer bg-transparent border-none self-center"
+                      value={newTagColor}
+                      onChange={e => setNewTagColor(e.target.value)}
+                    />
+                  </div>
+                  <button
+                    onClick={() => { if (newTagName) { setNewTags([...newTags, { name: newTagName, color: newTagColor, textColor: "#fff" }]); setNewTagName(""); } }}
+                    className="px-4 py-2 bg-white/10 light:bg-gray-200 hover:bg-white/20 light:hover:bg-gray-300 rounded-lg text-xs font-medium transition-colors text-white light:text-gray-900"
+                  >
+                    Add
+                  </button>
+                </div>
               </div>
             </div>
-          )}
 
-          {/* Manual Tag Creation */}
-          <div className="flex gap-2 items-center">
-            <div className="flex-1 flex gap-2 bg-[#0a0a0a] p-1.5 rounded-lg border border-white/10">
-              <input
-                type="text"
-                className="bg-transparent text-sm p-1 flex-1 outline-none ml-1"
-                placeholder="Or create new tag..."
-                value={newTagName}
-                onChange={e => setNewTagName(e.target.value)}
-                onKeyDown={(e) => { if(e.key === 'Enter' && newTagName) { setNewTags([...newTags,{name:newTagName,color:newTagColor,textColor:"#fff"}]); setNewTagName(""); } }}
-              />
-              <input
-                type="color"
-                className="w-6 h-6 rounded cursor-pointer bg-transparent border-none self-center"
-                value={newTagColor}
-                onChange={e => setNewTagColor(e.target.value)}
-              />
+            {/* --- Modal Footer --- */}
+            <div className="p-4 bg-[#0a0a0a]/50 light:bg-gray-50 border-t border-white/5 light:border-gray-200 flex justify-between items-center gap-3">
+              {currentConcept && (
+                <button
+                  onClick={deleteConcept}
+                  className="flex items-center gap-2 px-3 py-2 text-red-400 hover:bg-red-500/10 rounded-lg text-sm transition-colors"
+                >
+                  <Trash2 size={16} /> Delete
+                </button>
+              )}
+              <div className="flex gap-3 ml-auto">
+                <button
+                  onClick={closeConceptModal}
+                  className="px-4 py-2 text-white/60 light:text-gray-600 hover:text-white light:hover:text-gray-900 text-sm font-medium"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={saveConcept}
+                  className="px-6 py-2 bg-purple-600 hover:bg-purple-500 text-white text-sm font-medium rounded-lg shadow-lg shadow-purple-900/20 transition-all"
+                >
+                  Save Card
+                </button>
+              </div>
             </div>
-            <button
-              onClick={() => { if(newTagName){ setNewTags([...newTags,{name:newTagName,color:newTagColor,textColor:"#fff"}]); setNewTagName(""); } }}
-              className="px-4 py-2 bg-white/10 hover:bg-white/20 rounded-lg text-xs font-medium transition-colors"
-            >
-              Add
-            </button>
           </div>
         </div>
-      </div>
-
-      {/* --- Modal Footer --- */}
-      <div className="p-4 bg-[#0a0a0a]/50 border-t border-white/5 flex justify-between items-center gap-3">
-        {currentConcept && (
-          <button
-            onClick={deleteConcept}
-            className="flex items-center gap-2 px-3 py-2 text-red-400 hover:bg-red-500/10 rounded-lg text-sm transition-colors"
-          >
-            <Trash2 size={16} /> Delete
-          </button>
-        )}
-        <div className="flex gap-3 ml-auto">
-          <button
-            onClick={closeConceptModal}
-            className="px-4 py-2 text-white/60 hover:text-white text-sm font-medium"
-          >
-            Cancel
-          </button>
-          <button
-            onClick={saveConcept}
-            className="px-6 py-2 bg-purple-600 hover:bg-purple-500 text-white text-sm font-medium rounded-lg shadow-lg shadow-purple-900/20 transition-all"
-          >
-            Save Card
-          </button>
-        </div>
-      </div>
-    </div>
-  </div>
-)}
+      )}
 
     </div>
   );

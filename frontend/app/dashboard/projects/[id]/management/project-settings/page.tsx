@@ -122,7 +122,7 @@ export default function ProjectSettingsPage() {
 
         try {
             setLoading(true);
-            
+
             // Get user
             const { data: { user: authUser } } = await supabase.auth.getUser();
             if (!authUser) {
@@ -145,7 +145,7 @@ export default function ProjectSettingsPage() {
             // Check permissions
             const isCreatorCheck = projectData.created_by === authUser.id;
             setIsCreator(isCreatorCheck);
-            
+
             const { data: collaborator } = await supabase
                 .from("project_users")
                 .select("user_id, role")
@@ -158,10 +158,10 @@ export default function ProjectSettingsPage() {
                 return;
             }
 
-                if (!authLoading && !checkAccess('manager-project-settings')) {
-    router.push(`/dashboard/projects/${projectId}`);
-    return null;
-  }
+            if (!authLoading && !checkAccess('manager-project-settings')) {
+                router.push(`/dashboard/projects/${projectId}`);
+                return null;
+            }
 
             // Check if read-only (collaborator but not admin)
             const isReadOnlyCheck = !isCreatorCheck && collaborator?.role !== 'admin';
@@ -201,17 +201,17 @@ export default function ProjectSettingsPage() {
 
     const handleSave = async () => {
         if (isReadOnly) return;
-        
+
         // Validation for GitHub URL
         if (githubUrl && !githubUrl.includes("github.com")) {
             setGithubUrlError("URL must be a valid GitHub repository link");
-            setActiveTab('github'); 
+            setActiveTab('github');
             return;
         }
         setGithubUrlError("");
 
         setSaving(true);
-        
+
         try {
             let finalIconUrl = projectIcon;
             let finalBannerUrl = projectBanner;
@@ -347,25 +347,25 @@ export default function ProjectSettingsPage() {
 
     if (loading) {
         return (
-          <div role="status" className="flex justify-center items-center h-screen bg-[#0a0a0a]">
-            <svg
-              aria-hidden="true"
-              className="inline w-8 h-8 text-neutral-400 animate-spin fill-white"
-              viewBox="0 0 100 101"
-              fill="none"
-              xmlns="http://www.w3.org/2000/svg"
-            >
-              <path
-                d="M100 50.5908C100 78.2051 77.6142 100.591 50 100.591C22.3858 100.591 0 78.2051 0 50.5908C0 22.9766 22.3858 0.59082 50 0.59082C77.6142 0.59082 100 22.9766 100 50.5908ZM9.08144 50.5908C9.08144 73.1895 27.4013 91.5094 50 91.5094C72.5987 91.5094 90.9186 73.1895 90.9186 50.5908C90.9186 27.9921 72.5987 9.67226 50 9.67226C27.4013 9.67226 9.08144 27.9921 9.08144 50.5908Z"
-                fill="currentColor"
-              />
-              <path
-                d="M93.9676 39.0409C96.393 38.4038 97.8624 35.9116 97.0079 33.5539C95.2932 28.8227 92.871 24.3692 89.8167 20.348C85.8452 15.1192 80.8826 10.7238 75.2124 7.41289C69.5422 4.10194 63.2754 1.94025 56.7698 1.05124C51.7666 0.367541 46.6976 0.446843 41.7345 1.27873C39.2613 1.69328 37.813 4.19778 38.4501 6.62326C39.0873 9.04874 41.5694 10.4717 44.0505 10.1071C47.8511 9.54855 51.7191 9.52689 55.5402 10.0491C60.8642 10.7766 65.9928 12.5457 70.6331 15.2552C75.2735 17.9648 79.3347 21.5619 82.5849 25.841C84.9175 28.9121 86.7997 32.2913 88.1811 35.8758C89.083 38.2158 91.5421 39.6781 93.9676 39.0409Z"
-                fill="currentFill"
-              />
-            </svg>
-            <span className="sr-only">Loading...</span>
-          </div>
+            <div role="status" className="flex justify-center items-center h-screen bg-[#0a0a0a]">
+                <svg
+                    aria-hidden="true"
+                    className="inline w-8 h-8 text-neutral-400 animate-spin fill-white"
+                    viewBox="0 0 100 101"
+                    fill="none"
+                    xmlns="http://www.w3.org/2000/svg"
+                >
+                    <path
+                        d="M100 50.5908C100 78.2051 77.6142 100.591 50 100.591C22.3858 100.591 0 78.2051 0 50.5908C0 22.9766 22.3858 0.59082 50 0.59082C77.6142 0.59082 100 22.9766 100 50.5908ZM9.08144 50.5908C9.08144 73.1895 27.4013 91.5094 50 91.5094C72.5987 91.5094 90.9186 73.1895 90.9186 50.5908C90.9186 27.9921 72.5987 9.67226 50 9.67226C27.4013 9.67226 9.08144 27.9921 9.08144 50.5908Z"
+                        fill="currentColor"
+                    />
+                    <path
+                        d="M93.9676 39.0409C96.393 38.4038 97.8624 35.9116 97.0079 33.5539C95.2932 28.8227 92.871 24.3692 89.8167 20.348C85.8452 15.1192 80.8826 10.7238 75.2124 7.41289C69.5422 4.10194 63.2754 1.94025 56.7698 1.05124C51.7666 0.367541 46.6976 0.446843 41.7345 1.27873C39.2613 1.69328 37.813 4.19778 38.4501 6.62326C39.0873 9.04874 41.5694 10.4717 44.0505 10.1071C47.8511 9.54855 51.7191 9.52689 55.5402 10.0491C60.8642 10.7766 65.9928 12.5457 70.6331 15.2552C75.2735 17.9648 79.3347 21.5619 82.5849 25.841C84.9175 28.9121 86.7997 32.2913 88.1811 35.8758C89.083 38.2158 91.5421 39.6781 93.9676 39.0409Z"
+                        fill="currentFill"
+                    />
+                </svg>
+                <span className="sr-only">Loading...</span>
+            </div>
         );
     }
 
@@ -389,15 +389,15 @@ export default function ProjectSettingsPage() {
     }
 
     return (
-        <div className="h-screen bg-[#0a0a0a] text-zinc-100 flex overflow-hidden font-sans selection:bg-white/20">
+        <div className="h-screen bg-[#0a0a0a] light:bg-gray-50 text-zinc-100 light:text-gray-900 flex overflow-hidden font-sans selection:bg-white/20 light:selection:bg-gray-200">
             {/* SIDEBAR */}
             <Menu project={project} user={user} />
 
-            <main className="flex-1 flex flex-col h-full ml-64 relative bg-[#0e0e10]">
+            <main className="flex-1 flex flex-col h-full ml-64 relative bg-[#0e0e10] light:bg-gray-50">
                 {/* HEADER */}
-                <div className="flex-none h-14 mt-[55px] px-6 border-b border-white/5 flex items-center justify-between bg-[#0a0a0a]/50 backdrop-blur-sm z-10">
+                <div className="flex-none h-14 mt-[55px] px-6 border-b border-white/5 light:border-gray-200 flex items-center justify-between bg-[#0a0a0a]/50 light:bg-white/50 backdrop-blur-sm z-10">
                     <div className="flex items-center gap-4">
-                        <h1 className="text-xl font-bold tracking-tight">Project's Settings <span className="text-white/30 text-lg font-light">Panel</span></h1>
+                        <h1 className="text-xl font-bold tracking-tight text-white light:text-gray-900">Project's Settings <span className="text-white/30 light:text-gray-400 text-lg font-light">Panel</span></h1>
                     </div>
                     <div className="flex items-center gap-2">
                         {isReadOnly && (
@@ -407,7 +407,7 @@ export default function ProjectSettingsPage() {
                         )}
                         <Link
                             href={`/dashboard/projects/${projectId}`}
-                            className="inline-flex items-center gap-2 text-sm text-zinc-400 hover:text-zinc-100 transition-colors"
+                            className="inline-flex items-center gap-2 text-sm text-zinc-400 light:text-gray-500 hover:text-zinc-100 light:hover:text-gray-900 transition-colors"
                         >
                             <ArrowLeft size={14} />
                             Back to Project
@@ -420,66 +420,66 @@ export default function ProjectSettingsPage() {
                     <div className="w-full px-6 py-10">
                         <div className="flex flex-col lg:flex-row min-h-[600px]">
                             {/* LEFT NAV */}
-                            <nav className="w-full lg:w-72 flex-shrink-0 space-y-1 lg:border-r border-white/5 lg:pr-8 mb-10 lg:mb-0">
-                                <div className="pb-4 mb-4 border-b border-white/5 lg:border-none">
-                                    <p className="px-3 text-xs font-semibold text-zinc-500 uppercase tracking-widest">Project Settings</p>
+                            <nav className="w-full lg:w-72 flex-shrink-0 space-y-1 lg:border-r border-white/5 light:border-gray-200 lg:pr-8 mb-10 lg:mb-0">
+                                <div className="pb-4 mb-4 border-b border-white/5 light:border-gray-200 lg:border-none">
+                                    <p className="px-3 text-xs font-semibold text-zinc-500 light:text-gray-500 uppercase tracking-widest">Project Settings</p>
                                 </div>
-                                
+
                                 <button
                                     onClick={() => setActiveTab('general')}
                                     className={`w-full flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium transition-all duration-200
-                                        ${activeTab === 'general' 
-                                            ? 'bg-zinc-100 text-black shadow-lg shadow-white/5' 
-                                            : 'text-zinc-400 hover:text-zinc-100 hover:bg-white/5'
+                                        ${activeTab === 'general'
+                                            ? 'bg-zinc-100 light:bg-gray-200 text-black light:text-gray-900 shadow-lg shadow-white/5 light:shadow-gray-200'
+                                            : 'text-zinc-400 light:text-gray-600 hover:text-zinc-100 light:hover:text-gray-900 hover:bg-white/5 light:hover:bg-gray-100'
                                         }`}
                                 >
                                     <Settings size={16} />
                                     General
                                 </button>
-                                
+
                                 <button
                                     onClick={() => setActiveTab('branding')}
                                     className={`w-full flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium transition-all duration-200
-                                        ${activeTab === 'branding' 
-                                            ? 'bg-zinc-100 text-black shadow-lg shadow-white/5' 
-                                            : 'text-zinc-400 hover:text-zinc-100 hover:bg-white/5'
+                                        ${activeTab === 'branding'
+                                            ? 'bg-zinc-100 light:bg-gray-200 text-black light:text-gray-900 shadow-lg shadow-white/5 light:shadow-gray-200'
+                                            : 'text-zinc-400 light:text-gray-600 hover:text-zinc-100 light:hover:text-gray-900 hover:bg-white/5 light:hover:bg-gray-100'
                                         }`}
                                 >
                                     <LayoutGrid size={16} />
                                     Branding
                                 </button>
-                                
+
                                 <button
                                     onClick={() => setActiveTab('links')}
                                     className={`w-full flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium transition-all duration-200
-                                        ${activeTab === 'links' 
-                                            ? 'bg-zinc-100 text-black shadow-lg shadow-white/5' 
-                                            : 'text-zinc-400 hover:text-zinc-100 hover:bg-white/5'
+                                        ${activeTab === 'links'
+                                            ? 'bg-zinc-100 light:bg-gray-200 text-black light:text-gray-900 shadow-lg shadow-white/5 light:shadow-gray-200'
+                                            : 'text-zinc-400 light:text-gray-600 hover:text-zinc-100 light:hover:text-gray-900 hover:bg-white/5 light:hover:bg-gray-100'
                                         }`}
                                 >
                                     <LinkIcon size={16} />
                                     Links
                                 </button>
-                                
+
                                 <button
                                     onClick={() => setActiveTab('github')}
                                     className={`w-full flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium transition-all duration-200
-                                        ${activeTab === 'github' 
-                                            ? 'bg-zinc-100 text-black shadow-lg shadow-white/5' 
-                                            : 'text-zinc-400 hover:text-zinc-100 hover:bg-white/5'
+                                        ${activeTab === 'github'
+                                            ? 'bg-zinc-100 light:bg-gray-200 text-black light:text-gray-900 shadow-lg shadow-white/5 light:shadow-gray-200'
+                                            : 'text-zinc-400 light:text-gray-600 hover:text-zinc-100 light:hover:text-gray-900 hover:bg-white/5 light:hover:bg-gray-100'
                                         }`}
                                 >
                                     <Github size={16} />
                                     GitHub
                                 </button>
-                                
+
                                 {isCreator && (
                                     <button
                                         onClick={() => setActiveTab('danger')}
                                         className={`w-full flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium transition-all duration-200
-                                            ${activeTab === 'danger' 
-                                                ? 'bg-zinc-100 text-black shadow-lg shadow-white/5' 
-                                                : 'text-zinc-400 hover:text-zinc-100 hover:bg-white/5'
+                                            ${activeTab === 'danger'
+                                                ? 'bg-zinc-100 light:bg-gray-200 text-black light:text-gray-900 shadow-lg shadow-white/5 light:shadow-gray-200'
+                                                : 'text-zinc-400 light:text-gray-600 hover:text-zinc-100 light:hover:text-gray-900 hover:bg-white/5 light:hover:bg-gray-100'
                                             }`}
                                     >
                                         <Shield size={16} />
@@ -495,22 +495,22 @@ export default function ProjectSettingsPage() {
                                     {activeTab === 'general' && (
                                         <div className="space-y-8 animate-in fade-in slide-in-from-bottom-3 duration-500">
                                             <div>
-                                                <h2 className="text-lg font-semibold text-white">General Settings</h2>
-                                                <p className="text-sm text-zinc-500 mt-1">Basic project information and identification.</p>
+                                                <h2 className="text-lg font-semibold text-white light:text-gray-900">General Settings</h2>
+                                                <p className="text-sm text-zinc-500 light:text-gray-500 mt-1">Basic project information and identification.</p>
                                             </div>
 
                                             <div className="grid grid-cols-1 gap-6">
                                                 {/* Project Name */}
                                                 <div className="group">
-                                                    <label className="block text-xs font-medium text-zinc-400 mb-2 uppercase tracking-wide">Project Name</label>
-                                                    <div className="flex items-center bg-[#0a0a0a] border border-white/10 rounded-lg px-3 py-2.5 group-hover:border-white/20 transition-colors">
-                                                        <UserIcon size={16} className="text-zinc-500 mr-2 flex-shrink-0" />
-                                                        <input 
-                                                            type="text" 
+                                                    <label className="block text-xs font-medium text-zinc-400 light:text-gray-500 mb-2 uppercase tracking-wide">Project Name</label>
+                                                    <div className="flex items-center bg-[#0a0a0a] light:bg-white border border-white/10 light:border-gray-200 rounded-lg px-3 py-2.5 group-hover:border-white/20 light:group-hover:border-gray-300 transition-colors">
+                                                        <UserIcon size={16} className="text-zinc-500 light:text-gray-400 mr-2 flex-shrink-0" />
+                                                        <input
+                                                            type="text"
                                                             value={name}
                                                             onChange={(e) => setName(e.target.value)}
                                                             disabled={isReadOnly}
-                                                            className="w-full bg-transparent text-sm text-zinc-300 disabled:cursor-not-allowed focus:outline-none"
+                                                            className="w-full bg-transparent text-sm text-zinc-300 light:text-gray-900 disabled:cursor-not-allowed focus:outline-none"
                                                             placeholder="Enter project name"
                                                         />
                                                     </div>
@@ -518,13 +518,13 @@ export default function ProjectSettingsPage() {
 
                                                 {/* Description */}
                                                 <div className="group">
-                                                    <label className="block text-xs font-medium text-zinc-400 mb-2 uppercase tracking-wide">Project Description</label>
-                                                    <div className="bg-[#0a0a0a] border border-white/10 rounded-lg px-3 py-2.5 group-hover:border-white/20 transition-colors">
-                                                        <textarea 
+                                                    <label className="block text-xs font-medium text-zinc-400 light:text-gray-500 mb-2 uppercase tracking-wide">Project Description</label>
+                                                    <div className="bg-[#0a0a0a] light:bg-white border border-white/10 light:border-gray-200 rounded-lg px-3 py-2.5 group-hover:border-white/20 light:group-hover:border-gray-300 transition-colors">
+                                                        <textarea
                                                             value={description}
                                                             onChange={(e) => setDescription(e.target.value)}
                                                             disabled={isReadOnly}
-                                                            className="w-full h-32 bg-transparent text-sm text-zinc-300 disabled:cursor-not-allowed focus:outline-none resize-none"
+                                                            className="w-full h-32 bg-transparent text-sm text-zinc-300 light:text-gray-900 disabled:cursor-not-allowed focus:outline-none resize-none"
                                                             placeholder="Brief overview of your project's purpose and scope"
                                                         />
                                                     </div>
@@ -535,8 +535,8 @@ export default function ProjectSettingsPage() {
                                                     <label className="block text-xs font-medium text-zinc-400 mb-2 uppercase tracking-wide">Maximum Collaborators</label>
                                                     <div className="flex items-center bg-[#0a0a0a] border border-white/10 rounded-lg px-3 py-2.5 group-hover:border-white/20 transition-colors">
                                                         <Users size={16} className="text-zinc-500 mr-2 flex-shrink-0" />
-                                                        <input 
-                                                            type="number" 
+                                                        <input
+                                                            type="number"
                                                             value={maxCollaborators}
                                                             onChange={(e) => setMaxCollaborators(Math.max(0, Number(e.target.value)))}
                                                             disabled={isReadOnly}
@@ -548,14 +548,14 @@ export default function ProjectSettingsPage() {
 
                                                 {/* Project ID */}
                                                 <div className="group">
-                                                    <label className="block text-xs font-medium text-zinc-400 mb-2 uppercase tracking-wide">Project UUID</label>
+                                                    <label className="block text-xs font-medium text-zinc-400 light:text-gray-500 mb-2 uppercase tracking-wide">Project UUID</label>
                                                     <div className="flex items-center gap-2">
-                                                        <div className="flex-1 flex items-center bg-[#0a0a0a] border border-white/10 rounded-lg px-3 py-2.5 font-mono text-xs text-zinc-500 select-all group-hover:border-white/20 transition-colors">
+                                                        <div className="flex-1 flex items-center bg-[#0a0a0a] light:bg-white border border-white/10 light:border-gray-200 rounded-lg px-3 py-2.5 font-mono text-xs text-zinc-500 light:text-gray-600 select-all group-hover:border-white/20 light:group-hover:border-gray-300 transition-colors">
                                                             {projectId}
                                                         </div>
-                                                        <button 
+                                                        <button
                                                             onClick={() => copyToClipboard(projectId)}
-                                                            className="p-2.5 bg-white/5 border border-white/10 rounded-lg text-zinc-400 hover:text-white hover:bg-white/10 transition-colors active:scale-95"
+                                                            className="p-2.5 bg-white/5 light:bg-gray-100 border border-white/10 light:border-gray-200 rounded-lg text-zinc-400 light:text-gray-500 hover:text-white light:hover:text-gray-900 hover:bg-white/10 light:hover:bg-gray-200 transition-colors active:scale-95"
                                                         >
                                                             {copiedId === projectId ? <Check size={16} /> : <Copy size={16} />}
                                                         </button>
@@ -565,199 +565,199 @@ export default function ProjectSettingsPage() {
                                         </div>
                                     )}
 
-{/* BRANDING TAB */}
-{activeTab === 'branding' && (
-    <div className="space-y-8 animate-in fade-in slide-in-from-bottom-3 duration-500">
-        <div>
-            <h2 className="text-lg font-semibold text-white">Branding</h2>
-            <p className="text-sm text-zinc-500 mt-1">Upload and manage your project's visual assets.</p>
-        </div>
+                                    {/* BRANDING TAB */}
+                                    {activeTab === 'branding' && (
+                                        <div className="space-y-8 animate-in fade-in slide-in-from-bottom-3 duration-500">
+                                            <div>
+                                                <h2 className="text-lg font-semibold text-white light:text-gray-900">Branding</h2>
+                                                <p className="text-sm text-zinc-500 light:text-gray-500 mt-1">Upload and manage your project's visual assets.</p>
+                                            </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-{/* Logo Upload */}
-<div className="space-y-4">
-    <div className="flex justify-between items-center">
-        <div>
-            <h3 className="text-sm font-semibold text-white">Project Logo</h3>
-            <p className="text-xs text-zinc-500">Displayed in project cards and headers</p>
-        </div>
-        <span className="text-xs text-zinc-500 px-2 py-1 bg-white/5 border border-white/10 rounded">
-            5MB max • 1:1
-        </span>
-    </div>
-    
-    <div
-        onClick={() => !isReadOnly && logoInputRef.current?.click()}
-        className={`
-            relative group cursor-pointer overflow-hidden rounded-full border border-dashed 
-            ${logoPreview ? 'border-white/10' : 'border-white/10 hover:border-zinc-400'}
-            transition-all duration-200 bg-[#0a0a0a]
+                                            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                                                {/* Logo Upload */}
+                                                <div className="space-y-4">
+                                                    <div className="flex justify-between items-center">
+                                                        <div>
+                                                            <h3 className="text-sm font-semibold text-white light:text-gray-900">Project Logo</h3>
+                                                            <p className="text-xs text-zinc-500 light:text-gray-500">Displayed in project cards and headers</p>
+                                                        </div>
+                                                        <span className="text-xs text-zinc-500 light:text-gray-500 px-2 py-1 bg-white/5 light:bg-gray-100 border border-white/10 light:border-gray-200 rounded">
+                                                            5MB max • 1:1
+                                                        </span>
+                                                    </div>
+
+                                                    <div
+                                                        onClick={() => !isReadOnly && logoInputRef.current?.click()}
+                                                        className={`
+            relative group cursor-pointer overflow-hidden rounded-full border border-dashed
+            ${logoPreview ? 'border-white/10 light:border-gray-200' : 'border-white/10 light:border-gray-200 hover:border-zinc-400 light:hover:border-gray-400'}
+            transition-all duration-200 bg-[#0a0a0a] light:bg-white
             ${isReadOnly ? 'cursor-not-allowed opacity-60' : ''}
             aspect-square w-48 h-48 mx-auto
         `}
-    >
-        {uploadingLogo ? (
-            <div className="flex flex-col items-center justify-center p-4 w-full h-full">
-                <Loader2 className="w-6 h-6 text-zinc-500 animate-spin mb-2" />
-                <p className="text-xs text-zinc-500">Uploading...</p>
-            </div>
-        ) : logoPreview ? (
-            <>
-                <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity z-10 rounded-full" />
-                <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity z-20">
-                    <div className="flex items-center gap-2">
-                        <div className="p-2 bg-zinc-900 rounded-md border border-white/10">
-                            <Upload className="w-3 h-3 text-zinc-100" />
-                        </div>
-                        {!isReadOnly && (
-                            <div 
-                                onClick={(e) => {
-                                    e.stopPropagation();
-                                    clearLogo();
-                                }}
-                                className="p-2 bg-red-500/80 rounded-md hover:bg-red-500 text-white"
-                            >
-                                <X className="w-3 h-3" />
-                            </div>
-                        )}
-                    </div>
-                </div>
-                <img
-                    src={logoPreview}
-                    alt="Logo Preview"
-                    className="w-full h-full object-cover rounded-full"
-                />
-            </>
-        ) : (
-            <div className="flex flex-col items-center justify-center p-4 w-full h-full">
-                <div className="p-2 rounded-full bg-zinc-900 border border-white/10 mb-2">
-                    <ImageIcon className="w-4 h-4 text-zinc-500" />
-                </div>
-                <p className="text-xs font-medium text-zinc-300">Click to upload</p>
-                <p className="text-[10px] text-zinc-500 mt-0.5">or drag and drop</p>
-            </div>
-        )}
-    </div>
-    <input
-        ref={logoInputRef}
-        type="file"
-        accept="image/*"
-        onChange={handleLogoUpload}
-        className="hidden"
-        disabled={isReadOnly}
-    />
-</div>
+                                                    >
+                                                        {uploadingLogo ? (
+                                                            <div className="flex flex-col items-center justify-center p-4 w-full h-full">
+                                                                <Loader2 className="w-6 h-6 text-zinc-500 animate-spin mb-2" />
+                                                                <p className="text-xs text-zinc-500">Uploading...</p>
+                                                            </div>
+                                                        ) : logoPreview ? (
+                                                            <>
+                                                                <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity z-10 rounded-full" />
+                                                                <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity z-20">
+                                                                    <div className="flex items-center gap-2">
+                                                                        <div className="p-2 bg-zinc-900 rounded-md border border-white/10">
+                                                                            <Upload className="w-3 h-3 text-zinc-100" />
+                                                                        </div>
+                                                                        {!isReadOnly && (
+                                                                            <div
+                                                                                onClick={(e) => {
+                                                                                    e.stopPropagation();
+                                                                                    clearLogo();
+                                                                                }}
+                                                                                className="p-2 bg-red-500/80 rounded-md hover:bg-red-500 text-white"
+                                                                            >
+                                                                                <X className="w-3 h-3" />
+                                                                            </div>
+                                                                        )}
+                                                                    </div>
+                                                                </div>
+                                                                <img
+                                                                    src={logoPreview}
+                                                                    alt="Logo Preview"
+                                                                    className="w-full h-full object-cover rounded-full"
+                                                                />
+                                                            </>
+                                                        ) : (
+                                                            <div className="flex flex-col items-center justify-center p-4 w-full h-full">
+                                                                <div className="p-2 rounded-full bg-zinc-900 light:bg-gray-100 border border-white/10 light:border-gray-200 mb-2">
+                                                                    <ImageIcon className="w-4 h-4 text-zinc-500 light:text-gray-400" />
+                                                                </div>
+                                                                <p className="text-xs font-medium text-zinc-300 light:text-gray-700">Click to upload</p>
+                                                                <p className="text-[10px] text-zinc-500 light:text-gray-500 mt-0.5">or drag and drop</p>
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                    <input
+                                                        ref={logoInputRef}
+                                                        type="file"
+                                                        accept="image/*"
+                                                        onChange={handleLogoUpload}
+                                                        className="hidden"
+                                                        disabled={isReadOnly}
+                                                    />
+                                                </div>
 
-            {/* Banner Upload */}
-            <div className="space-y-4">
-                <div className="flex justify-between items-center">
-                    <div>
-                        <h3 className="text-sm font-semibold text-white">Project Banner</h3>
-                        <p className="text-xs text-zinc-500">Displayed on your project's main page</p>
-                    </div>
-                    <span className="text-xs text-zinc-500 px-2 py-1 bg-white/5 border border-white/10 rounded">
-                        10MB max • 3:1
-                    </span>
-                </div>
-                
-                <div
-                    onClick={() => !isReadOnly && bannerInputRef.current?.click()}
-                    className={`
-                        relative group cursor-pointer overflow-hidden rounded-lg border border-dashed 
-                        ${bannerPreview ? 'border-white/10' : 'border-white/10 hover:border-zinc-400'}
-                        transition-all duration-200 bg-[#0a0a0a]
+                                                {/* Banner Upload */}
+                                                <div className="space-y-4">
+                                                    <div className="flex justify-between items-center">
+                                                        <div>
+                                                            <h3 className="text-sm font-semibold text-white light:text-gray-900">Project Banner</h3>
+                                                            <p className="text-xs text-zinc-500 light:text-gray-500">Displayed on your project's main page</p>
+                                                        </div>
+                                                        <span className="text-xs text-zinc-500 light:text-gray-500 px-2 py-1 bg-white/5 light:bg-gray-100 border border-white/10 light:border-gray-200 rounded">
+                                                            10MB max • 3:1
+                                                        </span>
+                                                    </div>
+
+                                                    <div
+                                                        onClick={() => !isReadOnly && bannerInputRef.current?.click()}
+                                                        className={`
+                        relative group cursor-pointer overflow-hidden rounded-lg border border-dashed
+                        ${bannerPreview ? 'border-white/10 light:border-gray-200' : 'border-white/10 light:border-gray-200 hover:border-zinc-400 light:hover:border-gray-400'}
+                        transition-all duration-200 bg-[#0a0a0a] light:bg-white
                         ${isReadOnly ? 'cursor-not-allowed opacity-60' : ''}
                         aspect-[3/1] w-full
                     `}
-                >
-                    {uploadingBanner ? (
-                        <div className="flex flex-col items-center justify-center p-10 w-full h-full">
-                            <Loader2 className="w-8 h-8 text-zinc-500 animate-spin mb-3" />
-                            <p className="text-sm text-zinc-500">Uploading...</p>
-                        </div>
-                    ) : bannerPreview ? (
-                        <>
-                            <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity z-10" />
-                            <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity z-20">
-                                <div className="flex items-center gap-2">
-                                    <div className="p-2 bg-zinc-900 rounded-md border border-white/10">
-                                        <Upload className="w-4 h-4 text-zinc-100" />
-                                    </div>
-                                    {!isReadOnly && (
-                                        <div 
-                                            onClick={(e) => {
-                                                e.stopPropagation();
-                                                clearBanner();
-                                            }}
-                                            className="p-2 bg-red-500/80 rounded-md hover:bg-red-500 text-white"
-                                        >
-                                            <X className="w-4 h-4" />
+                                                    >
+                                                        {uploadingBanner ? (
+                                                            <div className="flex flex-col items-center justify-center p-10 w-full h-full">
+                                                                <Loader2 className="w-8 h-8 text-zinc-500 animate-spin mb-3" />
+                                                                <p className="text-sm text-zinc-500">Uploading...</p>
+                                                            </div>
+                                                        ) : bannerPreview ? (
+                                                            <>
+                                                                <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity z-10" />
+                                                                <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity z-20">
+                                                                    <div className="flex items-center gap-2">
+                                                                        <div className="p-2 bg-zinc-900 rounded-md border border-white/10">
+                                                                            <Upload className="w-4 h-4 text-zinc-100" />
+                                                                        </div>
+                                                                        {!isReadOnly && (
+                                                                            <div
+                                                                                onClick={(e) => {
+                                                                                    e.stopPropagation();
+                                                                                    clearBanner();
+                                                                                }}
+                                                                                className="p-2 bg-red-500/80 rounded-md hover:bg-red-500 text-white"
+                                                                            >
+                                                                                <X className="w-4 h-4" />
+                                                                            </div>
+                                                                        )}
+                                                                    </div>
+                                                                </div>
+                                                                <img
+                                                                    src={bannerPreview}
+                                                                    alt="Banner Preview"
+                                                                    className="w-full h-full object-cover"
+                                                                />
+                                                            </>
+                                                        ) : (
+                                                            <div className="flex flex-col items-center justify-center p-10 w-full h-full">
+                                                                <div className="p-3 rounded-full bg-zinc-900 light:bg-gray-100 border border-white/10 light:border-gray-200 mb-3">
+                                                                    <ImageIcon className="w-6 h-6 text-zinc-500 light:text-gray-400" />
+                                                                </div>
+                                                                <p className="text-sm font-medium text-zinc-300 light:text-gray-700">Click to upload</p>
+                                                                <p className="text-xs text-zinc-500 light:text-gray-500 mt-1">or drag and drop</p>
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                    <input
+                                                        ref={bannerInputRef}
+                                                        type="file"
+                                                        accept="image/*"
+                                                        onChange={handleBannerUpload}
+                                                        className="hidden"
+                                                        disabled={isReadOnly}
+                                                    />
+                                                </div>
+                                            </div>
                                         </div>
                                     )}
-                                </div>
-                            </div>
-                            <img
-                                src={bannerPreview}
-                                alt="Banner Preview"
-                                className="w-full h-full object-cover"
-                            />
-                        </>
-                    ) : (
-                        <div className="flex flex-col items-center justify-center p-10 w-full h-full">
-                            <div className="p-3 rounded-full bg-zinc-900 border border-white/10 mb-3">
-                                <ImageIcon className="w-6 h-6 text-zinc-500" />
-                            </div>
-                            <p className="text-sm font-medium text-zinc-300">Click to upload</p>
-                            <p className="text-xs text-zinc-500 mt-1">or drag and drop</p>
-                        </div>
-                    )}
-                </div>
-                <input
-                    ref={bannerInputRef}
-                    type="file"
-                    accept="image/*"
-                    onChange={handleBannerUpload}
-                    className="hidden"
-                    disabled={isReadOnly}
-                />
-            </div>
-        </div>
-    </div>
-)}
 
                                     {/* LINKS TAB */}
                                     {activeTab === 'links' && (
                                         <div className="space-y-8 animate-in fade-in slide-in-from-bottom-3 duration-500">
                                             <div>
-                                                <h2 className="text-lg font-semibold text-white">External Links</h2>
-                                                <p className="text-sm text-zinc-500 mt-1">Connect your project with external resources.</p>
+                                                <h2 className="text-lg font-semibold text-white light:text-gray-900">External Links</h2>
+                                                <p className="text-sm text-zinc-500 light:text-gray-500 mt-1">Connect your project with external resources.</p>
                                             </div>
 
                                             <div className="space-y-4">
                                                 {Object.entries(links).length > 0 ? (
                                                     Object.entries(links).map(([key, value]) => (
                                                         <div key={key} className="group">
-                                                            <label className="block text-xs font-medium text-zinc-400 mb-2 uppercase tracking-wide">
+                                                            <label className="block text-xs font-medium text-zinc-400 light:text-gray-500 mb-2 uppercase tracking-wide">
                                                                 {key.replace('-link', '').replace(/_/g, ' ').toUpperCase()}
                                                             </label>
-                                                            <div className="flex items-center bg-[#0a0a0a] border border-white/10 rounded-lg px-3 py-2.5 group-hover:border-white/20 transition-colors">
-                                                                <ExternalLink size={16} className="text-zinc-500 mr-2 flex-shrink-0" />
-                                                                <input 
-                                                                    type="text" 
+                                                            <div className="flex items-center bg-[#0a0a0a] light:bg-white border border-white/10 light:border-gray-200 rounded-lg px-3 py-2.5 group-hover:border-white/20 light:group-hover:border-gray-300 transition-colors">
+                                                                <ExternalLink size={16} className="text-zinc-500 light:text-gray-400 mr-2 flex-shrink-0" />
+                                                                <input
+                                                                    type="text"
                                                                     value={value}
                                                                     onChange={(e) => setLinks({ ...links, [key]: e.target.value })}
                                                                     disabled={isReadOnly}
-                                                                    className="w-full bg-transparent text-sm text-zinc-300 disabled:cursor-not-allowed focus:outline-none"
+                                                                    className="w-full bg-transparent text-sm text-zinc-300 light:text-gray-900 disabled:cursor-not-allowed focus:outline-none"
                                                                     placeholder="https://"
                                                                 />
                                                             </div>
                                                         </div>
                                                     ))
                                                 ) : (
-                                                    <div className="text-center py-12 border border-dashed border-white/10 rounded-lg bg-[#0a0a0a]">
-                                                        <Globe className="w-12 h-12 text-zinc-500 mx-auto mb-4" />
-                                                        <p className="text-zinc-400">No external links configured</p>
-                                                        <p className="text-sm text-zinc-500 mt-2">
+                                                    <div className="text-center py-12 border border-dashed border-white/10 light:border-gray-200 rounded-lg bg-[#0a0a0a] light:bg-white">
+                                                        <Globe className="w-12 h-12 text-zinc-500 light:text-gray-400 mx-auto mb-4" />
+                                                        <p className="text-zinc-400 light:text-gray-600">No external links configured</p>
+                                                        <p className="text-sm text-zinc-500 light:text-gray-500 mt-2">
                                                             Add links to your documentation or website
                                                         </p>
                                                     </div>
@@ -770,25 +770,25 @@ export default function ProjectSettingsPage() {
                                     {activeTab === 'github' && (
                                         <div className="space-y-8 animate-in fade-in slide-in-from-bottom-3 duration-500">
                                             <div>
-                                                <h2 className="text-lg font-semibold text-white">GitHub Integration</h2>
-                                                <p className="text-sm text-zinc-500 mt-1">Configure repository access and automation tokens.</p>
+                                                <h2 className="text-lg font-semibold text-white light:text-gray-900">GitHub Integration</h2>
+                                                <p className="text-sm text-zinc-500 light:text-gray-500 mt-1">Configure repository access and automation tokens.</p>
                                             </div>
 
                                             <div className="space-y-6">
                                                 {/* Repository URL */}
                                                 <div className="group">
-                                                    <label className="block text-xs font-medium text-zinc-400 mb-2 uppercase tracking-wide">Repository URL</label>
-                                                    <div className="flex items-center bg-[#0a0a0a] border border-white/10 rounded-lg px-3 py-2.5 group-hover:border-white/20 transition-colors">
-                                                        <Github size={16} className="text-zinc-500 mr-2 flex-shrink-0" />
-                                                        <input 
-                                                            type="text" 
+                                                    <label className="block text-xs font-medium text-zinc-400 light:text-gray-500 mb-2 uppercase tracking-wide">Repository URL</label>
+                                                    <div className="flex items-center bg-[#0a0a0a] light:bg-white border border-white/10 light:border-gray-200 rounded-lg px-3 py-2.5 group-hover:border-white/20 light:group-hover:border-gray-300 transition-colors">
+                                                        <Github size={16} className="text-zinc-500 light:text-gray-400 mr-2 flex-shrink-0" />
+                                                        <input
+                                                            type="text"
                                                             value={githubUrl}
                                                             onChange={(e) => {
                                                                 setGithubUrl(e.target.value);
                                                                 if (githubUrlError) setGithubUrlError("");
                                                             }}
                                                             disabled={isReadOnly}
-                                                            className="w-full bg-transparent text-sm text-zinc-300 disabled:cursor-not-allowed focus:outline-none"
+                                                            className="w-full bg-transparent text-sm text-zinc-300 light:text-gray-900 disabled:cursor-not-allowed focus:outline-none"
                                                             placeholder="https://github.com/username/repository"
                                                         />
                                                     </div>
@@ -800,15 +800,15 @@ export default function ProjectSettingsPage() {
 
                                                 {/* Personal Access Token */}
                                                 <div className="group">
-                                                    <label className="block text-xs font-medium text-zinc-400 mb-2 uppercase tracking-wide">GitHub Personal Access Token</label>
-                                                    <div className="flex items-center bg-[#0a0a0a] border border-white/10 rounded-lg px-3 py-2.5 group-hover:border-white/20 transition-colors">
-                                                        <Key size={16} className="text-zinc-500 mr-2 flex-shrink-0" />
-                                                        <input 
+                                                    <label className="block text-xs font-medium text-zinc-400 light:text-gray-500 mb-2 uppercase tracking-wide">GitHub Personal Access Token</label>
+                                                    <div className="flex items-center bg-[#0a0a0a] light:bg-white border border-white/10 light:border-gray-200 rounded-lg px-3 py-2.5 group-hover:border-white/20 light:group-hover:border-gray-300 transition-colors">
+                                                        <Key size={16} className="text-zinc-500 light:text-gray-400 mr-2 flex-shrink-0" />
+                                                        <input
                                                             type={showToken ? "text" : "password"}
                                                             value={githubToken}
                                                             onChange={(e) => setGithubToken(e.target.value)}
                                                             disabled={isReadOnly}
-                                                            className="w-full bg-transparent text-sm text-zinc-300 disabled:cursor-not-allowed focus:outline-none"
+                                                            className="w-full bg-transparent text-sm text-zinc-300 light:text-gray-900 disabled:cursor-not-allowed focus:outline-none"
                                                             placeholder="ghp_xxxxxxxxxxxxxxxxxxxx"
                                                         />
                                                         <button
@@ -823,13 +823,13 @@ export default function ProjectSettingsPage() {
                                                 </div>
 
                                                 {!isReadOnly && (
-                                                    <div className="p-4 bg-[rgba(88,166,255,0.1)] border border-[rgba(88,166,255,0.3)] rounded-lg">
+                                                    <div className="p-4 bg-[rgba(88,166,255,0.1)] light:bg-blue-50 border border-[rgba(88,166,255,0.3)] light:border-blue-200 rounded-lg">
                                                         <div className="flex items-start gap-3">
-                                                            <Shield className="w-5 h-5 text-[#58a6ff] flex-shrink-0" />
+                                                            <Shield className="w-5 h-5 text-[#58a6ff] light:text-blue-600 flex-shrink-0" />
                                                             <div>
-                                                                <h4 className="text-sm font-semibold text-[#58a6ff] mb-1">Security Note</h4>
-                                                                <p className="text-xs text-zinc-300 leading-relaxed">
-                                                                    Ensure your Personal Access Token (PAT) has the correct scopes. 
+                                                                <h4 className="text-sm font-semibold text-[#58a6ff] light:text-blue-700 mb-1">Security Note</h4>
+                                                                <p className="text-xs text-zinc-300 light:text-blue-900 leading-relaxed">
+                                                                    Ensure your Personal Access Token (PAT) has the correct scopes.
                                                                     Since this token allows access to your repository, treat it like a password.
                                                                 </p>
                                                             </div>
@@ -844,29 +844,29 @@ export default function ProjectSettingsPage() {
                                     {activeTab === 'danger' && isCreator && (
                                         <div className="space-y-8 animate-in fade-in slide-in-from-bottom-3 duration-500">
                                             <div>
-                                                <h2 className="text-lg font-semibold text-white">Advanced Settings</h2>
-                                                <p className="text-sm text-zinc-500 mt-1">Irreversible actions for project management.</p>
+                                                <h2 className="text-lg font-semibold text-white light:text-gray-900">Advanced Settings</h2>
+                                                <p className="text-sm text-zinc-500 light:text-gray-500 mt-1">Irreversible actions for project management.</p>
                                             </div>
 
-                                            <div className="border border-red-500/20 rounded-lg bg-red-500/[0.03] overflow-hidden">
+                                            <div className="border border-red-500/20 light:border-red-200 rounded-lg bg-red-500/[0.03] light:bg-red-50 overflow-hidden">
                                                 <div className="p-6 space-y-4">
                                                     <div className="flex items-start gap-3">
                                                         <AlertTriangle className="w-5 h-5 text-red-500 flex-shrink-0 mt-0.5" />
                                                         <div>
                                                             <h4 className="font-semibold text-red-500 mb-1">Irreversible Action</h4>
-                                                            <p className="text-sm text-zinc-300">
+                                                            <p className="text-sm text-zinc-300 light:text-red-900">
                                                                 Once deleted, all project data, files, and configurations will be permanently removed.
                                                                 This includes all team collaborations and associated metadata.
                                                             </p>
                                                         </div>
                                                     </div>
-                                                    
-                                                    <div className="flex items-center justify-between p-4 bg-[#0a0a0a] rounded-lg border border-white/5">
+
+                                                    <div className="flex items-center justify-between p-4 bg-[#0a0a0a] light:bg-white rounded-lg border border-white/5 light:border-red-200">
                                                         <div>
-                                                            <h4 className="font-medium text-zinc-100 mb-1">Project: {project?.name}</h4>
-                                                            <p className="text-xs text-zinc-500">ID: {projectId}</p>
+                                                            <h4 className="font-medium text-zinc-100 light:text-gray-900 mb-1">Project: {project?.name}</h4>
+                                                            <p className="text-xs text-zinc-500 light:text-gray-500">ID: {projectId}</p>
                                                         </div>
-                                                        
+
                                                         <button
                                                             onClick={handleDeleteProject}
                                                             className="flex-shrink-0 bg-transparent hover:bg-red-500 text-red-500 hover:text-white border border-red-500/30 hover:border-red-500 px-4 py-2 rounded-md text-xs font-bold transition-all whitespace-nowrap flex items-center gap-2"
@@ -882,7 +882,7 @@ export default function ProjectSettingsPage() {
 
                                     {/* SAVE BUTTON */}
                                     {!isReadOnly && (
-                                        <div className="pt-10 mt-10 border-t border-white/5">
+                                        <div className="pt-10 mt-10 border-t border-white/5 light:border-gray-200">
                                             <div className="flex items-center justify-between">
                                                 <div className="text-sm text-zinc-500">
                                                     {saving ? (
@@ -897,7 +897,7 @@ export default function ProjectSettingsPage() {
                                                 <button
                                                     onClick={handleSave}
                                                     disabled={saving || uploadingLogo || uploadingBanner}
-                                                    className="flex-shrink-0 bg-white hover:bg-zinc-100 text-black px-6 py-2 rounded-md text-sm font-bold transition-all whitespace-nowrap flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                                                    className="flex-shrink-0 bg-white light:bg-gray-900 hover:bg-zinc-100 light:hover:bg-gray-800 text-black light:text-white px-6 py-2 rounded-md text-sm font-bold transition-all whitespace-nowrap flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
                                                 >
                                                     {saving ? (
                                                         <>
@@ -935,6 +935,11 @@ export default function ProjectSettingsPage() {
                     background: #0a0a0a;
                     overflow-y: auto;
                     overflow-x: hidden;
+                }
+                @media (prefers-color-scheme: light) {
+                    body {
+                        background: #f9fafb;
+                    }
                 }
             `}</style>
         </div>
