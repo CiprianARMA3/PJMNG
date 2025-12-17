@@ -1,8 +1,7 @@
 'use client';
 
-import React, { useState } from 'react';
-import Image from 'next/image';
-import LandingBoxes from './components/landingPage/boxesLanding'; // Assuming this provides a visual element
+import React, { useState, useEffect } from 'react';
+import LandingBoxes from './components/landingPage/boxesLanding';
 import {
   ChevronDown,
   Menu,
@@ -21,6 +20,8 @@ import {
   UserCog
 } from 'lucide-react';
 import { redirect } from 'next/dist/server/api-utils';
+import { createClient } from '@/utils/supabase/client';
+import { User } from '@supabase/supabase-js';
 
 // --- 1. Aurora Background with Grain (Lighter, Professional Sine Wave) ---
 const AuroraBackground = () => {
@@ -92,6 +93,25 @@ const AuroraBackground = () => {
 const Navbar = () => {
   const [isOpen, setIsOpen] = useState(false);
   const [activeDropdown, setActiveDropdown] = useState<string | null>(null);
+  
+  // Auth state
+  const [user, setUser] = useState<User | null>(null);
+  const [loading, setLoading] = useState(true);
+  const supabase = createClient();
+
+  useEffect(() => {
+    const checkUser = async () => {
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        setUser(user);
+      } catch (error) {
+        console.error('Error fetching user:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    checkUser();
+  }, [supabase]);
 
   const productLinks = [
     { icon: Bot, name: 'AI Assistant', desc: 'Context-aware coding help' },
@@ -140,12 +160,38 @@ const Navbar = () => {
           <a href="#" className="text-[15px] font-medium text-[#5f6368] hover:text-[#202124] transition-colors">Enterprise</a>
           <a href="#" className="text-[15px] font-medium text-[#5f6368] hover:text-[#202124] transition-colors">Pricing</a>
         </div>
+        
+        {/* Auth / Dashboard Section */}
         <div className="hidden md:flex items-center gap-4">
-          <a href="/auth/login" className="text-sm font-medium text-[#5f6368] hover:text-[#202124]">Sign In</a>
-          <a href='/auth/register' className="bg-[#202124] text-white px-5 py-2.5 rounded-full text-sm font-medium hover:bg-black transition-all shadow-sm hover:shadow-md active:scale-95 flex items-center gap-2 cursor-pointer" >
-            Get Started <ArrowRight size={14} />
-          </a>
+          {!loading && (
+            <>
+              {user ? (
+                // LOGGED IN VIEW
+                <div className="flex items-center gap-4">
+                  <a href='/dashboard' className="bg-[#202124] text-white px-5 py-2.5 rounded-full text-sm font-medium hover:bg-black transition-all shadow-sm hover:shadow-md active:scale-95 flex items-center gap-2 cursor-pointer" >
+                    Dashboard <ArrowRight size={14} />
+                  </a>
+                  <div className="relative h-9 w-9 rounded-full overflow-hidden border border-gray-200">
+                    <img
+                      src={user.user_metadata?.avatar_url || '/default-avatar.png'}
+                      alt="Profile"
+                      className="w-full h-full object-cover"
+                    />
+                  </div>
+                </div>
+              ) : (
+                // LOGGED OUT VIEW
+                <>
+                  <a href="/auth/login" className="text-sm font-medium text-[#5f6368] hover:text-[#202124]">Sign In</a>
+                  <a href='/auth/register' className="bg-[#202124] text-white px-5 py-2.5 rounded-full text-sm font-medium hover:bg-black transition-all shadow-sm hover:shadow-md active:scale-95 flex items-center gap-2 cursor-pointer" >
+                    Get Started <ArrowRight size={14} />
+                  </a>
+                </>
+              )}
+            </>
+          )}
         </div>
+
         <button onClick={() => setIsOpen(!isOpen)} className="md:hidden text-[#5f6368]">
           {isOpen ? <X /> : <Menu />}
         </button>
