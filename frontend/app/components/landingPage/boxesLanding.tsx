@@ -9,7 +9,11 @@ import {
   UserPlus, 
   Zap, 
   LineChart, 
-  ShieldCheck 
+  ShieldCheck, 
+  Brain,
+  Github,
+  Database,
+  Map
 } from 'lucide-react';
 
 const FeatureCard = ({ 
@@ -149,21 +153,44 @@ const FeaturesSection = () => {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           
           {/* Card: Smarter CI */}
-          <FeatureCard className="p-8 md:p-10 flex flex-col min-h-[400px]">
+<FeatureCard className="p-8 md:p-10 flex flex-col min-h-[400px]">
             <div>
               <h3 className="text-2xl md:text-3xl font-bold mb-3">
-                Smarter CI
+                Adapted for every time of the day
               </h3>
               <p className="text-gray-600 mb-6">
-                Stacking-integrated CI that only runs when you need it.
+                Comes built with an automatic switch between light mode and dark mode using your browser's settings.
               </p>
-              <a href="#" className="group flex items-center gap-2 text-sm font-semibold hover:text-gray-600 transition-colors mb-8">
+              {/* <a href="#" className="group flex items-center gap-2 text-sm font-semibold hover:text-gray-600 transition-colors mb-8">
                 Read about CI Optimizations 
                 <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
-              </a>
+              </a> */}
             </div>
-            <div className="flex-1 relative mt-4">
-              <TemplateImage className="absolute left-0 right-0 bottom-[-60px] top-0 shadow-lg" label="CI Console" />
+            
+            {/* Added 'group' here to handle hover state for the child button */}
+            <div className="flex-1 relative mt-4 group">
+              <img 
+                className="absolute left-0 right-0 bottom-[-60px] top-0 shadow-lg rounded-md transition-transform duration-500 group-hover:scale-[1.02]" 
+                src={"/p1.png"}
+              />
+              
+              {/* Zoom Button: Absolute Top-Middle */}
+              <a 
+                href="/p1.png" 
+                target="_blank"
+                className="absolute top-10 left-1/2 -translate-x-1/2 
+                           flex items-center justify-center
+                           w-12 h-12 bg-white/90 backdrop-blur-sm text-zinc-900 rounded-full shadow-2xl 
+                           opacity-0 translate-y-4 group-hover:opacity-100 group-hover:translate-y-0 
+                           transition-all duration-300 ease-out hover:scale-110 z-20 cursor-pointer"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <circle cx="11" cy="11" r="8"></circle>
+                  <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                  <line x1="11" y1="8" x2="11" y2="14"></line>
+                  <line x1="8" y1="11" x2="14" y2="11"></line>
+                </svg>
+              </a>
             </div>
           </FeatureCard>
 
@@ -171,22 +198,21 @@ const FeaturesSection = () => {
           <FeatureCard className="p-8 md:p-10 grid grid-cols-1 md:grid-cols-2 gap-8 items-center min-h-[400px]">
             <div>
               <h3 className="text-2xl md:text-3xl font-bold mb-4">
-                One platform. All of your review essentials.
+                One Platform with every AI tool you need
               </h3>
               <p className="text-gray-600 mb-6">
-                Your CLI, PR page, inbox, and merge queue, unified in one seamless workflow.
+                You won't need any 5 AI platforms for your project, with KAPRY.DEV you'll have everything in one.
               </p>
               <a href="#" className="group flex items-center gap-2 text-sm font-semibold hover:text-gray-600 transition-colors">
-                Read about merge queues 
+                Read more about AI
                 <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
               </a>
             </div>
             <div className="flex flex-col items-end md:pl-4">
-              <Pill icon={GitMerge} text="Merge Queue" />
-              <Pill icon={UserPlus} text="Reviewer Assignment" />
-              <Pill icon={Zap} text="Automations" />
-              <Pill icon={LineChart} text="Insights" />
-              <Pill icon={ShieldCheck} text="Protections" />
+              <Pill icon={Brain} text="Basic AI Assistant" />
+              <Pill icon={Github} text="AI GitHub Code Reviewer" />
+              <Pill icon={Database} text="AI SQL Helper" />
+              <Pill icon={Map} text="AI Roadmap Visualizer" />
             </div>
           </FeatureCard>
         </div>
