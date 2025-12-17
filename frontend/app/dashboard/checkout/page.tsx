@@ -206,7 +206,7 @@ export default function CheckoutPage() {
                                 {priceDetails.mode === 'update' && (
                                     <div className="flex gap-3 text-blue-400 bg-blue-500/5 border border-blue-500/10 p-4 rounded-lg text-sm">
                                         <Info className="w-5 h-5 mt-0.5 flex-shrink-0 opacity-80" />
-                                        <p className="leading-relaxed text-blue-300/90 text-xs">
+                                        <p className="leading-relaxed text-blue-300/90 text-xs light:font-bold light:text-blue-950">
                                             This is a prorated amount. You are paying the difference between your old plan and the new one for the remainder of this billing cycle.
                                         </p>
                                     </div>
