@@ -119,7 +119,7 @@ const Navbar = () => {
     { icon: Database, name: 'SQL Helper', desc: 'Natural language to SQL' },
     { icon: LayoutList, name: 'Roadmap', desc: 'AI-generated milestones' },
     { icon: KanbanSquare, name: 'Kanban Board', desc: 'Drag-and-drop tasks' },
-    { icon: Activity, name: 'Activity Logs', desc: 'Team velocity tracking' },
+    { icon: UserCog, name: 'Team', desc: 'Management made easier' },
   ];
 
   return (
@@ -354,8 +354,8 @@ const PricingSection = () => {
         "Issue Tracking"
       ],
       limitations: [
-        "Max 100 users total",
-        "Standard Security"
+        "Max 50 users total",
+        "Max 10 Projects"
       ]
     },
     {
@@ -500,6 +500,7 @@ const Footer = () => (
       <div className="flex gap-8 text-[#5f6368] font-medium">
         <a href="#" className="hover:text-purple-600 transition-colors">Documentation</a>
         <a href="#" className="hover:text-purple-600 transition-colors">Support</a>
+        <a href="#" className="hover:text-purple-600 transition-colors">Legal</a>
       </div>
     </div>
   </footer>
