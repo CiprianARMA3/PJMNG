@@ -363,7 +363,7 @@ export default function ConceptCalendarPage() {
                                             key={item.id}
                                             onClick={(e) => { e.stopPropagation(); openItem(item); }}
                                             className={`
-                                        cursor-pointer px-1.5 py-1 rounded text-[10px] shadow-sm group/card flex-shrink-0 flex items-center gap-1.5 transition-all light:bg-white/50 hover:bg-white/10
+                                        cursor-pointer px-1.5 py-1 rounded text-[10px] shadow-sm group/card flex-shrink-0 flex items-center gap-1.5 transition-all light:bg-white/50 hover:bg-white/10 border-2 border-purple-600/20
                                         ${getItemStyle(item)}
                                     `}
                                         >
