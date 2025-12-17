@@ -548,7 +548,7 @@ export default function AiAssistantPage({ params }: PageProps) {
 
     if (loading) {
         return (
-            <div role="status" className="flex justify-center items-center h-screen bg-[#0a0a0a]">
+            <div role="status" className="flex justify-center items-center h-screen bg-[#0a0a0a] light:bg-gray-50">
                 <svg
                     aria-hidden="true"
                     className="inline w-8 h-8 text-neutral-400 animate-spin fill-white"
