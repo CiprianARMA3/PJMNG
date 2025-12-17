@@ -728,25 +728,31 @@ export default function AIUsagePage() {
                       <ChevronDown size={12} />
                     </button>
 
-                    {showModelMenu && (
-                      <div className="absolute top-full right-0 mt-2 w-56 bg-[#0C0C0E] border border-zinc-800 rounded-lg shadow-2xl z-30 p-1.5 animate-in fade-in zoom-in-95 duration-200">
-                        <button
-                          onClick={() => { setModelFilter("All Models"); setShowModelMenu(false); }}
-                          className={`w-full text-left px-2 py-1.5 text-xs rounded-md transition-colors ${modelFilter === "All Models" ? 'bg-zinc-800 text-white' : 'text-zinc-400 hover:bg-zinc-800/50'}`}
-                        >
-                          All Models
-                        </button>
-                        {uniqueModels.map(m => (
-                          <button
-                            key={m}
-                            onClick={() => { setModelFilter(m); setShowModelMenu(false); }}
-                            className={`w-full text-left px-2 py-1.5 text-xs rounded-md transition-colors truncate ${modelFilter === m ? 'bg-zinc-800 text-white' : 'text-zinc-400 hover:bg-zinc-800/50'}`}
-                          >
-                            {formatModelName(m)}
-                          </button>
-                        ))}
-                      </div>
-                    )}
+{showModelMenu && (
+  <div className="absolute top-full right-0 mt-2 w-56 bg-[#0C0C0E] border border-zinc-800 rounded-lg shadow-2xl z-30 p-1.5 animate-in fade-in zoom-in-95 duration-200 light:bg-white light:border-zinc-200 light:shadow-lg">
+    <button
+      onClick={() => { setModelFilter("All Models"); setShowModelMenu(false); }}
+      className={`w-full text-left px-2 py-1.5 text-xs rounded-md transition-colors 
+        ${modelFilter === "All Models" 
+          ? 'bg-zinc-800 text-white light:bg-zinc-100 light:text-zinc-900' 
+          : 'text-zinc-400 hover:bg-zinc-800/50 light:text-zinc-600 light:hover:bg-zinc-100 light:hover:text-zinc-900'}`}
+    >
+      All Models
+    </button>
+    {uniqueModels.map(m => (
+      <button
+        key={m}
+        onClick={() => { setModelFilter(m); setShowModelMenu(false); }}
+        className={`w-full text-left px-2 py-1.5 text-xs rounded-md transition-colors truncate 
+          ${modelFilter === m 
+            ? 'bg-zinc-800 text-white light:bg-zinc-100 light:text-zinc-900' 
+            : 'text-zinc-400 hover:bg-zinc-800/50 light:text-zinc-600 light:hover:bg-zinc-100 light:hover:text-zinc-900'}`}
+      >
+        {formatModelName(m)}
+      </button>
+    ))}
+  </div>
+)}
                   </div>
                   <button
                     onClick={fetchData}
@@ -903,7 +909,7 @@ export default function AIUsagePage() {
                               <td className="px-6 py-4 whitespace-nowrap">
                                 {formatDate(transaction.created_at)}
                               </td>
-                              <td className="px-6 py-4 whitespace-nowrap font-medium text-emerald-400">
+                              <td className="px-6 py-4 whitespace-nowrap font-medium text-emerald-400 light:font-extrabold">
                                 +{formatNumber(transaction.tokens_added)}
                               </td>
                               <td className="px-6 py-4 whitespace-nowrap">
