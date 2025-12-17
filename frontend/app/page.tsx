@@ -19,7 +19,6 @@ import {
   Minus,
   UserCog
 } from 'lucide-react';
-import { redirect } from 'next/dist/server/api-utils';
 import { createClient } from '@/utils/supabase/client';
 import { User } from '@supabase/supabase-js';
 
@@ -89,13 +88,14 @@ const AuroraBackground = () => {
   );
 };
 
-// --- 2. Navbar ---
+// --- 2. Navbar (FIXED) ---
 const Navbar = () => {
   const [isOpen, setIsOpen] = useState(false);
   const [activeDropdown, setActiveDropdown] = useState<string | null>(null);
   
   // Auth state
   const [user, setUser] = useState<User | null>(null);
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null); // New state for PFP
   const [loading, setLoading] = useState(true);
   const supabase = createClient();
 
@@ -104,6 +104,22 @@ const Navbar = () => {
       try {
         const { data: { user } } = await supabase.auth.getUser();
         setUser(user);
+
+        if (user) {
+          // Fetch the PUBLIC profile data to get the real avatar from metadata
+          const { data: profile } = await supabase
+            .from('users')
+            .select('metadata')
+            .eq('id', user.id)
+            .single();
+          
+          if (profile && profile.metadata?.avatar_url) {
+            setAvatarUrl(profile.metadata.avatar_url);
+          } else {
+            // Fallback
+            setAvatarUrl(user.user_metadata?.avatar_url);
+          }
+        }
       } catch (error) {
         console.error('Error fetching user:', error);
       } finally {
@@ -156,7 +172,7 @@ const Navbar = () => {
               </div>
             )}
           </div>
-          <a href="#" className="text-[15px] font-medium text-[#5f6368] hover:text-[#202124] transition-colors">Blog</a>
+          <a href="/home/blog" className="text-[15px] font-medium text-[#5f6368] hover:text-[#202124] transition-colors">Blog</a>
           <a href="#" className="text-[15px] font-medium text-[#5f6368] hover:text-[#202124] transition-colors">Enterprise</a>
           <a href="#" className="text-[15px] font-medium text-[#5f6368] hover:text-[#202124] transition-colors">Pricing</a>
         </div>
@@ -173,7 +189,7 @@ const Navbar = () => {
                   </a>
                   <div className="relative h-9 w-9 rounded-full overflow-hidden border border-gray-200">
                     <img
-                      src={user.user_metadata?.avatar_url || '/default-avatar.png'}
+                      src={avatarUrl || '/default-avatar.png'}
                       alt="Profile"
                       className="w-full h-full object-cover"
                     />
