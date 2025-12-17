@@ -81,7 +81,7 @@ const FeaturesSection = () => {
             Keep track of Events and Workflow
         </h3>
         <p className="text-gray-600 mb-6">
-            Seamlessly manage your team's calendar and schedule with dual-view visualization for maximum clarity.
+            Seamlessly manage your team's calendar and schedule with dual-view visualization for maximum clarity. Enhanced by a multi-role based on permissions system which let's you decide who can use what.
         </p>
         <a href="#" className="group flex items-center gap-2 text-sm font-semibold hover:text-gray-600 transition-colors mb-8">
             Explore calendar features
@@ -218,25 +218,37 @@ const FeaturesSection = () => {
         </div>
 
         {/* --- Row 4: AI Reviewer --- */}
-        <FeatureCard className="grid grid-cols-1 md:grid-cols-2 min-h-[450px]">
-          <div className="p-8 md:p-12 flex flex-col justify-center z-10">
-            <h2 className="text-3xl md:text-4xl font-bold tracking-tight mb-4">
-              The collaborative AI reviewer built into your PR page
-            </h2>
-            <p className="text-gray-600 text-lg mb-8 leading-relaxed">
-              Resolve CI failures, apply suggested fixes, and commit your changes — all in one conversation.
-            </p>
-            <div className="flex items-center gap-6">
-              <button className="bg-white text-gray-900 border border-gray-300 px-6 py-3 rounded-full font-medium hover:bg-gray-50 transition-colors shadow-sm">
-                Start chatting
-              </button>
-            </div>
-          </div>
-          {/* Image positioning wrapper */}
-          <div className="relative h-64 md:h-auto bg-gradient-to-bl from-gray-50 to-white">
-            <TemplateImage className="absolute top-12 left-12 right-[-50px] bottom-[-50px] shadow-xl" label="Chat Interface" />
-          </div>
-        </FeatureCard>
+<FeatureCard className="grid grid-cols-1 md:grid-cols-2 min-h-[450px] overflow-hidden">
+  <div className="p-8 md:p-12 flex flex-col justify-center z-10">
+    <h2 className="text-3xl md:text-4xl font-bold tracking-tight mb-4 ml-[-25px]">
+      Everything you need,<br /> everytime, <br />everywhere
+    </h2>
+    <p className="text-gray-600 text-lg mb-8 ml-[-25px]">
+      With easy to use tools <br />which grant an easier organization <br /> not only for you,<br />
+       but also for your collaborators.
+    </p>
+    <div className="flex items-center gap-6">
+      <button className="bg-white text-gray-900 border border-gray-300 px-6 py-3 rounded-full font-medium hover:bg-gray-50 transition-colors shadow-sm ml-[-25px]">
+        Start Building Now
+      </button>
+    </div>
+  </div>
+  
+  {/* Image positioning wrapper */}
+  {/* Added 'h-full' to ensure it fills the column height */}
+  <div className="relative h-full min-h-[300px]">
+    {/* Changes made:
+       1. Reduced 'top-12 left-12' -> 'top-4 left-4' (brings image closer to center/top)
+       2. Changed width to 'w-[150%]' or 'max-w-none' to ensure it feels big but keeps aspect ratio better
+       3. Added 'rounded-tl-lg' for a polished corner
+    */}
+    <img 
+      className="absolute top-4 right-[-125px] shadow-2xl w-[160%] max-w-none rounded-tl-lg border border-gray-100" 
+      src={"/p3.png"} 
+      alt="AI Reviewer Interface"
+    />
+  </div>
+</FeatureCard>
 
       </div>
     </div>
