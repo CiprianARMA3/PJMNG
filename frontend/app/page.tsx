@@ -17,7 +17,8 @@ import {
   Activity,
   TerminalSquare,
   Check,
-  Minus
+  Minus,
+  UserCog
 } from 'lucide-react';
 import { redirect } from 'next/dist/server/api-utils';
 
@@ -258,9 +259,9 @@ const Features = () => (
           text="Visualize your product journey. AI helps you plan milestones and track progress."
         />
          <FeatureCard 
-          icon={TerminalSquare}
-          title="System Monitor"
-          text="Integrated logging and performance monitoring for your applications."
+          icon={UserCog}
+          title="Collaborators Roles & Permissions"
+          text="Monitor your collaborator's activity and choose what they can and can't do."
         />
       </div>
     </div>
@@ -472,14 +473,14 @@ export default function Page() {
       */}
       <div className="relative z-20 -mt-24">
               <div className="text-center mb-10 mt-20 max-w-3xl mx-auto">
-        <h2 className="text-4xl md:text-5xl font-medium text-[#202124] mb-6 tracking-tight">
+        <h2 className="text-4xl md:text-5xl font-medium text-[#202124] mb-4  mt-30 tracking-tight">
           Your entire workflow. <br /> In one dashboard.
         </h2>
       </div>
         <LandingBoxes />
       </div>
                     <div className="text-center mt-20  max-w-3xl mx-auto">
-        <h2 className="text-4xl md:text-5xl font-medium text-[#202124] mb-6 tracking-tight">
+        <h2 className="text-4xl md:text-5xl font-medium text-[#202124] mb-2 tracking-tight">
           Every feature in detail <br /> For you and your collaborators.
         </h2>
       </div>
