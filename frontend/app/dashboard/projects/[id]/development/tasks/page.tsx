@@ -621,7 +621,7 @@ export default function IssuesPage() {
 
     // UPDATED: Strict Permission Check for "manager"
     // This ignores the role name (e.g. "Developer") and strictly checks if the "manager" permission string exists.
-    const isManager = checkAccess('management') || userRole === 'owner';
+    const isManager = checkAccess('management') || userRole === 'admin';
 
     if (loading) {
         return (
