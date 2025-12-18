@@ -23,70 +23,29 @@ import { createClient } from '@/utils/supabase/client';
 import { User } from '@supabase/supabase-js';
 
 // --- 1. Aurora Background with Grain (Lighter, Professional Sine Wave) ---
-const AuroraBackground = () => {
-  return (
-    <div className="absolute inset-0 z-0 overflow-hidden pointer-events-none bg-white">
-      {/* CSS Animations for the structured sine-wave flow */}
-      <style jsx>{`
-        /* Wave 1: Main flow - Oscillates broadly */
-        @keyframes sine-flow-1 {
-          0%   { transform: translate(-20%, 10%) scale(1); opacity: 0.8; }
-          25%  { transform: translate(10%, -10%) scale(1.1); opacity: 1; }
-          50%  { transform: translate(40%, 10%) scale(0.8); opacity: 0.6; } /* Adjusted opacity for lighter feel */
-          75%  { transform: translate(10%, 30%) scale(0.9); opacity: 0.9; }
-          100% { transform: translate(-20%, 10%) scale(1); opacity: 0.8; }
-        }
-        /* Wave 2: Counter-flow - moves opposite */
-        @keyframes sine-flow-2 {
-          0%   { transform: translate(20%, -20%) scale(0.9); opacity: 0.7; }
-          33%  { transform: translate(-10%, 0%) scale(1.1); opacity: 0.9; }
-          66%  { transform: translate(30%, 20%) scale(1); opacity: 0.8; }
-          100% { transform: translate(20%, -20%) scale(0.9); opacity: 0.7; }
-        }
-        /* Wave 3: Subtle central pulse */
-        @keyframes sine-flow-3 {
-          0%, 100%   { transform: translate(0%, 5%) scale(1); opacity: 0.6; }
-          50%  { transform: translate(0%, -5%) scale(1.15); opacity: 0.9; }
-        }
-      `}</style>
-
-      {/* Professional Gradient Elements - Lighter Pastel Tones */}
-      
-      {/* Light Blue/Indigo Wave (Top Left > Right) */}
-      <div 
-        className="absolute top-[-20%] left-[-20%] w-[80vw] h-[80vh] bg-gradient-to-r from-blue-100/80 to-indigo-100/80 rounded-[100%] blur-[180px] mix-blend-multiply"
-        style={{ animation: 'sine-flow-1 25s infinite ease-in-out' }} 
-      />
-      
-      {/* Very Light Cyan/Purple Wave (Bottom Right > Left) */}
-      <div 
-        className="absolute bottom-[-30%] right-[-10%] w-[70vw] h-[70vh] bg-gradient-to-l from-cyan-50/50 to-purple-200/50 rounded-[100%] blur-[150px] mix-blend-multiply"
-        style={{ animation: 'sine-flow-2 30s infinite ease-in-out reverse' }} 
-      />
-
-      {/* Central Anchor Light (Center Bottom) */}
-      <div 
-        className="absolute bottom-[-10%] left-[20%] w-[60vw] h-[50vh] bg-indigo-50/60 rounded-full blur-[160px] mix-blend-multiply"
-        style={{ animation: 'sine-flow-3 18s infinite ease-in-out' }} 
-      />
-
-      {/* Grain Filter Overlay - Professional Blur & Reduced Opacity */}
-      <div 
-        className="absolute inset-0 opacity-[0.12] pointer-events-none"
-        style={{ 
-            backgroundImage: "url('/grainy.png')",
-            backgroundRepeat: 'repeat',
-            backgroundSize: '120px 120px',
-            mixBlendMode: 'multiply',
-            filter: 'blur(3px)'
-        }} 
-      />
-      
-      {/* Strong, deep fade at bottom to blend cleanly with the white section below */}
-      <div className="absolute bottom-0 left-0 w-full h-[50vh] bg-gradient-to-t from-white via-white/90 to-transparent" />
-    </div>
-  );
-};
+const AuroraBackground = () => (
+  <div className="absolute inset-0 z-0 overflow-hidden pointer-events-none bg-white">
+    <style jsx>{`
+      @keyframes sine-flow-1 {
+        0%   { transform: translate(-20%, 10%) scale(1); opacity: 0.8; }
+        25%  { transform: translate(10%, -10%) scale(1.1); opacity: 1; }
+        50%  { transform: translate(40%, 10%) scale(0.8); opacity: 0.6; }
+        75%  { transform: translate(10%, 30%) scale(0.9); opacity: 0.9; }
+        100% { transform: translate(-20%, 10%) scale(1); opacity: 0.8; }
+      }
+      @keyframes sine-flow-2 {
+        0%   { transform: translate(20%, -20%) scale(0.9); opacity: 0.7; }
+        33%  { transform: translate(-10%, 0%) scale(1.1); opacity: 0.9; }
+        66%  { transform: translate(30%, 20%) scale(1); opacity: 0.8; }
+        100% { transform: translate(20%, -20%) scale(0.9); opacity: 0.7; }
+      }
+    `}</style>
+    <div className="absolute top-[-20%] left-[-20%] w-[80vw] h-[80vh] bg-gradient-to-r from-blue-100/80 to-indigo-100/80 rounded-[100%] blur-[180px] mix-blend-multiply" style={{ animation: 'sine-flow-1 25s infinite ease-in-out' }} />
+    <div className="absolute bottom-[-30%] right-[-10%] w-[70vw] h-[70vh] bg-gradient-to-l from-cyan-50/50 to-purple-200/50 rounded-[100%] blur-[150px] mix-blend-multiply" style={{ animation: 'sine-flow-2 30s infinite ease-in-out reverse' }} />
+    <div className="absolute inset-0 opacity-[0.12] pointer-events-none" style={{ backgroundImage: "url('/grainy.png')", backgroundRepeat: 'repeat', backgroundSize: '120px 120px' }} />
+    <div className="absolute bottom-0 left-0 w-full h-[50vh] bg-gradient-to-t from-white via-white/90 to-transparent" />
+  </div>
+);
 
 // --- 2. Navbar (FIXED) ---
 const Navbar = () => {
@@ -174,7 +133,7 @@ const Navbar = () => {
           </div>
           <a href="/home/blog" className="text-[15px] font-medium text-[#5f6368] hover:text-[#202124] transition-colors">Blog</a>
           <a href="#" className="text-[15px] font-medium text-[#5f6368] hover:text-[#202124] transition-colors">Enterprise</a>
-          <a href="#" className="text-[15px] font-medium text-[#5f6368] hover:text-[#202124] transition-colors">Pricing</a>
+          <a href="/#pricing" className="text-[15px] font-medium text-[#5f6368] hover:text-[#202124] transition-colors">Pricing</a>
         </div>
         
         {/* Auth / Dashboard Section */}
@@ -401,6 +360,7 @@ const PricingSection = () => {
         {/* Header */}
         <div className="text-center mb-16">
           <h2 className="text-4xl md:text-5xl font-medium text-[#202124] mb-6 tracking-tight">
+            <a href="pricing"></a>
             Simple, transparent pricing.
           </h2>
           <p className="text-xl text-[#5f6368] max-w-2xl mx-auto mb-10">
@@ -424,7 +384,7 @@ const PricingSection = () => {
             >
               Yearly 
               <span className={`text-[13px] font-semibold px-1.5 py-0.5 rounded ${isAnnual ? 'bg-white/20 text-white' : 'bg-green-100 text-green-700'}`}>
-                -20%
+                -17%
               </span>
             </button>
           </div>
@@ -490,7 +450,7 @@ const PricingSection = () => {
         {/* Note about Source Code */}
         <div className="mt-12 text-center">
             <p className="text-sm text-[#5f6368]">
-                Looking for the source code? <a href="#" className="text-purple-600 font-medium hover:underline">View the repository</a> for setup instructions.
+                Need more info about how it works? <a href="#" className="text-purple-600 font-medium hover:underline">Contact us </a> for further informations.
             </p>
         </div>
 

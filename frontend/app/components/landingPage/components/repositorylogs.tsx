@@ -87,7 +87,6 @@ export default function RepositoryCommitWidget() {
 
     const branches: GitHubBranch[] = [
         { name: "main", commit: { sha: "abc", url: "" } },
-        { name: "feature/widget", commit: { sha: "def", url: "" } },
     ];
     
     // --- HELPER LOGIC ---

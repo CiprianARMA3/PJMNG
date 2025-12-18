@@ -17,7 +17,8 @@ import {
   KanbanSquare,
   UserCog,
   ArrowRight,
-  Loader2
+  Loader2,
+  Check
 } from 'lucide-react';
 import { createClient } from '@/utils/supabase/client';
 import { User } from '@supabase/supabase-js';
@@ -66,58 +67,32 @@ const getFullName = (name?: string | null, surname?: string | null) => {
   return `${name || ""} ${surname || ""}`.trim();
 };
 
-// --- Components (Reused) ---
+// --- Components ---
 
-const AuroraBackground = () => {
-  return (
-    <div className="fixed inset-0 z-0 overflow-hidden pointer-events-none bg-white">
-      <style jsx>{`
-        @keyframes sine-flow-1 {
-          0%   { transform: translate(-20%, 10%) scale(1); opacity: 0.8; }
-          25%  { transform: translate(10%, -10%) scale(1.1); opacity: 1; }
-          50%  { transform: translate(40%, 10%) scale(0.8); opacity: 0.6; }
-          75%  { transform: translate(10%, 30%) scale(0.9); opacity: 0.9; }
-          100% { transform: translate(-20%, 10%) scale(1); opacity: 0.8; }
-        }
-        @keyframes sine-flow-2 {
-          0%   { transform: translate(20%, -20%) scale(0.9); opacity: 0.7; }
-          33%  { transform: translate(-10%, 0%) scale(1.1); opacity: 0.9; }
-          66%  { transform: translate(30%, 20%) scale(1); opacity: 0.8; }
-          100% { transform: translate(20%, -20%) scale(0.9); opacity: 0.7; }
-        }
-        @keyframes sine-flow-3 {
-          0%, 100%   { transform: translate(0%, 5%) scale(1); opacity: 0.6; }
-          50%  { transform: translate(0%, -5%) scale(1.15); opacity: 0.9; }
-        }
-      `}</style>
-      <div 
-        className="absolute top-[-20%] left-[-20%] w-[80vw] h-[80vh] bg-gradient-to-r from-blue-100/80 to-indigo-100/80 rounded-[100%] blur-[180px] mix-blend-multiply"
-        style={{ animation: 'sine-flow-1 25s infinite ease-in-out' }} 
-      />
-      <div 
-        className="absolute bottom-[-30%] right-[-10%] w-[70vw] h-[70vh] bg-gradient-to-l from-cyan-50/50 to-purple-200/50 rounded-[100%] blur-[150px] mix-blend-multiply"
-        style={{ animation: 'sine-flow-2 30s infinite ease-in-out reverse' }} 
-      />
-      <div 
-        className="absolute bottom-[-10%] left-[20%] w-[60vw] h-[50vh] bg-indigo-50/60 rounded-full blur-[160px] mix-blend-multiply"
-        style={{ animation: 'sine-flow-3 18s infinite ease-in-out' }} 
-      />
-      <div 
-        className="absolute inset-0 opacity-[0.12] pointer-events-none"
-        style={{ 
-            backgroundImage: "url('/grainy.png')",
-            backgroundRepeat: 'repeat',
-            backgroundSize: '120px 120px',
-            mixBlendMode: 'multiply',
-            filter: 'blur(3px)'
-        }} 
-      />
-      <div className="absolute bottom-0 left-0 w-full h-[50vh] bg-gradient-to-t from-white via-white/90 to-transparent" />
-    </div>
-  );
-};
+const AuroraBackground = () => (
+  <div className="absolute inset-0 z-0 overflow-hidden pointer-events-none bg-white">
+    <style jsx>{`
+      @keyframes sine-flow-1 {
+        0%   { transform: translate(-20%, 10%) scale(1); opacity: 0.8; }
+        25%  { transform: translate(10%, -10%) scale(1.1); opacity: 1; }
+        50%  { transform: translate(40%, 10%) scale(0.8); opacity: 0.6; }
+        75%  { transform: translate(10%, 30%) scale(0.9); opacity: 0.9; }
+        100% { transform: translate(-20%, 10%) scale(1); opacity: 0.8; }
+      }
+      @keyframes sine-flow-2 {
+        0%   { transform: translate(20%, -20%) scale(0.9); opacity: 0.7; }
+        33%  { transform: translate(-10%, 0%) scale(1.1); opacity: 0.9; }
+        66%  { transform: translate(30%, 20%) scale(1); opacity: 0.8; }
+        100% { transform: translate(20%, -20%) scale(0.9); opacity: 0.7; }
+      }
+    `}</style>
+    <div className="absolute top-[-20%] left-[-20%] w-[80vw] h-[80vh] bg-gradient-to-r from-blue-100/80 to-indigo-100/80 rounded-[100%] blur-[180px] mix-blend-multiply" style={{ animation: 'sine-flow-1 25s infinite ease-in-out' }} />
+    <div className="absolute bottom-[-30%] right-[-10%] w-[70vw] h-[70vh] bg-gradient-to-l from-cyan-50/50 to-purple-200/50 rounded-[100%] blur-[150px] mix-blend-multiply" style={{ animation: 'sine-flow-2 30s infinite ease-in-out reverse' }} />
+    <div className="absolute inset-0 opacity-[0.12] pointer-events-none" style={{ backgroundImage: "url('/grainy.png')", backgroundRepeat: 'repeat', backgroundSize: '120px 120px' }} />
+    <div className="absolute bottom-0 left-0 w-full h-[50vh] bg-gradient-to-t from-white via-white/90 to-transparent" />
+  </div>
+);
 
-// --- Navbar (FIXED) ---
 const Navbar = () => {
     const [isOpen, setIsOpen] = useState(false);
     const [activeDropdown, setActiveDropdown] = useState<string | null>(null);
@@ -201,7 +176,7 @@ const Navbar = () => {
             </div>
             <a href="/home/blog" className="text-[15px] font-medium text-[#5f6368] hover:text-[#202124] transition-colors">Blog</a>
             <a href="#" className="text-[15px] font-medium text-[#5f6368] hover:text-[#202124] transition-colors">Enterprise</a>
-            <a href="#" className="text-[15px] font-medium text-[#5f6368] hover:text-[#202124] transition-colors">Pricing</a>
+            <a href="/#pricing" className="text-[15px] font-medium text-[#5f6368] hover:text-[#202124] transition-colors">Pricing</a>
           </div>
           
           <div className="hidden md:flex items-center gap-4">
@@ -237,7 +212,6 @@ const Navbar = () => {
           </button>
         </div>
 
-        {/* Mobile Menu Overlay */}
         {isOpen && (
             <div className="absolute top-[72px] left-0 w-full h-[calc(100vh-72px)] bg-white overflow-y-auto p-6 flex flex-col gap-6 md:hidden animate-in slide-in-from-top-2 shadow-xl border-t border-gray-100">
             <div className="space-y-4">
@@ -287,6 +261,7 @@ export default function BlogPostPage() {
   const supabase = createClient();
   const [post, setPost] = useState<UpdatePost | null>(null);
   const [loading, setLoading] = useState(true);
+  const [copied, setCopied] = useState(false);
 
   useEffect(() => {
     const fetchPost = async () => {
@@ -317,6 +292,16 @@ export default function BlogPostPage() {
 
     fetchPost();
   }, [id, supabase]);
+
+  const handleShare = async () => {
+    try {
+      await navigator.clipboard.writeText(window.location.href);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch (err) {
+      console.error('Failed to copy link:', err);
+    }
+  };
 
   if (loading) {
     return (
@@ -361,20 +346,33 @@ export default function BlogPostPage() {
       <div className="relative z-20 pt-32 pb-24 px-6">
         <article className="max-w-3xl mx-auto animate-fade-in-up">
             
-            {/* Navigation & Actions */}
             <div className="flex items-center justify-between mb-8">
                 <Link href="/home/blog" className="inline-flex items-center gap-2 text-sm font-medium text-[#5f6368] hover:text-[#202124] transition-colors p-2 -ml-2 rounded-lg hover:bg-white/50">
                     <ArrowLeft size={16} />
                     Back to Blog
                 </Link>
-                <div className="flex gap-2">
-                    <button className="p-2 rounded-full hover:bg-white/50 text-[#5f6368] hover:text-purple-600 transition-colors" title="Share">
-                        <Share2 size={18} />
+                <div className="flex gap-2 relative">
+                    <button 
+                      onClick={handleShare}
+                      className={`flex items-center gap-2 px-3 py-2 rounded-full transition-all duration-300 ${
+                        copied 
+                        ? "bg-green-50 text-green-600 border border-green-200" 
+                        : "hover:bg-white/50 text-[#5f6368] hover:text-purple-600 border border-transparent"
+                      }`} 
+                      title="Copy Link"
+                    >
+                        {copied ? (
+                          <>
+                            <span className="text-xs font-bold">Copied!</span>
+                            <Check size={18} />
+                          </>
+                        ) : (
+                          <Share2 size={18} />
+                        )}
                     </button>
                 </div>
             </div>
 
-            {/* Header */}
             <header className="mb-10">
                 <div className="flex items-center gap-3 mb-6">
                     {post.tag && post.tag.tag && (
@@ -404,7 +402,6 @@ export default function BlogPostPage() {
                     {post.title}
                 </h1>
 
-                {/* Author Section */}
                 <div className="flex items-center gap-4 py-6 border-y border-gray-100/80 bg-white/30 backdrop-blur-sm rounded-xl px-4">
                     <div className="w-12 h-12 rounded-full bg-white border border-gray-200 flex items-center justify-center overflow-hidden shadow-sm">
                         {avatarUrl ? (
@@ -420,7 +417,6 @@ export default function BlogPostPage() {
                 </div>
             </header>
 
-            {/* Banner Image */}
             <div className="relative w-full aspect-video rounded-[2rem] overflow-hidden shadow-2xl shadow-purple-900/10 mb-12 border border-gray-100">
                 <img 
                     src={bannerUrl} 
@@ -429,14 +425,12 @@ export default function BlogPostPage() {
                 />
             </div>
 
-            {/* Content Body */}
             <div className="prose prose-lg prose-gray max-w-none">
                 <div className="text-xl leading-relaxed text-[#3c4043] font-normal whitespace-pre-wrap">
                     {post.description}
                 </div>
             </div>
 
-            {/* Footer / CTA */}
             <div className="mt-16 p-8 rounded-[2rem] bg-gray-50 border border-gray-100 text-center">
                 <h3 className="text-xl font-bold text-[#202124] mb-2">Enjoyed this update?</h3>
                 <p className="text-[#5f6368] mb-6">Join us on the dashboard to see these features in action.</p>
