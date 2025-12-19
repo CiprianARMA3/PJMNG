@@ -47,6 +47,28 @@ const AuroraBackground = () => (
   </div>
 );
 
+const BuiltWith = () => (
+  <section className="py-15 -mt-10 border-b border-zinc-200">
+    <div className="max-w-7xl mx-auto px-6 ">
+      <p className='text-center mb-10 uppercase font-bold text-3xl '>built with</p>
+      <div className="flex flex-wrap justify-center items-center gap-12 md:gap-20 opacity-60 grayscale hover:grayscale-0 transition-all duration-500 hover:opacity-100">
+        <div className="h-10 md:h-12 w-auto flex items-center justify-center">
+            <img src="/react.png" alt="react" className='h-full w-auto object-contain'/>
+        </div>
+        <div className="h-8 md:h-9 w-auto flex items-center justify-center">
+            <img src="/tailwind.png" alt="tailwind" className='h-full w-auto object-contain'/>
+        </div>
+        <div className="h-10 md:h-12 w-auto flex items-center justify-center">
+            <img src="/supabase.png" alt="supabase" className='h-full w-auto object-contain'/>
+        </div>
+        <div className="h-8 md:h-9 w-auto flex items-center justify-center">
+            <img src="/nextjs.svg" alt="nextjs" className='h-full w-auto object-contain'/>
+        </div>
+      </div>
+    </div>
+  </section>
+);
+
 // --- 2. Navbar (FIXED) ---
 const Navbar = () => {
   const [isOpen, setIsOpen] = useState(false);
@@ -434,15 +456,16 @@ const PricingSection = () => {
                   </div>
                 ))}
               </div>
-
-              <button className={`w-full py-3.5 rounded-xl font-medium transition-all duration-300 
+<a href="/dashboard" className='cursor-pointer'>
+              <button className={`w-full py-3.5 rounded-xl font-medium transition-all duration-300 cursor-pointer 
                 ${plan.highlight 
                   ? 'bg-purple-600 text-white hover:bg-purple-700 shadow-lg shadow-purple-500/30' 
                   : 'bg-gray-50 text-[#202124] hover:bg-gray-100 border border-transparent hover:border-gray-200'
                 }`}>
-                  <a href="/dashboard">Get Started</a>
+                  Get Started
                 
               </button>
+              </a>
             </div>
           ))}
         </div>
@@ -487,8 +510,7 @@ export default function Page() {
   return (
     <main className="bg-white min-h-screen font-sans selection:bg-purple-100 selection:text-purple-900 scroll-smooth">
       <Navbar />
-      <Hero />
-      
+      <Hero />      
       {/* NEW: Wrapper for LandingBoxes. Placed between Hero and Features.
         We use relative positioning here and z-20 to ensure it's above the white background of the Features section 
         but likely behind the FeatureCards which are z-10 inside Features.
@@ -501,6 +523,7 @@ export default function Page() {
         </h2>
       </div>
         <LandingBoxes />
+        <BuiltWith/>
       </div>
                     <div className="text-center mt-20  max-w-3xl mx-auto">
         <h2 className="text-4xl md:text-5xl font-medium text-[#202124] mb-2 tracking-tight">

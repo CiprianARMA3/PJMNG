@@ -201,7 +201,7 @@ const EnterpriseHero = () => (
 
         <button className="w-full sm:w-auto px-8 py-4 bg-white border border-zinc-200 text-[#3c4043] rounded-lg font-medium text-[15px] hover:border-zinc-300 hover:bg-zinc-50 transition-all duration-200 flex items-center justify-center gap-2 active:scale-[0.98]">
           <div className="w-2 h-2 rounded-full bg-purple-500 animate-pulse" />
-          Request a Demo
+          View Demo
         </button>
       </div>
     </div>
@@ -362,10 +362,10 @@ const FAQItem = ({ q, a, index, openIndex, setOpenIndex }: any) => {
 const FAQSection = () => {
   const [openIndex, setOpenIndex] = useState<number | null>(null);
   const faqs = [
-    { q: "What's the difference between Developer and Enterprise plans?", a: "Enterprise includes unlimited collaborators, significant volume-based token discounts, SAML SSO, and priority support that aren't available on the Team tier." },
+    { q: "What's the difference between Developer and Enterprise plans?", a: "Enterprise includes unlimited collaborators, significant volume-based token discounts, and priority support that aren't available on the Developer tier." },
     { q: "How does billing work for AI features?", a: "Enterprise billing is centralized and usage-based. You get an optimized token rate for your whole organization, with deep analytics to track ROI across teams." },
     { q: "Can we integrate Kapry with our internal SSO/SAML?", a: "Yes. Enterprise customers get full tech support and advanced Role-Based Access Controls (RBAC) to manage large engineering orgs." },
-    { q: "Do you offer on-premise deployment?", a: "We offer VPC (Virtual Private Cloud) deployments for Enterprise clients, ensuring your code never leaves your controlled AWS/GCP/Azure environment." },
+    { q: "Do you offer support in case of issues?", a: "Yes, we provide full support for all the plans, but for the Enterprise plan we offer 24/7 support with response time in just minutes.." },
     { q: "Are there discounts for annual commitments?", a: "Yes, we offer significant annual and multi-year contract discounts tailored to your organization's projected growth." }
   ];
 
@@ -399,50 +399,7 @@ const FAQSection = () => {
 };
 
 // --- Compliance Banner ---
-const ComplianceBanner = () => (
-  <section className="py-24 bg-zinc-700 text-white overflow-hidden relative border-y border-zinc-800">
-    <div className="absolute top-0 right-0 w-1/2 h-full bg-white/10 blur-[120px]" />
-    <div className="max-w-7xl mx-auto px-6 relative z-10 grid md:grid-cols-2 gap-16 items-center">
-      <div className="space-y-8">
-        <div className="inline-flex items-center gap-2 px-3 py-1 bg-zinc-800 rounded-md border border-zinc-700">
-          <Lock size={12} className="text-zinc-400" />
-          <span className="text-[10px] font-mono text-zinc-400 uppercase tracking-widest font-bold">Trust & Safety</span>
-        </div>
-        <h2 className="text-4xl md:text-5xl font-bold tracking-tight leading-tight">Your data remains <br/> in your perimeter.</h2>
-        <p className="text-zinc-400 text-lg leading-relaxed max-w-md">
-          Your data is safe with us everything is encrypted and safe to use. We are fully complying with EU Regulations:
-        </p>
-        <div className="grid grid-cols-2 gap-y-4 gap-x-8 pt-4">
-          {[ 'GDPR Compliant', 'Fully encrypted personal data', 'US CALIFORNIA regulations Compliant'].map((cert) => (
-            <div key={cert} className="flex items-center gap-3 text-sm font-medium text-zinc-300">
-              <CheckCircle2 size={18} className="text-emerald-500 shrink-0" /> {cert}
-            </div>
-          ))}
-        </div>
-      </div>
-      {/* <div className="bg-gradient-to-br from-zinc-800/50 to-zinc-900/50 border border-zinc-700/50 p-8 rounded-[2rem] backdrop-blur-sm relative overflow-hidden">
-         <div className="absolute inset-0 opacity-20" style={{ backgroundImage: 'radial-gradient(#a855f7 1px, transparent 1px)', backgroundSize: '20px 20px' }}></div>
-         
-         <div className="flex flex-col gap-6 relative z-10">
-           <div className="flex items-start gap-5 p-4 rounded-xl bg-zinc-900/50 border border-zinc-700/50">
-              <div className="w-10 h-10 rounded-lg bg-purple-500/20 flex items-center justify-center shrink-0"><Cpu size={20} className="text-purple-400" /></div>
-              <div>
-                <p className="text-base font-bold mb-1">VPC Deployment</p>
-                <p className="text-sm text-zinc-400">Host your isolated instance on your own AWS, Azure, or GCP private cloud.</p>
-              </div>
-           </div>
-           <div className="flex items-start gap-5 p-4 rounded-xl bg-zinc-900/50 border border-zinc-700/50">
-              <div className="w-10 h-10 rounded-lg bg-blue-500/20 flex items-center justify-center shrink-0"><Globe size={20} className="text-blue-400" /></div>
-              <div>
-                <p className="text-base font-bold mb-1">Data Residency</p>
-                <p className="text-sm text-zinc-400">Choose where your data is stored to comply with local regulations (EU, US, APAC).</p>
-              </div>
-           </div>
-         </div>
-      </div> */}
-    </div>
-  </section>
-);
+
 
 // --- CTA Section ---
 const ReadyToScale = () => (
@@ -469,7 +426,6 @@ export default function EnterprisePage() {
       <EnterpriseHero />
       <BuiltWith />
       <BentoFeatures />
-      <ComplianceBanner /> 
       <FAQSection />
       <ReadyToScale />
       <Footer />
