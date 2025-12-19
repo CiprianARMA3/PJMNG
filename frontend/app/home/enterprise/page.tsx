@@ -203,7 +203,7 @@ const FAQSection = () => {
   const faqs = [
     { q: "What's the difference between Developer and Enterprise plans?", a: "Enterprise includes unlimited collaborators, significant volume-based token discounts, and priority support that aren't available on the Developer tier." },
     { q: "How does billing work for AI features?", a: "Enterprise billing is centralized and usage-based. You get an optimized token rate for your whole organization, with deep analytics to track ROI across teams." },
-    { q: "Can we integrate Kapry with our internal SSO/SAML?", a: "Yes. Enterprise customers get full tech support and advanced Role-Based Access Controls (RBAC) to manage large engineering orgs." },
+    { q: "Does KapryDEV offer a role based system for our collaborators?", a: "Yes. Enterprise customers get full tech support and advanced Role-Based Access Controls (RBAC) to manage large engineering orgs." },
     { q: "Do you offer support in case of issues?", a: "Yes, we provide full support for all the plans, but for the Enterprise plan we offer 24/7 support with response time in just minutes.." },
     { q: "Are there discounts for annual commitments?", a: "Yes, we offer significant annual and multi-year contract discounts tailored to your organization's projected growth." }
   ];
@@ -244,7 +244,7 @@ const FAQSection = () => {
 const ReadyToScale = () => (
   <section className="py-24 bg-white">
     <div className="max-w-4xl mx-auto px-6 text-center">
-      <h2 className="text-4xl md:text-5xl font-bold text-[#202124] mb-6 tracking-tight">Ready to transform your <br /> engineering culture?</h2>
+      <h2 className="text-4xl md:text-5xl font-bold text-[#202124] mb-6 tracking-tight">Ready to ease out your <br /> development ?</h2>
       <p className="text-xl text-[#5f6368] mb-10 max-w-2xl mx-auto">Join the forward-thinking companies building the future with Kapry Enterprise.</p>
       <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
         <button className="px-8 py-4 bg-[#202124] text-white rounded-full font-bold text-lg hover:bg-black transition-all shadow-lg hover:shadow-xl active:scale-95 flex items-center gap-2">
