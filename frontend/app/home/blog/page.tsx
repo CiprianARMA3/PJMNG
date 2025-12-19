@@ -25,6 +25,9 @@ import {
 import { createClient } from '@/utils/supabase/client';
 import { User } from '@supabase/supabase-js';
 import Link from 'next/link';
+import Navbar from '@/app/components/Navbar';
+import Footer from '@/app/components/Footer';
+import AuroraBackground from '@/app/components/AuroraBackground';
 
 // --- Types ---
 interface UpdateTag {
@@ -66,180 +69,6 @@ const getFullName = (name?: string | null, surname?: string | null) => {
   return `${name || ""} ${surname || ""}`.trim();
 };
 
-// --- Background Component ---
-const AuroraBackground = () => (
-  <div className="absolute inset-0 z-0 overflow-hidden pointer-events-none bg-white">
-    <style jsx>{`
-      @keyframes sine-flow-1 {
-        0%   { transform: translate(-20%, 10%) scale(1); opacity: 0.8; }
-        25%  { transform: translate(10%, -10%) scale(1.1); opacity: 1; }
-        50%  { transform: translate(40%, 10%) scale(0.8); opacity: 0.6; }
-        75%  { transform: translate(10%, 30%) scale(0.9); opacity: 0.9; }
-        100% { transform: translate(-20%, 10%) scale(1); opacity: 0.8; }
-      }
-      @keyframes sine-flow-2 {
-        0%   { transform: translate(20%, -20%) scale(0.9); opacity: 0.7; }
-        33%  { transform: translate(-10%, 0%) scale(1.1); opacity: 0.9; }
-        66%  { transform: translate(30%, 20%) scale(1); opacity: 0.8; }
-        100% { transform: translate(20%, -20%) scale(0.9); opacity: 0.7; }
-      }
-    `}</style>
-    <div className="absolute top-[-20%] left-[-20%] w-[80vw] h-[80vh] bg-gradient-to-r from-blue-100/80 to-indigo-100/80 rounded-[100%] blur-[180px] mix-blend-multiply" style={{ animation: 'sine-flow-1 25s infinite ease-in-out' }} />
-    <div className="absolute bottom-[-30%] right-[-10%] w-[70vw] h-[70vh] bg-gradient-to-l from-cyan-50/50 to-purple-200/50 rounded-[100%] blur-[150px] mix-blend-multiply" style={{ animation: 'sine-flow-2 30s infinite ease-in-out reverse' }} />
-    <div className="absolute inset-0 opacity-[0.12] pointer-events-none" style={{ backgroundImage: "url('/grainy.png')", backgroundRepeat: 'repeat', backgroundSize: '120px 120px' }} />
-    <div className="absolute bottom-0 left-0 w-full h-[50vh] bg-gradient-to-t from-white via-white/90 to-transparent" />
-  </div>
-);
-// --- Navbar (FIXED with Mobile Menu & Avatar) ---
-const Navbar = () => {
-  const [isOpen, setIsOpen] = useState(false);
-  const [activeDropdown, setActiveDropdown] = useState<string | null>(null);
-  const [user, setUser] = useState<User | null>(null);
-  const [avatarUrl, setAvatarUrl] = useState<string | null>(null); 
-  const [loading, setLoading] = useState(true);
-  const supabase = createClient();
-
-  useEffect(() => {
-    const checkUser = async () => {
-      try {
-        const { data: { user } } = await supabase.auth.getUser();
-        setUser(user);
-
-        if (user) {
-          // Fetch the PUBLIC profile data
-          const { data: profile } = await supabase
-            .from('users')
-            .select('metadata')
-            .eq('id', user.id)
-            .single();
-          
-          if (profile && profile.metadata?.avatar_url) {
-            setAvatarUrl(profile.metadata.avatar_url);
-          } else {
-            setAvatarUrl(user.user_metadata?.avatar_url);
-          }
-        }
-      } catch (error) {
-        console.error('Error fetching user:', error);
-      } finally {
-        setLoading(false);
-      }
-    };
-    checkUser();
-  }, [supabase]);
-
-  const productLinks = [
-    { icon: Bot, name: 'AI Assistant', desc: 'Context-aware coding help' },
-    { icon: GitBranch, name: 'Repo Review', desc: 'Automated PR analysis' },
-    { icon: Database, name: 'SQL Helper', desc: 'Natural language to SQL' },
-    { icon: LayoutList, name: 'Roadmap', desc: 'AI-generated milestones' },
-    { icon: KanbanSquare, name: 'Kanban Board', desc: 'Drag-and-drop tasks' },
-    { icon: UserCog, name: 'Team', desc: 'Management made easier' },
-  ];
-
-  return (
-    <nav className="fixed top-0 left-0 right-0 z-50 h-[72px] px-6 bg-white/50 backdrop-blur-xl border-b border-white/10 transition-all duration-300 shadow-sm" onMouseLeave={() => setActiveDropdown(null)}>
-      <div className="max-w-[1400px] mx-auto h-full flex items-center justify-between">
-        <div className="flex items-center gap-1 cursor-pointer z-50">
-          <a href="/" className="flex items-center gap-1">
-            <span className="text-2xl font-normal tracking-tight">KAPR<span className="text-purple-600 font-normal">Y</span></span>
-            <span className="text-2xl font-black tracking-tight text-[#202124]">.DEV</span>
-          </a>
-        </div>
-        <div className="hidden md:flex items-center gap-8 h-full">
-          <div className="relative h-full flex items-center" onMouseEnter={() => setActiveDropdown('product')}>
-            <button className="flex items-center gap-1 text-[15px] font-medium text-[#5f6368] hover:text-[#202124] transition-colors group">
-              Product <ChevronDown size={14} className={`transition-transform duration-300 ${activeDropdown === 'product' ? 'rotate-180' : ''}`}/>
-            </button>
-            {activeDropdown === 'product' && (
-              <div className="absolute top-[60px] -left-10 w-[600px] p-6 bg-white rounded-2xl shadow-2xl shadow-purple-900/5 border border-gray-100 grid grid-cols-2 gap-4 animate-in fade-in slide-in-from-top-2 z-40">
-                {productLinks.map((item) => (
-                  <a key={item.name} href="#" className="flex items-start gap-3 p-3 rounded-xl hover:bg-gray-50 transition-colors group/item">
-                    <div className="w-10 h-10 rounded-lg bg-purple-50 text-purple-600 flex items-center justify-center shrink-0 group-hover/item:bg-purple-100 transition-colors">
-                      <item.icon size={20} />
-                    </div>
-                    <div>
-                      <div className="text-sm font-semibold text-[#202124]">{item.name}</div>
-                      <div className="text-xs text-[#5f6368] mt-0.5">{item.desc}</div>
-                    </div>
-                  </a>
-                ))}
-              </div>
-            )}
-          </div>
-          <a href="#" className="text-[15px] font-medium text-[#202124] hover:text-[#202124] transition-colors">Blog</a>
-          <a href="#" className="text-[15px] font-medium text-[#5f6368] hover:text-[#202124] transition-colors">Enterprise</a>
-          <a href="/#pricing" className="text-[15px] font-medium text-[#5f6368] hover:text-[#202124] transition-colors">Pricing</a>
-        </div>
-        <div className="hidden md:flex items-center gap-4">
-          {!loading && (
-            <>
-              {user ? (
-                <div className="flex items-center gap-4">
-                  <a href='/dashboard' className="bg-[#202124] text-white px-5 py-2.5 rounded-full text-sm font-medium hover:bg-black transition-all shadow-sm hover:shadow-md active:scale-95 flex items-center gap-2 cursor-pointer" >
-                    Dashboard <ArrowRight size={14} />
-                  </a>
-                  <div className="relative h-9 w-9 rounded-full overflow-hidden border border-gray-200">
-                    <img src={avatarUrl || '/default-avatar.png'} alt="Profile" className="w-full h-full object-cover" />
-                  </div>
-                </div>
-              ) : (
-                <>
-                  <a href="/auth/login" className="text-sm font-medium text-[#5f6368] hover:text-[#202124]">Sign In</a>
-                  <a href='/auth/register' className="bg-[#202124] text-white px-5 py-2.5 rounded-full text-sm font-medium hover:bg-black transition-all shadow-sm hover:shadow-md active:scale-95 flex items-center gap-2 cursor-pointer" >
-                    Get Started <ArrowRight size={14} />
-                  </a>
-                </>
-              )}
-            </>
-          )}
-        </div>
-        <button onClick={() => setIsOpen(!isOpen)} className="md:hidden text-[#5f6368]">
-          {isOpen ? <X /> : <Menu />}
-        </button>
-      </div>
-
-      {/* Mobile Menu Overlay */}
-      {isOpen && (
-            <div className="absolute top-[72px] left-0 w-full h-[calc(100vh-72px)] bg-white overflow-y-auto p-6 flex flex-col gap-6 md:hidden animate-in slide-in-from-top-2 shadow-xl border-t border-gray-100">
-            <div className="space-y-4">
-                <div className="text-xs font-bold text-[#5f6368] uppercase tracking-wider mb-2">Platform</div>
-                {productLinks.map((item) => (
-                <a key={item.name} href="#" className="flex items-center gap-3 py-2 text-[#202124]">
-                    <item.icon size={20} className="text-purple-600" />
-                    <span className="text-lg font-medium">{item.name}</span>
-                </a>
-                ))}
-            </div>
-            <div className="pt-6 border-t border-gray-100 flex flex-col gap-4">
-                 {!loading && (
-                    <>
-                    {user ? (
-                        <div className="flex flex-col gap-4">
-                             <div className="flex items-center gap-3 mb-2">
-                                <div className="w-10 h-10 rounded-full overflow-hidden border border-gray-200">
-                                    <img src={avatarUrl || '/default-avatar.png'} alt="Profile" className="w-full h-full object-cover" />
-                                </div>
-                                <span className="font-medium text-[#202124]">{user.email}</span>
-                             </div>
-                             <a href='/dashboard' className="bg-[#202124] text-white px-5 py-3 rounded-xl text-center font-medium" >
-                                Go to Dashboard
-                            </a>
-                        </div>
-                    ) : (
-                        <div className="flex flex-col gap-3">
-                             <a href="/auth/login" className="px-5 py-3 rounded-xl border border-gray-200 text-center font-medium text-[#202124]">Sign In</a>
-                             <a href="/auth/register" className="bg-[#202124] text-white px-5 py-3 rounded-xl text-center font-medium">Get Started</a>
-                        </div>
-                    )}
-                    </>
-                 )}
-            </div>
-            </div>
-        )}
-    </nav>
-  );
-};
 
 // --- Blog Components ---
 
@@ -247,11 +76,11 @@ const FeaturedPost = ({ post }: { post: UpdatePost }) => {
   const date = new Date(post.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
   const category = post.tag?.tag || 'Update';
   const tagColor = post.tag?.tag_color || '#202124'; // Fallback color
-  
+
   const author = post.users;
   const authorName = getFullName(author?.name, author?.surname);
   const avatarUrl = author?.metadata?.avatar_url;
-  const imageUrl = post.metadata?.banner || 'https://images.unsplash.com/photo-1555949963-aa79dcee981c?auto=format&fit=crop&q=80&w=1000'; 
+  const imageUrl = post.metadata?.banner || 'https://images.unsplash.com/photo-1555949963-aa79dcee981c?auto=format&fit=crop&q=80&w=1000';
 
   return (
     <Link href={`/home/blog/${post.id}`}>
@@ -264,12 +93,12 @@ const FeaturedPost = ({ post }: { post: UpdatePost }) => {
           <div className="p-8 md:p-12 flex flex-col justify-center relative z-20 bg-white/50 backdrop-blur-sm">
             <div className="flex items-center gap-2 mb-6">
               {/* Dynamic Tag Color */}
-              <span 
+              <span
                 className="px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wide border"
                 style={{
-                    backgroundColor: `${tagColor}15`, 
-                    color: tagColor,
-                    borderColor: `${tagColor}30`
+                  backgroundColor: `${tagColor}15`,
+                  color: tagColor,
+                  borderColor: `${tagColor}30`
                 }}
               >
                 {category}
@@ -281,12 +110,12 @@ const FeaturedPost = ({ post }: { post: UpdatePost }) => {
             <div className="flex items-center justify-between mt-auto">
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 rounded-full bg-gray-200 flex items-center justify-center text-gray-500 overflow-hidden relative border border-gray-200">
-                    {/* Fixed: Show Logo if Avatar is missing */}
-                   {avatarUrl ? (
-                        <img src={avatarUrl} alt={authorName} className="w-full h-full object-cover" />
-                   ) : (
-                        <img src="/logo-light.png" alt="Kapry" className="w-full h-full object-contain opacity-50" />
-                   )}
+                  {/* Fixed: Show Logo if Avatar is missing */}
+                  {avatarUrl ? (
+                    <img src={avatarUrl} alt={authorName} className="w-full h-full object-cover" />
+                  ) : (
+                    <img src="/logo-light.png" alt="Kapry" className="w-full h-full object-contain opacity-50" />
+                  )}
                 </div>
                 <div>
                   <div className="text-sm font-semibold text-[#202124]">{authorName}</div>
@@ -310,7 +139,7 @@ const PostCard = ({ post }: { post: UpdatePost }) => {
   const author = post.users;
   const authorName = getFullName(author?.name, author?.surname);
   const avatarUrl = author?.metadata?.avatar_url;
-  const imageUrl = post.metadata?.banner || 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&q=80&w=800'; 
+  const imageUrl = post.metadata?.banner || 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&q=80&w=800';
 
   return (
     <Link href={`/home/blog/${post.id}`}>
@@ -318,12 +147,12 @@ const PostCard = ({ post }: { post: UpdatePost }) => {
         <div className="h-48 overflow-hidden relative">
           <div className="absolute top-4 left-4 z-10">
             {/* Dynamic Tag Color on Image */}
-            <span 
-                className="px-3 py-1 rounded-full bg-white/95 backdrop-blur-md text-xs font-bold shadow-sm border"
-                style={{
-                    color: tagColor,
-                    borderColor: `${tagColor}20` 
-                }}
+            <span
+              className="px-3 py-1 rounded-full bg-white/95 backdrop-blur-md text-xs font-bold shadow-sm border"
+              style={{
+                color: tagColor,
+                borderColor: `${tagColor}20`
+              }}
             >
               {category}
             </span>
@@ -340,12 +169,12 @@ const PostCard = ({ post }: { post: UpdatePost }) => {
           <p className="text-[#5f6368] text-sm leading-relaxed mb-6 line-clamp-3">{post.description}</p>
           <div className="mt-auto flex items-center gap-2 pt-4 border-t border-gray-50">
             <div className="w-6 h-6 rounded-full bg-gray-100 flex items-center justify-center text-gray-500 overflow-hidden relative border border-gray-200">
-               {/* Fixed: Show Logo if Avatar is missing */}
-               {avatarUrl ? (
-                    <img src={avatarUrl} alt={authorName} className="w-full h-full object-cover" />
-               ) : (
-                    <img src="/logo-light.png" alt="Kapry" className="w-full h-full object-contain opacity-50 p-1" />
-               )}
+              {/* Fixed: Show Logo if Avatar is missing */}
+              {avatarUrl ? (
+                <img src={avatarUrl} alt={authorName} className="w-full h-full object-cover" />
+              ) : (
+                <img src="/logo-light.png" alt="Kapry" className="w-full h-full object-contain opacity-50 p-1" />
+              )}
             </div>
             <span className="text-xs font-medium text-[#202124]">{authorName}</span>
           </div>
@@ -382,7 +211,7 @@ const BlogSection = () => {
       try {
         const { data, error } = await supabase
           .from('updates')
-          .select(`*, users (name, surname, metadata)`) 
+          .select(`*, users (name, surname, metadata)`)
           .order('created_at', { ascending: false });
 
         if (error) console.error('Error fetching updates:', error);
@@ -397,22 +226,22 @@ const BlogSection = () => {
   }, [supabase]);
 
   if (loading) {
-      return (
-          <div className="flex items-center justify-center min-h-[400px]">
-              <Loader2 className="w-8 h-8 animate-spin text-purple-600" />
-          </div>
-      );
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <Loader2 className="w-8 h-8 animate-spin text-purple-600" />
+      </div>
+    );
   }
 
   if (posts.length === 0) {
-      return (
-          <div className="relative z-10 px-6 py-24 text-center">
-              <div className="max-w-md mx-auto">
-                  <h3 className="text-2xl font-bold text-[#202124] mb-2">No updates yet</h3>
-                  <p className="text-[#5f6368]">Check back later for the latest news and engineering updates.</p>
-              </div>
-          </div>
-      );
+    return (
+      <div className="relative z-10 px-6 py-24 text-center">
+        <div className="max-w-md mx-auto">
+          <h3 className="text-2xl font-bold text-[#202124] mb-2">No updates yet</h3>
+          <p className="text-[#5f6368]">Check back later for the latest news and engineering updates.</p>
+        </div>
+      </div>
+    );
   }
 
   // Feature the first post (always static)
@@ -428,101 +257,100 @@ const BlogSection = () => {
     return titleMatch || descMatch;
   }).sort((a, b) => {
     if (sortKey === 'date') {
-        const dateA = new Date(a.created_at).getTime();
-        const dateB = new Date(b.created_at).getTime();
-        return sortOrder === 'asc' ? dateA - dateB : dateB - dateA;
+      const dateA = new Date(a.created_at).getTime();
+      const dateB = new Date(b.created_at).getTime();
+      return sortOrder === 'asc' ? dateA - dateB : dateB - dateA;
     } else {
-        const verA = a.version || '';
-        const verB = b.version || '';
-        return sortOrder === 'asc' 
-            ? verA.localeCompare(verB, undefined, { numeric: true }) 
-            : verB.localeCompare(verA, undefined, { numeric: true });
+      const verA = a.version || '';
+      const verB = b.version || '';
+      return sortOrder === 'asc'
+        ? verA.localeCompare(verB, undefined, { numeric: true })
+        : verB.localeCompare(verA, undefined, { numeric: true });
     }
   });
 
   const handleSort = (key: 'date' | 'version') => {
-      if (sortKey === key) {
-          setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
-      } else {
-          setSortKey(key);
-          setSortOrder('desc'); 
-      }
-      setIsFilterOpen(false);
+    if (sortKey === key) {
+      setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortKey(key);
+      setSortOrder('desc');
+    }
+    setIsFilterOpen(false);
   };
 
   return (
     <section className="relative z-10 px-6 pb-24">
       <div className="max-w-[1200px] mx-auto">
-        
+
         {/* Featured Post (Static) */}
         <FeaturedPost post={featured} />
-        
+
         <div className="flex flex-col md:flex-row items-center justify-between mb-8 mt-12 gap-4">
-            <h3 className="text-2xl font-bold text-[#202124] self-start md:self-center">Latest Articles</h3>
-            
-            <div className="flex w-full md:w-auto gap-3">
-                <div className="relative flex-grow md:w-64 group">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-purple-600 transition-colors" size={16} />
-                    <input 
-                        type="text" 
-                        placeholder="Search articles..." 
-                        value={searchQuery}
-                        onChange={(e) => setSearchQuery(e.target.value)}
-                        className="w-full pl-10 pr-4 py-2.5 rounded-full bg-white border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500 transition-all shadow-sm placeholder:text-gray-400"
-                    />
-                </div>
+          <h3 className="text-2xl font-bold text-[#202124] self-start md:self-center">Latest Articles</h3>
 
-                <div className="relative" ref={filterRef}>
-                    <button
-                        onClick={() => setIsFilterOpen(!isFilterOpen)}
-                        className={`flex items-center gap-2 px-4 py-2.5 rounded-full border transition-all shadow-sm text-sm font-medium ${
-                            isFilterOpen 
-                            ? 'bg-purple-50 border-purple-200 text-purple-700' 
-                            : 'bg-white border-gray-200 text-[#5f6368] hover:bg-gray-50'
-                        }`}
-                    >
-                        <Filter size={16} />
-                        <span className="hidden sm:inline">Sort</span>
-                        <ChevronDown size={14} className={`transition-transform duration-200 ${isFilterOpen ? 'rotate-180' : ''}`} />
-                    </button>
-
-                    {isFilterOpen && (
-                        <div className="absolute right-0 top-full mt-2 w-48 bg-white border border-gray-100 rounded-2xl shadow-xl overflow-hidden z-50 animate-in fade-in slide-in-from-top-2 duration-200">
-                             <div className="px-3 py-2 border-b border-gray-50 bg-gray-50/50 text-[10px] font-bold text-gray-400 uppercase tracking-wider">
-                                Sort by
-                            </div>
-                            <button 
-                                onClick={() => handleSort('date')}
-                                className="w-full text-left px-4 py-2.5 text-sm hover:bg-purple-50 hover:text-purple-700 transition-colors flex items-center justify-between group"
-                            >
-                                <span className="flex items-center gap-2"><Calendar size={14} className="text-gray-400 group-hover:text-purple-500"/> Date</span>
-                                {sortKey === 'date' && (sortOrder === 'desc' ? <ArrowDown size={14} /> : <ArrowUp size={14} />)}
-                            </button>
-                            <button 
-                                onClick={() => handleSort('version')}
-                                className="w-full text-left px-4 py-2.5 text-sm hover:bg-purple-50 hover:text-purple-700 transition-colors flex items-center justify-between group"
-                            >
-                                <span className="flex items-center gap-2"><Tag size={14} className="text-gray-400 group-hover:text-purple-500"/> Version</span>
-                                {sortKey === 'version' && (sortOrder === 'desc' ? <ArrowDown size={14} /> : <ArrowUp size={14} />)}
-                            </button>
-                        </div>
-                    )}
-                </div>
+          <div className="flex w-full md:w-auto gap-3">
+            <div className="relative flex-grow md:w-64 group">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-purple-600 transition-colors" size={16} />
+              <input
+                type="text"
+                placeholder="Search articles..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full pl-10 pr-4 py-2.5 rounded-full bg-white border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500 transition-all shadow-sm placeholder:text-gray-400"
+              />
             </div>
+
+            <div className="relative" ref={filterRef}>
+              <button
+                onClick={() => setIsFilterOpen(!isFilterOpen)}
+                className={`flex items-center gap-2 px-4 py-2.5 rounded-full border transition-all shadow-sm text-sm font-medium ${isFilterOpen
+                    ? 'bg-purple-50 border-purple-200 text-purple-700'
+                    : 'bg-white border-gray-200 text-[#5f6368] hover:bg-gray-50'
+                  }`}
+              >
+                <Filter size={16} />
+                <span className="hidden sm:inline">Sort</span>
+                <ChevronDown size={14} className={`transition-transform duration-200 ${isFilterOpen ? 'rotate-180' : ''}`} />
+              </button>
+
+              {isFilterOpen && (
+                <div className="absolute right-0 top-full mt-2 w-48 bg-white border border-gray-100 rounded-2xl shadow-xl overflow-hidden z-50 animate-in fade-in slide-in-from-top-2 duration-200">
+                  <div className="px-3 py-2 border-b border-gray-50 bg-gray-50/50 text-[10px] font-bold text-gray-400 uppercase tracking-wider">
+                    Sort by
+                  </div>
+                  <button
+                    onClick={() => handleSort('date')}
+                    className="w-full text-left px-4 py-2.5 text-sm hover:bg-purple-50 hover:text-purple-700 transition-colors flex items-center justify-between group"
+                  >
+                    <span className="flex items-center gap-2"><Calendar size={14} className="text-gray-400 group-hover:text-purple-500" /> Date</span>
+                    {sortKey === 'date' && (sortOrder === 'desc' ? <ArrowDown size={14} /> : <ArrowUp size={14} />)}
+                  </button>
+                  <button
+                    onClick={() => handleSort('version')}
+                    className="w-full text-left px-4 py-2.5 text-sm hover:bg-purple-50 hover:text-purple-700 transition-colors flex items-center justify-between group"
+                  >
+                    <span className="flex items-center gap-2"><Tag size={14} className="text-gray-400 group-hover:text-purple-500" /> Version</span>
+                    {sortKey === 'version' && (sortOrder === 'desc' ? <ArrowDown size={14} /> : <ArrowUp size={14} />)}
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
         </div>
 
         {processedOthers.length > 0 ? (
-            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
-                {processedOthers.map(post => (
-                    <PostCard key={post.id} post={post} />
-                ))}
-            </div>
+          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
+            {processedOthers.map(post => (
+              <PostCard key={post.id} post={post} />
+            ))}
+          </div>
         ) : (
-            <div className="text-center py-20 bg-gray-50 rounded-[2rem] border border-dashed border-gray-200">
-                <p className="text-gray-500">No articles found matching "{searchQuery}"</p>
-            </div>
+          <div className="text-center py-20 bg-gray-50 rounded-[2rem] border border-dashed border-gray-200">
+            <p className="text-gray-500">No articles found matching "{searchQuery}"</p>
+          </div>
         )}
-        
+
         {/* {processedOthers.length > 0 && (
             <div className="mt-16 text-center">
                 <button className="px-8 py-3 rounded-full bg-[#202124] text-white font-medium hover:bg-black transition-all hover:scale-105 shadow-lg shadow-gray-200">
@@ -558,25 +386,6 @@ const BlogHero = () => (
   </section>
 );
 
-// --- Footer ---
-const Footer = () => (
-  <footer className="py-12 px-6 bg-white relative z-10 border-t border-gray-100">
-    <div className='flex justify-center align-center text-[10vw] md:text-[175px] font-extrabold leading-none select-none text-[#202124] opacity-5'> 
-      <p>KAPRY.DEV</p>
-    </div>
-    <div className="max-w-[1400px] mx-auto flex flex-col md:flex-row items-center justify-between gap-6 text-sm mt-12">
-      <div className="flex items-center gap-2 opacity-80">
-        <span className="font-bold text-lg text-[#5f6368]">KAPRY</span>
-        <span className="text-[#9aa0a6] text-lg">.DEV</span>
-      </div>
-      <div className="flex gap-8 text-[#5f6368] font-medium">
-        <a href="#" className="hover:text-purple-600 transition-colors">Documentation</a>
-        <a href="#" className="hover:text-purple-600 transition-colors">Support</a>
-        <a href="#" className="hover:text-purple-600 transition-colors">Legal</a>
-      </div>
-    </div>
-  </footer>
-);
 
 // --- Main Page Component ---
 export default function BlogPage() {
@@ -587,7 +396,7 @@ export default function BlogPage() {
       <div className="relative z-20 -mt-10">
         <BlogSection />
       </div>
-      <Footer />
+      <Footer minimal />
     </main>
   );
 }
