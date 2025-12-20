@@ -144,10 +144,12 @@ export default function DashboardPage() {
         <nav className="pointer-events-auto flex items-center gap-1 p-1.5 bg-[#111]/80 light:bg-white/80 backdrop-blur-xl border border-white/10 light:border-black/10 rounded-full shadow-2xl shadow-black/50 light:shadow-black/10 transition-all duration-300 hover:scale-[1.01] hover:border-white/20 light:hover:border-black/20">
 
           {/* Logo - Restored original text style inside the island container */}
+          <a href="/">
           <div className="pl-4 pr-2 flex items-center gap-0.5">
             <span className="text-lg font-medium tracking-tight text-zinc-300 light:text-zinc-600">KAPR<span className="text-purple-500">Y</span></span>
             <span className="text-lg font-bold tracking-tight text-white light:text-black">.DEV</span>
           </div>
+          </a>
 
           {/* Divider */}
           <div className="h-6 w-px bg-white/10 light:bg-black/10 mx-1 hidden sm:block"></div>

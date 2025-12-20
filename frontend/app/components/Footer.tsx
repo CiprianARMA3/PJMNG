@@ -39,7 +39,7 @@ const Footer = ({ minimal = false }: FooterProps) => {
                     </div>
                 </div>
 
-                {/* 3. PROFESSIONAL LINKS GRID (Clean, no fluff) */}
+                {/* 3. PROFESSIONAL LINKS GRID */}
                 <div className="border-t border-gray-100 pt-16 grid grid-cols-2 md:grid-cols-4 gap-10 mb-20">
                     <div>
                         <h3 className="font-bold text-[#202124] mb-6">Product</h3>
@@ -75,25 +75,39 @@ const Footer = ({ minimal = false }: FooterProps) => {
                     </div>
                 </div>
 
-                {/* 4. BOTTOM BAR: Copyright, Socials, System Status */}
-                <div className="flex flex-col md:flex-row justify-between items-center pt-8 border-t border-gray-100 gap-6">
-                    <div className="flex flex-col md:flex-row items-center gap-6">
-                        <span className="text-sm text-[#9aa0a6] font-medium">© {currentYear} Kapry Inc.</span>
-                        
-                        {/* Status Indicator */}
-                        <div className="flex items-center gap-2 px-3 py-1 rounded-full bg-gray-50 border border-gray-200">
-                            <span className="relative flex h-2 w-2">
-                                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
-                                <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
-                            </span>
-                            <span className="text-xs font-semibold text-[#5f6368]">All systems operational</span>
+                {/* 4. BOTTOM BAR */}
+                <div className="flex flex-col gap-8 pt-8 border-t border-gray-100">
+                    <div className="flex flex-col md:flex-row justify-between items-center gap-6">
+                        <div className="flex flex-col md:flex-row items-center gap-6">
+                            <span className="text-sm text-[#9aa0a6] font-medium">© {currentYear} KapryDEV</span>
+                            
+                            {/* Gemini Attribution Badge */}
+                            <div className="flex items-center gap-2 px-3 py-1 rounded-full bg-gray-50 border border-gray-200">
+                                <span className="text-[10px] uppercase tracking-wider font-bold text-[#5f6368]">Utilizing Google Gemini™</span>
+                            </div>
+
+                            {/* Status Indicator */}
+                            <div className="flex items-center gap-2 px-3 py-1 rounded-full bg-gray-50 border border-gray-200">
+                                <span className="relative flex h-2 w-2">
+                                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
+                                    <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
+                                </span>
+                                <span className="text-xs font-semibold text-[#5f6368]">All systems operational</span>
+                            </div>
+                        </div>
+
+                        <div className="flex gap-6 text-[#5f6368]">
+                            <a href="#" className="hover:text-[#202124] transition-colors"><Github size={20} /></a>
+                            <a href="#" className="hover:text-[#202124] transition-colors"><Twitter size={20} /></a>
+                            <a href="#" className="hover:text-[#202124] transition-colors"><Linkedin size={20} /></a>
                         </div>
                     </div>
 
-                    <div className="flex gap-6 text-[#5f6368]">
-                        <a href="#" className="hover:text-[#202124] transition-colors"><Github size={20} /></a>
-                        <a href="#" className="hover:text-[#202124] transition-colors"><Twitter size={20} /></a>
-                        <a href="#" className="hover:text-[#202124] transition-colors"><Linkedin size={20} /></a>
+                    {/* Legal Trademark Disclaimer */}
+                    <div className="text-center md:text-left">
+                        <p className="text-[10px] text-[#9aa0a6] leading-relaxed">
+                            Google and Gemini are trademarks of Google LLC. Use of these trademarks is subject to Google Brand Permissions.
+                        </p>
                     </div>
                 </div>
             </div>

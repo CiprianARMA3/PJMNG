@@ -108,6 +108,7 @@ const Navbar = ({ className = "" }: NavbarProps) => {
                     <a href="/home/blog" className="text-[15px] font-medium text-[#5f6368] hover:text-[#202124] transition-colors">Blog</a>
                     <a href="/home/enterprise" className="text-[15px] font-medium text-[#5f6368] hover:text-[#202124] transition-colors">Enterprise</a>
                     <a href="/#pricing" className="text-[15px] font-medium text-[#5f6368] hover:text-[#202124] transition-colors">Pricing</a>
+                    <a href="/home/contact" className="text-[15px] font-medium text-[#5f6368] hover:text-[#202124] transition-colors">Contact Us</a>
                 </div>
 
                 {/* Auth / Dashboard Section */}
