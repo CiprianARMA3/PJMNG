@@ -3,18 +3,8 @@
 import React, { useState, useEffect, useRef } from 'react';
 import {
   ChevronDown,
-  Menu,
-  X,
-  Bot,
-  GitBranch,
-  Database,
-  LayoutList,
-  KanbanSquare,
-  UserCog,
-  ArrowRight,
   Calendar,
-  Clock,
-  User as UserIcon,
+  ArrowRight,
   Tag,
   Loader2,
   Search,
@@ -23,7 +13,6 @@ import {
   ArrowDown
 } from 'lucide-react';
 import { createClient } from '@/utils/supabase/client';
-import { User } from '@supabase/supabase-js';
 import Link from 'next/link';
 import Navbar from '@/app/components/Navbar';
 import Footer from '@/app/components/Footer';
@@ -60,10 +49,6 @@ interface UpdatePost {
 }
 
 // --- Helpers ---
-const getInitials = (name?: string | null, surname?: string | null) => {
-  return `${name?.[0] || ""}${surname?.[0] || ""}`.toUpperCase() || "";
-};
-
 const getFullName = (name?: string | null, surname?: string | null) => {
   if (!name && !surname) return "Kapry Team";
   return `${name || ""} ${surname || ""}`.trim();
@@ -75,7 +60,7 @@ const getFullName = (name?: string | null, surname?: string | null) => {
 const FeaturedPost = ({ post }: { post: UpdatePost }) => {
   const date = new Date(post.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
   const category = post.tag?.tag || 'Update';
-  const tagColor = post.tag?.tag_color || '#202124'; // Fallback color
+  const tagColor = post.tag?.tag_color || '#202124';
 
   const author = post.users;
   const authorName = getFullName(author?.name, author?.surname);
@@ -84,45 +69,49 @@ const FeaturedPost = ({ post }: { post: UpdatePost }) => {
 
   return (
     <Link href={`/home/blog/${post.id}`}>
-      <div className="relative group rounded-[2rem] overflow-hidden bg-white border border-gray-100 shadow-xl shadow-gray-200/40 hover:shadow-2xl hover:shadow-purple-900/5 transition-all duration-500 cursor-pointer mb-16">
-        <div className="grid md:grid-cols-2 gap-0">
-          <div className="relative h-[300px] md:h-auto overflow-hidden">
+      {/* SUPERCHARGED: rounded-[40px], border-2, border-zinc-100 */}
+      <div className="relative group rounded-[40px] overflow-hidden bg-white border-2 border-zinc-100 shadow-xl shadow-zinc-200/50 hover:shadow-2xl hover:border-purple-200 transition-all duration-500 cursor-pointer mb-16">
+        {/* Grain Texture */}
+        <div className="absolute inset-0 bg-[url('/grainy.png')] opacity-[0.03] mix-blend-multiply pointer-events-none z-0" />
+        
+        <div className="relative z-10 grid md:grid-cols-2 gap-0">
+          <div className="relative h-[350px] md:h-auto overflow-hidden border-b-2 md:border-b-0 md:border-r-2 border-zinc-100">
             <div className="absolute inset-0 bg-purple-900/10 z-10 group-hover:bg-transparent transition-colors duration-500" />
             <img src={imageUrl} alt={post.title || 'Featured Post'} className="w-full h-full object-cover transform group-hover:scale-105 transition-transform duration-700 ease-out" />
           </div>
-          <div className="p-8 md:p-12 flex flex-col justify-center relative z-20 bg-white/50 backdrop-blur-sm">
-            <div className="flex items-center gap-2 mb-6">
-              {/* Dynamic Tag Color */}
+          <div className="p-10 md:p-14 flex flex-col justify-center bg-white/50 backdrop-blur-sm">
+            <div className="flex items-center gap-3 mb-8">
               <span
-                className="px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wide border"
+                className="px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-[0.2em] border-2"
                 style={{
-                  backgroundColor: `${tagColor}15`,
+                  backgroundColor: `${tagColor}10`,
                   color: tagColor,
                   borderColor: `${tagColor}30`
                 }}
               >
                 {category}
               </span>
-              <span className="text-gray-400 text-xs font-medium flex items-center gap-1">• <Calendar size={12} /> {date}</span>
+              <span className="text-zinc-400 text-[10px] font-bold uppercase tracking-widest flex items-center gap-1">• <Calendar size={12} /> {date}</span>
             </div>
-            <h2 className="text-3xl md:text-4xl font-bold text-[#202124] mb-4 leading-tight group-hover:text-purple-700 transition-colors">{post.title}</h2>
-            <p className="text-[#5f6368] text-lg mb-8 line-clamp-3">{post.description}</p>
+            <h2 className="text-3xl md:text-5xl font-black tracking-tighter text-[#202124] mb-6 leading-[0.95] group-hover:text-purple-600 transition-colors">{post.title}</h2>
+            <p className="text-zinc-500 text-lg font-bold mb-10 line-clamp-3 leading-relaxed">{post.description}</p>
             <div className="flex items-center justify-between mt-auto">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-full bg-gray-200 flex items-center justify-center text-gray-500 overflow-hidden relative border border-gray-200">
-                  {/* Fixed: Show Logo if Avatar is missing */}
+              <div className="flex items-center gap-4">
+                <div className="w-12 h-12 rounded-full bg-zinc-100 flex items-center justify-center text-zinc-400 overflow-hidden relative border-2 border-zinc-100">
                   {avatarUrl ? (
                     <img src={avatarUrl} alt={authorName} className="w-full h-full object-cover" />
                   ) : (
-                    <img src="/logo-light.png" alt="Kapry" className="w-full h-full object-contain opacity-50" />
+                    <img src="/logo-light.png" alt="Kapry" className="w-full h-full object-contain opacity-50 p-1" />
                   )}
                 </div>
                 <div>
-                  <div className="text-sm font-semibold text-[#202124]">{authorName}</div>
-                  <div className="text-xs text-gray-500 flex items-center gap-1">{post.version ? `v${post.version}` : '5 min read'}</div>
+                  <div className="text-sm font-black text-[#202124]">{authorName}</div>
+                  <div className="text-[10px] font-bold text-zinc-400 uppercase tracking-wide flex items-center gap-1">{post.version ? `v${post.version}` : '5 min read'}</div>
                 </div>
               </div>
-              <div className="w-12 h-12 rounded-full border border-gray-200 flex items-center justify-center text-[#202124] group-hover:bg-[#202124] group-hover:text-white transition-all duration-300"><ArrowRight size={20} /></div>
+              <div className="w-14 h-14 rounded-full border-2 border-zinc-100 flex items-center justify-center text-[#202124] group-hover:bg-[#202124] group-hover:text-white group-hover:border-[#202124] transition-all duration-300 shadow-sm">
+                  <ArrowRight size={20} strokeWidth={3} className="group-hover:translate-x-1 transition-transform" />
+              </div>
             </div>
           </div>
         </div>
@@ -134,7 +123,7 @@ const FeaturedPost = ({ post }: { post: UpdatePost }) => {
 const PostCard = ({ post }: { post: UpdatePost }) => {
   const date = new Date(post.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
   const category = post.tag?.tag || 'Blog';
-  const tagColor = post.tag?.tag_color || '#202124'; // Fallback color
+  const tagColor = post.tag?.tag_color || '#202124';
 
   const author = post.users;
   const authorName = getFullName(author?.name, author?.surname);
@@ -143,12 +132,14 @@ const PostCard = ({ post }: { post: UpdatePost }) => {
 
   return (
     <Link href={`/home/blog/${post.id}`}>
-      <div className="group flex flex-col h-full bg-white rounded-[1.5rem] border border-gray-100 overflow-hidden hover:shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:-translate-y-1 transition-all duration-300 cursor-pointer">
-        <div className="h-48 overflow-hidden relative">
-          <div className="absolute top-4 left-4 z-10">
-            {/* Dynamic Tag Color on Image */}
+      {/* SUPERCHARGED: rounded-[40px], border-2, border-zinc-100 */}
+      <div className="group flex flex-col h-full bg-white rounded-[40px] border-2 border-zinc-100 overflow-hidden hover:border-purple-200 hover:shadow-2xl hover:shadow-zinc-200/50 hover:-translate-y-1 transition-all duration-300 cursor-pointer relative">
+        <div className="absolute inset-0 bg-[url('/grainy.png')] opacity-[0.03] mix-blend-multiply pointer-events-none z-0" />
+        
+        <div className="h-56 overflow-hidden relative border-b-2 border-zinc-100 z-10">
+          <div className="absolute top-5 left-5 z-20">
             <span
-              className="px-3 py-1 rounded-full bg-white/95 backdrop-blur-md text-xs font-bold shadow-sm border"
+              className="px-4 py-1.5 rounded-full bg-white/95 backdrop-blur-md text-[10px] font-black uppercase tracking-widest shadow-lg border-2"
               style={{
                 color: tagColor,
                 borderColor: `${tagColor}20`
@@ -159,24 +150,23 @@ const PostCard = ({ post }: { post: UpdatePost }) => {
           </div>
           <img src={imageUrl} alt={post.title || 'Post'} className="w-full h-full object-cover transform group-hover:scale-110 transition-transform duration-700" />
         </div>
-        <div className="p-6 flex flex-col flex-grow">
-          <div className="flex items-center gap-2 mb-3 text-xs text-gray-400">
-            <Calendar size={12} /> {date}
+        <div className="p-8 flex flex-col flex-grow relative z-10">
+          <div className="flex items-center gap-2 mb-4 text-[10px] font-bold uppercase tracking-widest text-zinc-400">
+            <Calendar size={12} strokeWidth={2.5} /> {date}
             <span>•</span>
             {post.version && <span>v{post.version}</span>}
           </div>
-          <h3 className="text-xl font-bold text-[#202124] mb-3 leading-snug group-hover:text-purple-600 transition-colors">{post.title}</h3>
-          <p className="text-[#5f6368] text-sm leading-relaxed mb-6 line-clamp-3">{post.description}</p>
-          <div className="mt-auto flex items-center gap-2 pt-4 border-t border-gray-50">
-            <div className="w-6 h-6 rounded-full bg-gray-100 flex items-center justify-center text-gray-500 overflow-hidden relative border border-gray-200">
-              {/* Fixed: Show Logo if Avatar is missing */}
+          <h3 className="text-2xl font-black tracking-tight text-[#202124] mb-4 leading-[1.1] group-hover:text-purple-600 transition-colors">{post.title}</h3>
+          <p className="text-zinc-500 font-bold text-sm leading-relaxed mb-8 line-clamp-3">{post.description}</p>
+          <div className="mt-auto flex items-center gap-3 pt-6 border-t-2 border-zinc-50">
+            <div className="w-8 h-8 rounded-full bg-zinc-100 flex items-center justify-center text-zinc-400 overflow-hidden relative border border-zinc-200">
               {avatarUrl ? (
                 <img src={avatarUrl} alt={authorName} className="w-full h-full object-cover" />
               ) : (
                 <img src="/logo-light.png" alt="Kapry" className="w-full h-full object-contain opacity-50 p-1" />
               )}
             </div>
-            <span className="text-xs font-medium text-[#202124]">{authorName}</span>
+            <span className="text-xs font-black text-[#202124]">{authorName}</span>
           </div>
         </div>
       </div>
@@ -228,7 +218,7 @@ const BlogSection = () => {
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
-        <Loader2 className="w-8 h-8 animate-spin text-purple-600" />
+        <Loader2 className="w-10 h-10 animate-spin text-purple-600" strokeWidth={3} />
       </div>
     );
   }
@@ -237,18 +227,16 @@ const BlogSection = () => {
     return (
       <div className="relative z-10 px-6 py-24 text-center">
         <div className="max-w-md mx-auto">
-          <h3 className="text-2xl font-bold text-[#202124] mb-2">No updates yet</h3>
-          <p className="text-[#5f6368]">Check back later for the latest news and engineering updates.</p>
+          <h3 className="text-2xl font-black text-[#202124] mb-2">No updates yet</h3>
+          <p className="text-zinc-500 font-bold">Check back later for the latest news and engineering updates.</p>
         </div>
       </div>
     );
   }
 
-  // Feature the first post (always static)
   const featured = posts[0];
   const othersRaw = posts.slice(1);
 
-  // Filter and Sort only the rest
   const processedOthers = othersRaw.filter(post => {
     const searchLower = searchQuery.toLowerCase();
     const titleMatch = post.title?.toLowerCase().includes(searchLower);
@@ -283,54 +271,53 @@ const BlogSection = () => {
     <section className="relative z-10 px-6 pb-24">
       <div className="max-w-[1200px] mx-auto">
 
-        {/* Featured Post (Static) */}
         <FeaturedPost post={featured} />
 
-        <div className="flex flex-col md:flex-row items-center justify-between mb-8 mt-12 gap-4">
-          <h3 className="text-2xl font-bold text-[#202124] self-start md:self-center">Latest Articles</h3>
+        <div className="flex flex-col md:flex-row items-center justify-between mb-10 mt-16 gap-6">
+          <h3 className="text-3xl font-black tracking-tighter text-[#202124] self-start md:self-center">Latest Articles</h3>
 
-          <div className="flex w-full md:w-auto gap-3">
-            <div className="relative flex-grow md:w-64 group">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-purple-600 transition-colors" size={16} />
+          <div className="flex w-full md:w-auto gap-4">
+            <div className="relative flex-grow md:w-72 group">
+              <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-400 group-focus-within:text-purple-600 transition-colors" size={16} strokeWidth={3} />
               <input
                 type="text"
                 placeholder="Search articles..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-10 pr-4 py-2.5 rounded-full bg-white border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500 transition-all shadow-sm placeholder:text-gray-400"
+                className="w-full pl-11 pr-5 py-3 rounded-full bg-white border-2 border-zinc-100 text-sm font-bold text-zinc-700 focus:outline-none focus:border-purple-500 transition-all shadow-sm placeholder:text-zinc-400"
               />
             </div>
 
             <div className="relative" ref={filterRef}>
               <button
                 onClick={() => setIsFilterOpen(!isFilterOpen)}
-                className={`flex items-center gap-2 px-4 py-2.5 rounded-full border transition-all shadow-sm text-sm font-medium ${isFilterOpen
+                className={`flex items-center gap-2 px-6 py-3 rounded-full border-2 transition-all shadow-sm text-xs font-black uppercase tracking-widest ${isFilterOpen
                     ? 'bg-purple-50 border-purple-200 text-purple-700'
-                    : 'bg-white border-gray-200 text-[#5f6368] hover:bg-gray-50'
+                    : 'bg-white border-zinc-100 text-[#202124] hover:bg-zinc-50'
                   }`}
               >
-                <Filter size={16} />
+                <Filter size={14} strokeWidth={3} />
                 <span className="hidden sm:inline">Sort</span>
-                <ChevronDown size={14} className={`transition-transform duration-200 ${isFilterOpen ? 'rotate-180' : ''}`} />
+                <ChevronDown size={14} strokeWidth={3} className={`transition-transform duration-200 ${isFilterOpen ? 'rotate-180' : ''}`} />
               </button>
 
               {isFilterOpen && (
-                <div className="absolute right-0 top-full mt-2 w-48 bg-white border border-gray-100 rounded-2xl shadow-xl overflow-hidden z-50 animate-in fade-in slide-in-from-top-2 duration-200">
-                  <div className="px-3 py-2 border-b border-gray-50 bg-gray-50/50 text-[10px] font-bold text-gray-400 uppercase tracking-wider">
+                <div className="absolute right-0 top-full mt-3 w-56 bg-white border-2 border-zinc-100 rounded-2xl shadow-xl overflow-hidden z-50 animate-in fade-in slide-in-from-top-2 duration-200">
+                  <div className="px-5 py-3 border-b-2 border-zinc-50 bg-zinc-50/50 text-[10px] font-black text-zinc-400 uppercase tracking-widest">
                     Sort by
                   </div>
                   <button
                     onClick={() => handleSort('date')}
-                    className="w-full text-left px-4 py-2.5 text-sm hover:bg-purple-50 hover:text-purple-700 transition-colors flex items-center justify-between group"
+                    className="w-full text-left px-5 py-3 text-sm font-bold hover:bg-purple-50 hover:text-purple-700 transition-colors flex items-center justify-between group"
                   >
-                    <span className="flex items-center gap-2"><Calendar size={14} className="text-gray-400 group-hover:text-purple-500" /> Date</span>
+                    <span className="flex items-center gap-2"><Calendar size={14} className="text-zinc-400 group-hover:text-purple-500" /> Date</span>
                     {sortKey === 'date' && (sortOrder === 'desc' ? <ArrowDown size={14} /> : <ArrowUp size={14} />)}
                   </button>
                   <button
                     onClick={() => handleSort('version')}
-                    className="w-full text-left px-4 py-2.5 text-sm hover:bg-purple-50 hover:text-purple-700 transition-colors flex items-center justify-between group"
+                    className="w-full text-left px-5 py-3 text-sm font-bold hover:bg-purple-50 hover:text-purple-700 transition-colors flex items-center justify-between group"
                   >
-                    <span className="flex items-center gap-2"><Tag size={14} className="text-gray-400 group-hover:text-purple-500" /> Version</span>
+                    <span className="flex items-center gap-2"><Tag size={14} className="text-zinc-400 group-hover:text-purple-500" /> Version</span>
                     {sortKey === 'version' && (sortOrder === 'desc' ? <ArrowDown size={14} /> : <ArrowUp size={14} />)}
                   </button>
                 </div>
@@ -346,18 +333,10 @@ const BlogSection = () => {
             ))}
           </div>
         ) : (
-          <div className="text-center py-20 bg-gray-50 rounded-[2rem] border border-dashed border-gray-200">
-            <p className="text-gray-500">No articles found matching "{searchQuery}"</p>
+          <div className="text-center py-24 bg-zinc-50 rounded-[40px] border-2 border-dashed border-zinc-200">
+            <p className="text-zinc-500 font-bold">No articles found matching "{searchQuery}"</p>
           </div>
         )}
-
-        {/* {processedOthers.length > 0 && (
-            <div className="mt-16 text-center">
-                <button className="px-8 py-3 rounded-full bg-[#202124] text-white font-medium hover:bg-black transition-all hover:scale-105 shadow-lg shadow-gray-200">
-                    Load More Articles
-                </button>
-            </div>
-        )} */}
       </div>
     </section>
   );
@@ -367,21 +346,21 @@ const BlogSection = () => {
 const BlogHero = () => (
   <section className="relative min-h-[60vh] flex flex-col items-center justify-center text-center px-4 pt-20 overflow-hidden">
     <AuroraBackground />
-    <div className="relative z-20 max-w-4xl mx-auto space-y-6 animate-fade-in-up">
-      <div className="flex justify-center mb-4">
-        <div className="inline-flex items-center gap-2 px-4 py-1.5 bg-white/60 backdrop-blur-md border border-white/40 rounded-full shadow-sm cursor-default">
-          <Tag size={14} className="text-purple-600" />
-          <span className="text-xs font-bold text-[#5f6368] tracking-widest uppercase">The Blog</span>
+    <div className="relative z-20 max-w-4xl mx-auto space-y-8 animate-fade-in-up">
+      <div className="flex justify-center mb-6">
+        <div className="inline-flex items-center gap-2 px-5 py-2 bg-white/60 backdrop-blur-md border border-white/40 rounded-full shadow-sm cursor-default">
+          <Tag size={14} className="text-purple-600" strokeWidth={3} />
+          <span className="text-[10px] font-black text-zinc-500 tracking-[0.2em] uppercase">The Blog</span>
         </div>
       </div>
-      <h1 className="text-5xl md:text-7xl font-bold tracking-tight text-[#202124] leading-[1.05]">
+      <h1 className="text-6xl md:text-8xl font-black tracking-tighter text-[#202124] leading-[0.95]">
         Insights, Updates & <br />
-        <span className="text-transparent bg-clip-text bg-gradient-to-r from-purple-600 to-indigo-600 font-normal pb-2">Future Plans.</span>
+        <span className="text-transparent bg-clip-text bg-gradient-to-r from-purple-600 to-indigo-600">Future Plans.</span>
       </h1>
-      <p className="text-xl text-[#5f6368] max-w-2xl mx-auto leading-relaxed font-normal">
+      <p className="text-xl text-zinc-500 font-bold max-w-2xl mx-auto leading-relaxed mb-4">
         Deep dives into how we build Kapry.dev, tutorials on modern web development, and thoughts on the future of AI.
       </p>
-      <p className='text-sm font-light mt-[-20px]'>To see the Creator's information please Register or Login.</p>
+      <p className='text-xs font-black uppercase tracking-widest text-zinc-400 mt-2'>Login to see full creator info.</p>
     </div>
   </section>
 );
@@ -390,7 +369,7 @@ const BlogHero = () => (
 // --- Main Page Component ---
 export default function BlogPage() {
   return (
-    <main className="bg-white min-h-screen font-sans selection:bg-purple-100 selection:text-purple-900 scroll-smooth">
+    <main className="bg-white min-h-screen font-sans selection:bg-purple-100 selection:text-purple-900 scroll-smooth text-zinc-900">
       <Navbar />
       <BlogHero />
       <div className="relative z-20 -mt-10">

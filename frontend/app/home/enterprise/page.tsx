@@ -3,65 +3,50 @@
 import React, { useState, useEffect } from 'react';
 import {
   ChevronDown,
-  Menu,
-  X,
   Bot,
-  GitBranch,
-  Database,
   LayoutList,
-  KanbanSquare,
-  UserCog,
   ArrowRight,
   ShieldCheck,
-  Zap,
-  Globe,
   Users,
-  CheckCircle2,
-  Mail,
-  Lock,
-  MessageSquare,
+  TrendingDown,
   Cpu,
   Activity,
   Terminal,
-  TrendingDown,
   Fingerprint
 } from 'lucide-react';
-import { createClient } from '@/utils/supabase/client';
-import { User } from '@supabase/supabase-js';
 import Navbar from '@/app/components/Navbar';
 import Footer from '@/app/components/Footer';
 import AuroraBackground from '@/app/components/AuroraBackground';
 import BuiltWith from '@/app/components/BuiltWith';
 
-
 // --- IMPROVED COMPONENTS ---
 
 const EnterpriseHero = () => (
-  <section className="relative flex flex-col items-center justify-center text-center px-4 pt-32 pb-0 overflow-hidden bg-white border-b border-zinc-100">
+  <section className="relative flex flex-col items-center justify-center text-center px-4 pt-32 pb-0 overflow-hidden bg-white border-b-2 border-zinc-100">
     <AuroraBackground />
     <div className="relative z-20 max-w-5xl mx-auto space-y-8 mb-16">
-      <div className="inline-flex items-center gap-2 px-4 py-1.5 bg-purple-50 border border-purple-100 rounded-full shadow-sm animate-in fade-in slide-in-from-bottom-4 duration-500">
-        <ShieldCheck size={14} className="text-purple-600" />
-        <span className="text-[10px] font-bold text-purple-700 tracking-widest uppercase">Enterprise Plan</span>
+      <div className="inline-flex items-center gap-2 px-5 py-2 bg-purple-50 border-2 border-purple-100 rounded-full shadow-sm animate-in fade-in slide-in-from-bottom-4 duration-500">
+        <ShieldCheck size={14} className="text-purple-600" strokeWidth={3} />
+        <span className="text-[10px] font-black text-purple-700 tracking-[0.2em] uppercase">Enterprise Plan</span>
       </div>
 
-      <h1 className="text-5xl md:text-8xl font-bold tracking-tighter text-[#202124] leading-[0.95] animate-in fade-in slide-in-from-bottom-6 duration-700">
+      <h1 className="text-5xl md:text-8xl font-black tracking-tighter text-[#202124] leading-[0.95] animate-in fade-in slide-in-from-bottom-6 duration-700">
         Development <br />
         <span className="text-transparent bg-clip-text bg-gradient-to-r from-purple-600 to-indigo-600">at any scale.</span>
       </h1>
 
-      <p className="text-xl text-[#5f6368] max-w-3xl mx-auto leading-relaxed animate-in fade-in slide-in-from-bottom-8 duration-700 delay-100 text-balance">
+      <p className="text-xl text-zinc-500 font-bold max-w-3xl mx-auto leading-relaxed animate-in fade-in slide-in-from-bottom-8 duration-700 delay-100 text-balance">
         Custom AI infrastructure, unlimited collaboration, and volume-optimized pricing for the world's most demanding engineering organizations.
       </p>
 
       <div className="flex flex-col sm:flex-row items-center justify-center gap-4 pt-4 animate-in fade-in slide-in-from-bottom-10 duration-700 delay-150">
         <a href="/home/contact">
-        <button className="group relative w-full sm:w-auto px-8 py-4 bg-[#1a1a1a] text-white rounded-lg font-medium text-[15px] hover:bg-black transition-all duration-200 flex items-center justify-center gap-2 overflow-hidden shadow-lg hover:shadow-xl active:scale-[0.98] cursor-pointer">
-          <span>Talk to Sales</span>
-          <ArrowRight size={16} className="transition-transform duration-300 group-hover:translate-x-1" />
-        </button>
-      </a>
-        <button className="w-full sm:w-auto px-8 py-4 bg-white border border-zinc-200 text-[#3c4043] rounded-lg font-medium text-[15px] hover:border-zinc-300 hover:bg-zinc-50 transition-all duration-200 flex items-center justify-center gap-2 active:scale-[0.98]">
+          <button className="group relative w-full sm:w-auto px-10 py-5 bg-[#202124] text-white rounded-2xl font-black uppercase tracking-[0.2em] text-xs hover:bg-black transition-all duration-200 flex items-center justify-center gap-2 overflow-hidden shadow-xl shadow-zinc-900/20 hover:shadow-2xl active:scale-[0.98] cursor-pointer">
+            <span>Talk to Sales</span>
+            <ArrowRight size={14} className="transition-transform duration-300 group-hover:translate-x-1" strokeWidth={3} />
+          </button>
+        </a>
+        <button className="w-full sm:w-auto px-10 py-5 bg-white border-2 border-zinc-200 text-[#202124] rounded-2xl font-black uppercase tracking-[0.2em] text-xs hover:border-zinc-300 hover:bg-zinc-50 transition-all duration-200 flex items-center justify-center gap-2 active:scale-[0.98]">
           Watch Demo
         </button>
       </div>
@@ -70,14 +55,14 @@ const EnterpriseHero = () => (
     {/* 3D Container */}
     <div className="relative z-10 w-full max-w-[1200px] perspective-[2500px] px-6 flex justify-center translate-y-8">
       <div
-        className="relative shadow-[0_50px_100px_-20px_rgba(0,0,0,0.15),0_30px_60px_-30px_rgba(0,0,0,0.2)] rounded-t-2xl bg-zinc-900 border-[6px] border-zinc-900 border-b-0"
+        className="relative shadow-[0_50px_100px_-20px_rgba(0,0,0,0.15),0_30px_60px_-30px_rgba(0,0,0,0.2)] rounded-t-[32px] bg-[#202124] border-[6px] border-[#202124] border-b-0"
         style={{
           transform: 'rotateX(20deg)',
           transformStyle: 'preserve-3d',
           marginBottom: '-2px'
         }}
       >
-        <div className="relative overflow-hidden rounded-t-lg bg-white border-b border-zinc-200/50">
+        <div className="relative overflow-hidden rounded-t-[26px] bg-white border-b border-zinc-200/50">
           <div className="absolute inset-0 bg-gradient-to-tr from-purple-500/10 to-transparent z-10 pointer-events-none mix-blend-overlay" />
           <img
             src="/pic4.png"
@@ -93,15 +78,19 @@ const EnterpriseHero = () => (
 
 // --- Bento Grid Features ---
 const BentoCard = ({ icon: Icon, title, text, className = "" }: any) => (
-  <div className={`group relative p-8 rounded-3xl bg-zinc-50 border border-zinc-100 overflow-hidden hover:shadow-[0_8px_30px_rgb(0,0,0,0.04)] transition-all duration-500 ease-out hover:-translate-y-1 ${className}`}>
+  // SUPERCHARGED: rounded-[40px], border-2, grain
+  <div className={`group relative p-10 rounded-[40px] bg-white border-2 border-zinc-100 overflow-hidden hover:border-purple-200 hover:shadow-2xl hover:shadow-zinc-200/50 transition-all duration-500 ease-out hover:-translate-y-1 ${className}`}>
+    {/* Grain Texture */}
+    <div className="absolute inset-0 bg-[url('/grainy.png')] opacity-[0.03] mix-blend-multiply pointer-events-none z-0" />
+    
     <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-purple-100/50 to-transparent rounded-full blur-3xl -mr-16 -mt-16 transition-opacity opacity-0 group-hover:opacity-100" />
 
-    <div className="w-12 h-12 rounded-xl bg-white border border-zinc-200 text-purple-600 flex items-center justify-center mb-6 shadow-sm group-hover:scale-110 group-hover:border-purple-200 transition-all duration-500 relative z-10">
-      <Icon size={24} strokeWidth={1.5} />
+    <div className="w-14 h-14 rounded-2xl bg-zinc-50 border-2 border-zinc-100 text-purple-600 flex items-center justify-center mb-8 shadow-sm group-hover:scale-110 group-hover:border-purple-200 transition-all duration-500 relative z-10">
+      <Icon size={24} strokeWidth={2} />
     </div>
 
-    <h3 className="text-xl font-bold text-[#202124] mb-3 relative z-10">{title}</h3>
-    <p className="text-[#5f6368] leading-relaxed text-sm relative z-10">{text}</p>
+    <h3 className="text-xl font-black tracking-tight text-[#202124] mb-4 relative z-10">{title}</h3>
+    <div className="text-zinc-500 font-bold leading-relaxed text-sm relative z-10">{text}</div>
   </div>
 );
 
@@ -109,14 +98,14 @@ const BentoFeatures = () => (
   <section className="py-24 px-6 bg-white relative z-10">
     <div className="max-w-[1200px] mx-auto w-full">
       <div className="mb-16 md:text-center max-w-2xl mx-auto">
-        <h2 className="text-3xl md:text-5xl font-bold tracking-tight text-[#202124] mb-4">Everything your organization needs.</h2>
-        <p className="text-[#5f6368] text-lg">Powerful features designed to help large engineering teams ship faster, safer, and with higher quality.</p>
+        <h2 className="text-3xl md:text-6xl font-black tracking-tighter text-[#202124] mb-6">Everything your organization needs.</h2>
+        <p className="text-zinc-500 text-lg font-bold">Powerful features designed to help large engineering teams ship faster, safer, and with higher quality.</p>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-6 auto-rows-[minmax(250px,auto)]">
         {/* Large Card 1 */}
         <BentoCard
-          className="md:col-span-2 lg:col-span-2 md:row-span-1 bg-gradient-to-br from-zinc-50 to-white"
+          className="md:col-span-2 lg:col-span-2 md:row-span-1"
           icon={Bot}
           title="Productivity Suite"
           text="Enterprise-grade productivity featuring premium AI support, context-aware autocompletion, and fully integrated calendars for seamless scheduling across timezones."
@@ -136,9 +125,9 @@ const BentoFeatures = () => (
 
         {/* Tall Card */}
         <BentoCard
-          className="md:col-span-1 md:row-span-2 bg-zinc-900 !border-zinc-800"
+          className="md:col-span-1 md:row-span-2 !bg-[#202124] !border-[#202124]"
           icon={Cpu}
-          title={<p className='text-white'>Dev Ecosystem</p>}
+          title={<span className='text-white'>Dev Ecosystem</span>}
           text={<span className="text-zinc-400">Comprehensive tools including code linking, AI project helpers, and a centralized code review dashboard. <br /><br /></span>}
         />
 
@@ -154,18 +143,20 @@ const BentoFeatures = () => (
           title="Roadmaps"
           text="Strategic project management with issue tracking and concept workspaces."
         />
-        <div className="md:col-span-3 lg:col-span-3 p-8 rounded-3xl bg-purple-600 text-white relative overflow-hidden group">
+        
+        {/* Support Card */}
+        <div className="md:col-span-3 lg:col-span-3 p-10 rounded-[40px] bg-purple-600 border-2 border-purple-600 text-white relative overflow-hidden group">
           <div className="absolute inset-0 bg-[url('/grainy.png')] opacity-20 mix-blend-multiply" />
-          <div className="absolute right-0 bottom-0 w-64 h-64 bg-purple-500 rounded-full blur-[80px] opacity-50 translate-x-1/2 translate-y-1/2" />
-          <div className="relative z-10 flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
+          <div className="absolute right-0 bottom-0 w-80 h-80 bg-purple-500 rounded-full blur-[100px] opacity-50 translate-x-1/2 translate-y-1/2" />
+          <div className="relative z-10 flex flex-col md:flex-row items-start md:items-center justify-between gap-8">
             <div>
-              <div className="flex items-center gap-2 mb-2 opacity-80">
-                <Fingerprint size={16} /> <span className="text-xs font-bold uppercase tracking-wider">Enterprise Support</span>
+              <div className="flex items-center gap-2 mb-4 opacity-90">
+                <Fingerprint size={16} /> <span className="text-[10px] font-black uppercase tracking-[0.2em]">Enterprise Support</span>
               </div>
-              <h3 className="text-2xl font-bold mb-2">Fully 24/7 online support provided.</h3>
-              <p className="text-purple-100 max-w-lg">Will provide help at every hour of the day for no additional costs, for you or your collaborators.</p>
+              <h3 className="text-3xl font-black tracking-tight mb-4">Fully 24/7 online support.</h3>
+              <p className="text-purple-100 font-bold max-w-lg leading-relaxed">We provide help at every hour of the day for no additional costs, for you or your collaborators.</p>
             </div>
-            <button className="bg-white text-purple-600 px-6 py-3 rounded-lg font-bold text-sm hover:bg-purple-50 transition-colors whitespace-nowrap">
+            <button className="bg-white text-purple-600 px-8 py-4 rounded-2xl font-black text-xs uppercase tracking-[0.2em] hover:bg-purple-50 transition-colors whitespace-nowrap shadow-xl">
               View Docs
             </button>
           </div>
@@ -179,18 +170,20 @@ const BentoFeatures = () => (
 const FAQItem = ({ q, a, index, openIndex, setOpenIndex }: any) => {
   const isOpen = openIndex === index;
   return (
-    <div className="last:border-b-0 border-zinc-200 border-b">
+    <div className="last:border-b-0 border-zinc-100 border-b-2">
       <h3>
         <button
           onClick={() => setOpenIndex(isOpen ? null : index)}
-          className="flex w-full items-start justify-between gap-4 text-left font-medium transition-all outline-none text-lg py-6 px-4 hover:bg-zinc-50 rounded-lg group"
+          className="flex w-full items-start justify-between gap-4 text-left transition-all outline-none py-8 px-4 hover:bg-zinc-50 rounded-2xl group"
         >
-          <span className={`group-hover:text-purple-600 transition-colors ${isOpen ? 'text-purple-600' : 'text-zinc-700'}`}>{q}</span>
-          <ChevronDown className={`text-zinc-400 size-5 shrink-0 transition-transform duration-300 ${isOpen ? 'rotate-180 text-purple-600' : ''}`} />
+          <span className={`text-lg font-bold transition-colors ${isOpen ? 'text-purple-600' : 'text-[#202124]'}`}>{q}</span>
+          <div className={`p-2 rounded-full transition-all duration-300 ${isOpen ? 'bg-purple-100 text-purple-600 rotate-180' : 'bg-zinc-100 text-zinc-400 group-hover:bg-zinc-200'}`}>
+             <ChevronDown size={18} strokeWidth={3} />
+          </div>
         </button>
       </h3>
       <div className={`overflow-hidden transition-all duration-300 ease-in-out ${isOpen ? 'max-h-[300px] opacity-100' : 'max-h-0 opacity-0'}`}>
-        <div className="px-4 pb-6 text-zinc-500 leading-relaxed text-base">
+        <div className="px-4 pb-8 text-zinc-500 font-bold leading-relaxed text-base">
           {a}
         </div>
       </div>
@@ -209,23 +202,23 @@ const FAQSection = () => {
   ];
 
   return (
-    <section className="py-24 bg-white border-t border-zinc-100">
+    <section className="py-24 bg-white border-t-2 border-zinc-100">
       <div className="max-w-[1200px] mx-auto px-6">
         <div className="grid grid-cols-1 md:grid-cols-12 gap-12">
           <div className="md:col-span-4">
             <div className="sticky top-24">
-              <div className="flex items-center gap-2 text-sm font-bold text-purple-600 uppercase tracking-widest mb-4">
-                <Terminal size={16} /> Support
+              <div className="flex items-center gap-2 text-[10px] font-black text-purple-600 uppercase tracking-[0.2em] mb-6">
+                <Terminal size={14} strokeWidth={3} /> Support
               </div>
-              <h2 className="text-4xl font-bold tracking-tight text-[#202124] mb-4">Frequently asked questions</h2>
-              <p className="text-zinc-500 text-lg mb-8">Can't find the answer you're looking for? Chat with our sales team.</p>
-              <a href="#" className="inline-flex items-center text-sm font-bold text-[#202124] border-b-2 border-[#202124] hover:text-purple-600 hover:border-purple-600 transition-colors pb-0.5">
-                Contact Support <ArrowRight size={14} className="ml-2" />
+              <h2 className="text-4xl font-black tracking-tighter text-[#202124] mb-6">Frequently asked questions</h2>
+              <p className="text-zinc-500 text-lg font-bold mb-10">Can't find the answer you're looking for? Chat with our sales team.</p>
+              <a href="#" className="inline-flex items-center text-xs font-black uppercase tracking-[0.2em] text-[#202124] border-b-2 border-[#202124] hover:text-purple-600 hover:border-purple-600 transition-colors pb-1">
+                Contact Support <ArrowRight size={14} className="ml-2" strokeWidth={3} />
               </a>
             </div>
           </div>
           <div className="md:col-span-8">
-            <div className="divide-y divide-zinc-100">
+            <div className="divide-y-2 divide-zinc-100">
               {faqs.map((faq, i) => (
                 <FAQItem key={i} index={i} q={faq.q} a={faq.a} openIndex={openIndex} setOpenIndex={setOpenIndex} />
               ))}
@@ -237,22 +230,19 @@ const FAQSection = () => {
   );
 };
 
-// --- Compliance Banner ---
-
-
 // --- CTA Section ---
 const ReadyToScale = () => (
-  <section className="py-24 bg-white">
+  <section className="py-32 bg-white">
     <div className="max-w-4xl mx-auto px-6 text-center">
-      <h2 className="text-4xl md:text-5xl font-bold text-[#202124] mb-6 tracking-tight">Ready to ease out your <br /> development ?</h2>
-      <p className="text-xl text-[#5f6368] mb-10 max-w-2xl mx-auto">Join the forward-thinking companies building the future with Kapry Enterprise.</p>
+      <h2 className="text-4xl md:text-6xl font-black text-[#202124] mb-8 tracking-tighter leading-[0.95]">Ready to ease out your <br /> development ?</h2>
+      <p className="text-xl text-zinc-500 font-bold mb-12 max-w-2xl mx-auto">Join the forward-thinking companies building the future with Kapry Enterprise.</p>
       <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
         <a href="/home/contact">
-        <button className="px-8 py-4 bg-[#202124] text-white rounded-full font-bold text-lg hover:bg-black transition-all shadow-lg hover:shadow-xl active:scale-95 flex items-center gap-2 cursor-pointer">
-          Contact Sales <ArrowRight size={18} />
-        </button>
+          <button className="px-10 py-5 bg-[#202124] text-white rounded-2xl font-black text-xs uppercase tracking-[0.2em] hover:bg-black transition-all shadow-xl hover:shadow-2xl active:scale-95 flex items-center gap-2 cursor-pointer">
+            Contact Sales <ArrowRight size={16} strokeWidth={3} />
+          </button>
         </a>
-        <button className="px-8 py-4 bg-zinc-100 text-[#202124] rounded-full font-bold text-lg hover:bg-zinc-200 transition-all active:scale-95">
+        <button className="px-10 py-5 bg-zinc-50 border-2 border-zinc-100 text-[#202124] rounded-2xl font-black text-xs uppercase tracking-[0.2em] hover:bg-zinc-100 hover:border-zinc-200 transition-all active:scale-95">
           View Documentation
         </button>
       </div>
@@ -262,7 +252,7 @@ const ReadyToScale = () => (
 
 export default function EnterprisePage() {
   return (
-    <main className="bg-white min-h-screen font-sans selection:bg-purple-100 selection:text-purple-900 scroll-smooth antialiased">
+    <main className="bg-white min-h-screen font-sans selection:bg-purple-100 selection:text-purple-900 scroll-smooth antialiased text-zinc-900">
       <Navbar />
       <EnterpriseHero />
       <BuiltWith />

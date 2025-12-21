@@ -2,6 +2,7 @@
 
 import React, { useState } from 'react';
 import LandingBoxes from './components/landingPage/boxesLanding';
+import { motion } from "framer-motion";
 import {
   ChevronDown,
   GitBranch,
@@ -47,7 +48,7 @@ const Hero = () => (
         <span className="text-transparent bg-clip-text bg-gradient-to-r from-purple-600 to-indigo-600">supercharged.</span>
       </h1>
 
-      <p className="text-xl md:text-2xl text-[#5f6368] max-w-3xl mx-auto leading-relaxed font-light animate-in fade-in slide-in-from-bottom-8 duration-700 delay-100 text-balance">
+      <p className="text-xl md:text-2xl text-[#5f6368] max-w-3xl mx-auto leading-relaxed font-normal animate-in fade-in slide-in-from-bottom-8 duration-700 delay-100 text-balance">
         The all-in-one suite that scales your engineering. <br className="hidden md:block" />
         Built for teams that move fast and build for the future.
       </p>
@@ -97,370 +98,279 @@ const Hero = () => (
   </section>
 );
 
-// --- 2. Refined Feature Card ---
-const FeatureCard = ({ icon: Icon, title, text }: { icon: any, title: string, text: string }) => (
-  <div className="group relative p-8 rounded-3xl bg-zinc-50 border border-zinc-100 overflow-hidden hover:shadow-[0_8px_30px_rgb(0,0,0,0.04)] transition-all duration-500 ease-out hover:-translate-y-2">
-    <div className="w-12 h-12 rounded-xl bg-white border border-zinc-200 text-purple-600 flex items-center justify-center mb-6 shadow-sm group-hover:scale-110 group-hover:bg-purple-600 group-hover:text-white transition-all duration-500 relative z-10">
-      <Icon size={24} strokeWidth={1.5} />
+const FeatureCard = ({ icon: Icon, title, text, delay }: { icon: any, title: string, text: string, delay: number }) => (
+  <motion.div
+    initial={{ opacity: 0, y: 20 }}
+    whileInView={{ opacity: 1, y: 0 }}
+    viewport={{ once: true }}
+    transition={{ duration: 0.5, delay }}
+    whileHover={{ y: -8 }}
+    className="group relative p-10 rounded-[40px] bg-white border-2 border-zinc-100 shadow-xl shadow-zinc-200/50 hover:border-purple-200 transition-all duration-500 overflow-hidden"
+  >
+    {/* Subtle Grainy Texture Overlay */}
+    <div className="absolute inset-0 bg-[url('/grainy.png')] opacity-[0.03] mix-blend-multiply pointer-events-none" />
+    
+    {/* Dynamic Accent Glow */}
+    {/* <div className="absolute -right-16 -top-16 w-44 h-44 bg-purple-50 rounded-full blur-3xl opacity-0 group-hover:opacity-100 transition-opacity duration-700" /> */}
+
+    {/* Supercharged Icon Container */}
+    <div className="w-14 h-14 rounded-2xl bg-purple-50 text-purple-600 flex items-center justify-center mb-8 shadow-sm group-hover:scale-110 group-hover:bg-purple-600 group-hover:text-white transition-all duration-500 relative z-10">
+      <Icon size={28} strokeWidth={2.5} />
     </div>
-    <h3 className="text-xl font-bold text-[#202124] mb-3 relative z-10">{title}</h3>
-    <p className="text-[#5f6368] leading-relaxed text-sm relative z-10">{text}</p>
-    <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-purple-100/30 to-transparent rounded-full blur-3xl -mr-16 -mt-16 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
-  </div>
+
+    {/* Text Content */}
+    <h3 className="text-2xl font-black tracking-tighter text-[#202124] mb-3 relative z-10">
+      {title}
+    </h3>
+    <p className="text-zinc-500 leading-relaxed text-base font-bold relative z-10">
+      {text}
+    </p>
+  </motion.div>
 );
 
 const Features = () => (
-  <section className="py-24 px-6 bg-white relative z-10">
-    <div className="max-w-[1200px] mx-auto w-full">
-      <div className="grid md:grid-cols-3 gap-6">
-        <FeatureCard icon={GitBranch} title="AI Repo Review" text="Connect GitHub. Let AI analyze commits, suggest refactors, and spot security issues instantly." />
-        <FeatureCard icon={Database} title="AI SQL Helper" text="Write complex queries in plain English. Our assistant optimizes logic for maximum performance." />
-        <FeatureCard icon={KanbanSquare} title="Boards & Tasks" text="Full project management suite. Drag-and-drop Kanban boards and sprint planning built-in." />
-        <FeatureCard icon={Activity} title="Activity Overview" text="Real-time visibility into team velocity. Track events and repo logs in one unified view." />
-        <FeatureCard icon={LayoutList} title="AI Roadmap" text="Visualize your product journey. AI helps you plan milestones and track progress automatically." />
-        <FeatureCard icon={UserCog} title="Granular Roles" text="Monitor collaborator activity and choose exactly what they can see and do within your repo." />
+  <section className="relative py-32 px-6 bg-white overflow-hidden">
+    {/* Background Grain for the entire section */}
+    <div className="absolute inset-0 bg-[url('/grainy.png')] opacity-[0.02] pointer-events-none" />
+
+<div className="max-w-[1200px] mx-auto w-full relative z-10">
+  {/* Section Header - Now fully centered */}
+  <div className="mb-20 text-center"> 
+    {/* The badge row */}
+    <div className="flex items-center justify-center gap-2 text-sm font-black text-purple-600 uppercase tracking-[0.2em] mb-4">
+       <Activity size={16} strokeWidth={3} /> Core Capabilities
+    </div>
+    
+    {/* The Heading - Added mx-auto to center the max-width block */}
+    <h2 className="text-4xl md:text-6xl font-black tracking-tighter text-[#202124] max-w-3xl mx-auto leading-[0.95]">
+      Everything you need to <br className="hidden md:block" />
+      <span className="text-transparent bg-clip-text bg-gradient-to-r from-purple-600 to-indigo-600">
+        build faster.
+      </span>
+    </h2>
+  </div>
+
+      {/* Features Grid */}
+      <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
+        <FeatureCard 
+          icon={GitBranch} 
+          title="AI Repo Review" 
+          text="Connect GitHub. Let AI analyze commits, suggest refactors, and spot security issues instantly." 
+          delay={0.1}
+        />
+        <FeatureCard 
+          icon={Database} 
+          title="AI SQL Helper" 
+          text="Write complex queries in plain English. Our assistant optimizes logic for maximum performance." 
+          delay={0.2}
+        />
+        <FeatureCard 
+          icon={KanbanSquare} 
+          title="Boards & Tasks" 
+          text="Full project management suite. Drag-and-drop Kanban boards and sprint planning built-in." 
+          delay={0.3}
+        />
+        <FeatureCard 
+          icon={Activity} 
+          title="Activity Overview" 
+          text="Real-time visibility into team velocity. Track events and repo logs in one unified view." 
+          delay={0.4}
+        />
+        <FeatureCard 
+          icon={LayoutList} 
+          title="AI Roadmap" 
+          text="Visualize your product journey. AI helps you plan milestones and track progress automatically." 
+          delay={0.5}
+        />
+        <FeatureCard 
+          icon={UserCog} 
+          title="Granular Roles" 
+          text="Monitor collaborator activity and choose exactly what they can see and do within your repo." 
+          delay={0.6}
+        />
       </div>
     </div>
   </section>
 );
 
-// --- 3. Pricing Section (Condensed/Styled) ---
 const PricingSection = () => {
-
-const [isAnnual, setIsAnnual] = useState(false);
-
-
-
-const plans = [
-
-{
-
-id: "individual",
-
-name: "Individual",
-
-price: isAnnual ? 150 : 15,
-
-period: isAnnual ? "/year" : "/mo",
-
-desc: "For individual developers",
-
-highlight: false,
-
-features: [
-
-"Single user workspace",
-
-"Up to 5 Projects",
-
-"AI Assistant (Full Support)",
-
-"Code Linking & Analysis",
-
-"Project Planning Assistance"
-
-],
-
-limitations: [
-
-"No team collaboration",
-
-"No shared workspaces"
-
-]
-
-},
-
-{
-
-id: "developers",
-
-name: "Developers",
-
-price: isAnnual ? 300 : 30,
-
-period: isAnnual ? "/year" : "/mo",
-
-desc: "For growing teams & startups",
-
-highlight: true,
-
-features: [
-
-"Up to 50 Collaborators",
-
-"Up to 10 Projects",
-
-"Team Velocity Tracking",
-
-"Automated Code Reviews",
-
-"Integrated Calendar",
-
-"Issue Tracking"
-
-],
-
-limitations: [
-
-"Max 50 users total",
-
-"Max 10 Projects"
-
-]
-
-},
-
-{
-
-id: "enterprise",
-
-name: "Enterprise",
-
-price: isAnnual ? 2000 : 200,
-
-period: isAnnual ? "/year" : "/mo",
-
-desc: "For large organizations",
-
-highlight: false,
-
-features: [
-
-"Unlimited Collaborators",
-
-"Unlimited Projects",
-
-"Reduced AI Token Costs",
-
-"Custom AI Model Tuning",
-
-"Enterprise-grade Security",
-
-"Priority Support",
-
-"Advanced Analytics"
-
-],
-
-limitations: []
-
-}
-
-];
-
-
-
-return (
-
-<section className="py-24 px-6 relative z-10 overflow-hidden" id="pricing">
-
-<div className="max-w-[1200px] mx-auto w-full relative">
-
-
-
-{/* Header */}
-
-<div className="text-center mb-16">
-
-<h2 className="text-4xl md:text-6xl font-bold tracking-tighter text-[#202124] mb-4">
-
-<a href="pricing"></a>
-
-Simple, transparent pricing.
-
-</h2>
-
-<p className="text-xl text-[#5f6368] max-w-2xl mx-auto mb-10">
-
-Choose the plan that fits your development scale.
-
-</p>
-
-
-
-{/* Toggle */}
-
-<div className="inline-grid grid-cols-2 bg-white p-1 rounded-full border border-gray-200 shadow-sm relative">
-
-<div
-
-className={`absolute top-1 bottom-1 left-1 w-[calc(50%-4px)] bg-[#202124] rounded-full transition-transform duration-300 ease-[cubic-bezier(0.25,0.1,0.25,1)] ${isAnnual ? 'translate-x-full' : 'translate-x-0'}`}
-
-/>
-
-<button
-
-onClick={() => setIsAnnual(false)}
-
-className={`relative z-10 px-8 py-2.5 text-sm font-medium rounded-full transition-colors duration-300 ${!isAnnual ? 'text-white' : 'text-[#5f6368] hover:text-[#202124]'}`}
-
->
-
-Monthly
-
-</button>
-
-<button
-
-onClick={() => setIsAnnual(true)}
-
-className={`relative z-10 px-8 py-2.5 text-sm font-medium rounded-full transition-colors duration-300 flex items-center justify-center gap-1.5 ${isAnnual ? 'text-white' : 'text-[#5f6368] hover:text-[#202124]'}`}
-
->
-
-Yearly
-
-<span className={`text-[13px] font-semibold px-1.5 py-0.5 rounded ${isAnnual ? 'bg-white/20 text-white' : 'bg-green-100 text-green-700'}`}>
-
--17%
-
-</span>
-
-</button>
-
-</div>
-
-</div>
-
-
-
-{/* Pricing Cards */}
-
-<div className="grid lg:grid-cols-3 gap-8 items-start">
-
-{plans.map((plan) => (
-
-<div
-
-key={plan.id}
-
-className={`relative p-8 rounded-[2rem] bg-white border transition-all duration-500
-
-${plan.highlight
-
-? 'border-purple-600 shadow-2xl shadow-purple-900/10 scale-105 z-10'
-
-: 'border-gray-100 shadow-xl shadow-gray-200/50 hover:border-gray-300 hover:shadow-2xl z-0'
-
-}`}
-
->
-
-{plan.highlight && (
-
-<div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-purple-600 text-white px-4 py-1 rounded-full text-xs font-bold uppercase tracking-wider">
-
-Most Popular
-
-</div>
-
-)}
-
-
-
-<div className="mb-8">
-
-<h3 className="text-xl font-semibold text-[#202124] mb-2">{plan.name}</h3>
-
-<p className="text-sm text-[#5f6368] mb-6">{plan.desc}</p>
-
-<div className="flex items-baseline gap-1">
-
-<span className="text-4xl font-bold text-[#202124]">€{plan.price}</span>
-
-<span className="text-[#5f6368] font-medium">{plan.period}</span>
-
-</div>
-
-</div>
-
-
-
-<div className="space-y-4 mb-8">
-
-{plan.features.map((feature, i) => (
-
-<div key={i} className="flex items-start gap-3">
-
-<div className={`mt-1 flex-shrink-0 w-5 h-5 rounded-full flex items-center justify-center ${plan.highlight ? 'bg-purple-100 text-purple-600' : 'bg-green-100 text-green-600'}`}>
-
-<Check size={12} strokeWidth={3} />
-
-</div>
-
-<span className="text-[15px] text-[#4b4d52]">{feature}</span>
-
-</div>
-
-))}
-
-{plan.limitations.map((limit, i) => (
-
-<div key={`limit-${i}`} className="flex items-start gap-3 opacity-60">
-
-<div className="mt-1 flex-shrink-0 w-5 h-5 rounded-full bg-gray-100 text-gray-400 flex items-center justify-center">
-
-<Minus size={12} strokeWidth={3} />
-
-</div>
-
-<span className="text-[15px] text-[#5f6368]">{limit}</span>
-
-</div>
-
-))}
-
-</div>
-
-<a href="/dashboard" className='cursor-pointer'>
-
-<button className={`w-full py-3.5 rounded-xl font-medium transition-all duration-300 cursor-pointer
-
-${plan.highlight
-
-? 'bg-purple-600 text-white hover:bg-purple-700 shadow-lg shadow-purple-500/30'
-
-: 'bg-gray-50 text-[#202124] hover:bg-gray-100 border border-transparent hover:border-gray-200'
-
-}`}>
-
-Get Started
-
-
-
-</button>
-
-</a>
-
-</div>
-
-))}
-
-</div>
-
-
-
-{/* Note about Source Code */}
-
-<div className="mt-12 text-center">
-
-<p className="text-sm text-[#5f6368]">
-
-Need more info about how it works? <a href="#" className="text-purple-600 font-medium hover:underline">Contact us </a> for further informations.
-
-</p>
-
-</div>
-
-
-
-</div>
-
-</section>
-
-);
-
+  const [isAnnual, setIsAnnual] = useState(false);
+
+  const plans = [
+    {
+      id: "individual",
+      name: "Individual",
+      price: isAnnual ? 150 : 15,
+      period: isAnnual ? "/year" : "/mo",
+      desc: "Perfect for solo developers and side projects.",
+      highlight: false,
+      features: [
+        "Single user workspace",
+        "Up to 5 Projects",
+        "AI Assistant (Standard)",
+        "Code Linking & Analysis",
+        "Project Planning Help"
+      ],
+      limitations: ["No team collaboration", "No shared workspaces"]
+    },
+    {
+      id: "developers",
+      name: "Developers",
+      price: isAnnual ? 300 : 30,
+      period: isAnnual ? "/year" : "/mo",
+      desc: "For growing teams and scaling startups.",
+      highlight: true,
+      features: [
+        "Up to 50 Collaborators",
+        "Up to 10 Projects",
+        "Team Velocity Tracking",
+        "Automated Code Reviews",
+        "Integrated Calendar",
+        "Issue Tracking"
+      ],
+      limitations: ["Max 50 users total"]
+    },
+    {
+      id: "enterprise",
+      name: "Enterprise",
+      price: isAnnual ? 2000 : 200,
+      period: isAnnual ? "/year" : "/mo",
+      desc: "Advanced security and custom AI tuning.",
+      highlight: false,
+      features: [
+        "Unlimited Collaborators",
+        "Unlimited Projects",
+        "Custom AI Model Tuning",
+        "Enterprise-grade Security",
+        "Priority 24/7 Support",
+        "Advanced Analytics"
+      ],
+      limitations: []
+    }
+  ];
+
+  return (
+    <section className="py-32 px-6 relative z-10 bg-transparent" id="pricing">
+      <div className="max-w-[1200px] mx-auto w-full relative">
+        
+        {/* Section Header */}
+        <div className="text-center mb-20">
+          <div className="flex items-center justify-center gap-2 text-[10px] font-black text-purple-600 uppercase tracking-[0.3em] mb-4">
+            <Zap size={14} fill="currentColor" className="animate-pulse" /> 
+            Flexible Options
+          </div>
+          <h2 className="text-4xl md:text-7xl font-black tracking-tighter text-[#202124] mb-6">
+            Simple, transparent <br className="hidden md:block" />
+            <span className="text-transparent bg-clip-text bg-gradient-to-r from-purple-600 to-indigo-600">
+              pricing.
+            </span>
+          </h2>
+          <p className="text-xl text-[#5f6368] font-bold max-w-2xl mx-auto mb-12">
+            Choose the plan that fits your development scale. No hidden fees.
+          </p>
+
+          {/* Supercharged Switch */}
+          <div className="inline-flex items-center bg-white p-1.5 rounded-2xl border-2 border-zinc-100 shadow-xl shadow-zinc-200/50 relative">
+            <motion.div
+              animate={{ x: isAnnual ? "100%" : "0%" }}
+              transition={{ type: "spring", stiffness: 300, damping: 30 }}
+              className="absolute top-1.5 bottom-1.5 left-1.5 w-[calc(50%-6px)] bg-[#202124] rounded-xl z-0"
+            />
+            <button
+              onClick={() => setIsAnnual(false)}
+              className={`relative z-10 px-10 py-3 text-xs font-black uppercase tracking-[0.2em] transition-colors duration-300 w-40 ${!isAnnual ? 'text-white' : 'text-[#5f6368]'}`}
+            >
+              Monthly
+            </button>
+            <button
+              onClick={() => setIsAnnual(true)}
+              className={`relative z-10 px-10 py-3 text-xs font-black uppercase tracking-[0.2em] transition-colors duration-300 w-40 flex items-center justify-center gap-2 ${isAnnual ? 'text-white' : 'text-[#5f6368]'}`}
+            >
+              Yearly
+              <span className={`text-[10px] font-black px-2 py-0.5 rounded ${isAnnual ? 'bg-white/20 text-white' : 'bg-green-100 text-green-700'}`}>
+                -17%
+              </span>
+            </button>
+          </div>
+        </div>
+
+        {/* Cards Grid */}
+        <div className="grid lg:grid-cols-3 gap-8 items-stretch">
+          {plans.map((plan) => (
+            <motion.div
+              key={plan.id}
+              whileHover={{ y: -10 }}
+              className={`group relative p-10 rounded-[44px] bg-white border-2 flex flex-col transition-all duration-500 overflow-hidden
+                ${plan.highlight
+                  ? 'border-purple-600 shadow-2xl shadow-purple-900/10 lg:scale-105 z-10'
+                  : 'border-zinc-100 shadow-xl shadow-zinc-200/50 hover:border-purple-200'
+                }`}
+            >
+              {/* Premium Grain Texture */}
+              <div className="absolute inset-0 bg-[url('/grainy.png')] opacity-[0.04] mix-blend-multiply pointer-events-none" />
+              
+              {plan.highlight && (
+                <div className="absolute top-2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-purple-600 text-white px-6 py-2 rounded-full text-[10px] font-black uppercase tracking-[0.2em] shadow-lg shadow-purple-500/30 whitespace-nowrap">
+                  Most Popular
+                </div>
+              )}
+
+              <div className="mb-10 relative z-10">
+                <h3 className="text-2xl font-black tracking-tighter text-[#202124] mb-2 uppercase tracking-tight">{plan.name}</h3>
+                <p className="text-sm text-[#5f6368] font-bold mb-8 leading-relaxed">{plan.desc}</p>
+                <div className="flex items-baseline gap-1">
+                  <span className="text-5xl font-black text-[#202124]">€{plan.price}</span>
+                  <span className="text-[#5f6368] font-black uppercase tracking-widest text-xs">{plan.period}</span>
+                </div>
+              </div>
+
+              {/* Feature List */}
+              <div className="space-y-5 mb-12 flex-grow relative z-10">
+                {plan.features.map((feature, i) => (
+                  <div key={i} className="flex items-start gap-4">
+                    <div className={`mt-1 flex-shrink-0 w-5 h-5 rounded-lg flex items-center justify-center ${plan.highlight ? 'bg-purple-600 text-white' : 'bg-green-100 text-green-600'}`}>
+                      <Check size={12} strokeWidth={4} />
+                    </div>
+                    <span className="text-[15px] text-zinc-600 font-bold leading-tight">{feature}</span>
+                  </div>
+                ))}
+                {plan.limitations.map((limit, i) => (
+                  <div key={`limit-${i}`} className="flex items-start gap-4 opacity-40">
+                    <div className="mt-1 flex-shrink-0 w-5 h-5 rounded-lg bg-zinc-100 text-zinc-400 flex items-center justify-center">
+                      <Minus size={12} strokeWidth={4} />
+                    </div>
+                    <span className="text-[15px] text-zinc-500 font-bold leading-tight line-through decoration-zinc-300">{limit}</span>
+                  </div>
+                ))}
+              </div>
+
+              {/* Action Button */}
+              <a href="/dashboard" className="block relative z-10">
+                <button className={`w-full py-5 rounded-[20px] font-black uppercase tracking-[0.2em] text-xs transition-all duration-300 active:scale-95 flex items-center justify-center gap-2 group
+                  ${plan.highlight
+                    ? 'bg-[#202124] text-white hover:bg-black shadow-xl shadow-zinc-900/20'
+                    : 'bg-zinc-50 text-[#202124] border-2 border-transparent hover:border-zinc-200'
+                  }`}>
+                  Choose {plan.name}
+                  <ArrowRight size={16} strokeWidth={3} className="transition-transform group-hover:translate-x-1" />
+                </button>
+              </a>
+            </motion.div>
+          ))}
+        </div>
+
+        {/* Footer Support Note */}
+        <div className="mt-20 text-center relative z-10">
+          <p className="text-xs text-zinc-400 font-black uppercase tracking-[0.2em] flex flex-col md:flex-row items-center justify-center gap-2">
+            <span>Questions about our volume pricing?</span>
+            <a href="/home/contact" className="text-purple-600 hover:text-purple-700 transition-colors border-b-2 border-purple-100 hover:border-purple-600 pb-0.5">
+              Talk to our engineering team
+            </a>
+          </p>
+        </div>
+      </div>
+    </section>
+  );
 };
 
 // --- Main Page Component ---
@@ -471,19 +381,18 @@ export default function Page() {
       <Hero />
       <div id='architecture' className="relative z-20 ">
         <div className="text-center mb-16 pt-32 max-w-3xl mx-auto px-6">
-          <h2 className="text-4xl md:text-6xl font-bold tracking-tighter text-[#202124] mb-4">
-            Your entire workflow. <br /> In one dashboard.
-          </h2>
-          <p className="text-[#5f6368] text-lg">Centralize your code, tasks, and AI assistance in a single high-performance view.</p>
+    <h2 className="text-4xl md:text-6xl font-black tracking-tighter text-[#202124] max-w-3xl mx-auto leading-[0.95]">
+      Your entire workflow <br className="hidden md:block" />
+      <span className="text-transparent bg-clip-text bg-gradient-to-r from-purple-600 to-indigo-600">
+        in one Dashboard.
+      </span>
+    </h2>
+          <p className="text-[#5f6368] text-lg mt-3 font-bold">Centralize your code, tasks, and AI assistance in a single high-performance view.</p>
         </div>
         <LandingBoxes />
         <BuiltWith />
       </div>
       
-      <div className="text-center mt-32 max-w-3xl mx-auto px-6">
-        <h2 className="text-4xl md:text-6xl font-bold tracking-tighter text-[#202124] mb-4">Every detail covered.</h2>
-        <p className="text-[#5f6368] text-lg">Powerful tools built for precision and speed.</p>
-      </div>
       
       <Features />
       <PricingSection />
