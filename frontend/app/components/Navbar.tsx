@@ -12,7 +12,7 @@ import {
     KanbanSquare,
     UserCog,
     ArrowRight,
-    Loader2 // Added for the loading state
+    Loader2
 } from 'lucide-react';
 import { createClient } from '@/utils/supabase/client';
 import { User } from '@supabase/supabase-js';
@@ -33,7 +33,6 @@ const Navbar = ({ className = "" }: NavbarProps) => {
     const [loading, setLoading] = useState(true);
     const supabase = createClient();
     
-    // Framer motion scroll hook for better performance
     const { scrollY } = useScroll();
 
     useMotionValueEvent(scrollY, "change", (latest) => {
@@ -81,6 +80,13 @@ const Navbar = ({ className = "" }: NavbarProps) => {
         { icon: UserCog, name: 'Team', desc: 'Management made easier' },
     ];
 
+    const navLinks = [
+        { name: 'Blog', href: '/home/blog' },
+        { name: 'Enterprise', href: '/home/enterprise' },
+        { name: 'Pricing', href: '/home/pricing' },
+        { name: 'Contact', href: '/home/contact' },
+    ];
+
     return (
         <div className="fixed top-0 left-0 right-0 z-50 flex justify-center pointer-events-none">
             <motion.nav
@@ -112,19 +118,9 @@ const Navbar = ({ className = "" }: NavbarProps) => {
                 {/* Logo Area */}
                 <motion.div layout className="flex items-center gap-1 cursor-pointer">
                     <a href="/" className="flex items-center gap-1">
-                        <span className="text-2xl font-normal tracking-tight">KAPR<span className="text-purple-600 font-normal">Y</span><span className='font-black'>.DEV</span></span>
-                        
-                        <AnimatePresence>
-                            {!isScrolled && (
-                                <motion.span 
-                                    initial={{ opacity: 0, width: 0 }}
-                                    animate={{ opacity: 1, width: "auto" }}
-                                    exit={{ opacity: 0, width: 0 }}
-                                    className="text-2xl font-black tracking-tight text-[#202124] overflow-hidden whitespace-nowrap"
-                                >
-                                </motion.span>
-                            )}
-                        </AnimatePresence>
+                        <span className="text-2xl font-normal tracking-tight text-[#202124]">
+                            KAPR<span className="text-purple-600 font-normal">Y</span><span className='font-black'>.DEV</span>
+                        </span>
                     </a>
                 </motion.div>
 
@@ -173,14 +169,14 @@ const Navbar = ({ className = "" }: NavbarProps) => {
                         </AnimatePresence>
                     </div>
                     
-                    {['Blog', 'Enterprise', 'Pricing', 'Contact'].map((item) => (
-                         <a key={item} href={`/home/${item.toLowerCase()}`} className="text-[15px] font-medium text-[#5f6368] hover:text-[#202124] transition-colors">
-                            {item}
+                    {navLinks.map((link) => (
+                         <a key={link.name} href={link.href} className="text-[15px] font-medium text-[#5f6368] hover:text-[#202124] transition-colors">
+                            {link.name}
                          </a>
                     ))}
                 </div>
 
-                {/* Auth / Dashboard Section */}
+                {/* Auth Section */}
                 <div className="hidden md:flex items-center gap-3">
                     {loading ? (
                         <div className="flex items-center justify-center w-8 h-8">
@@ -194,19 +190,18 @@ const Navbar = ({ className = "" }: NavbarProps) => {
                                         layout
                                         href='/dashboard' 
                                         className={`
-                                            bg-[#202124] text-white rounded-full font-medium hover:bg-black shadow-sm flex items-center gap-2 cursor-pointer
-                                            ${isScrolled ? 'px-4 py-2 text-xs' : 'px-5 py-2.5 text-sm'}
-                                        `} 
+    bg-[#202124] text-white rounded-xl font-black uppercase tracking-[0.2em] 
+    hover:bg-black hover:shadow-2xl hover:-translate-y-0.5 transition-all 
+    active:scale-95 flex items-center justify-center gap-2 group 
+    shadow-xl shadow-zinc-200/50 cursor-pointer
+    ${isScrolled ? 'px-4 py-2 text-[10px]' : 'px-6 py-3 text-xs'}
+`}
                                     >
                                         <motion.span layout>Dashboard</motion.span> 
                                         <ArrowRight size={14} />
                                     </motion.a>
                                     <motion.div layout className={`relative rounded-full overflow-hidden border border-gray-200 ${isScrolled ? 'h-8 w-8' : 'h-9 w-9'}`}>
-                                        <img
-                                            src={avatarUrl || '/default-avatar.png'}
-                                            alt="Profile"
-                                            className="w-full h-full object-cover"
-                                        />
+                                        <img src={avatarUrl || '/default-avatar.png'} alt="Profile" className="w-full h-full object-cover" />
                                     </motion.div>
                                 </div>
                             ) : (
@@ -242,19 +237,36 @@ const Navbar = ({ className = "" }: NavbarProps) => {
                         animate={{ opacity: 1, y: 0 }}
                         exit={{ opacity: 0, y: -20 }}
                         transition={{ duration: 0.2 }}
-                        className="fixed inset-0 top-[72px] z-40 bg-white/95 backdrop-blur-sm overflow-y-auto pointer-events-auto md:hidden"
+                        className="fixed inset-0 top-[60px] md:top-[72px] z-40 bg-white/95 backdrop-blur-sm overflow-y-auto pointer-events-auto md:hidden"
                     >
-                        <div className="p-6 flex flex-col gap-6">
+                        <div className="p-6 flex flex-col gap-8 pb-20">
+                            {/* Platform Section */}
                             <div className="space-y-4">
-                                <div className="text-xs font-bold text-[#5f6368] uppercase tracking-wider mb-2">Platform</div>
-                                {productLinks.map((item) => (
-                                    <a key={item.name} href="#" className="flex items-center gap-3 py-2 text-[#202124]">
-                                        <item.icon size={20} className="text-purple-600" />
-                                        <span className="text-lg font-medium">{item.name}</span>
-                                    </a>
-                                ))}
+                                <div className="text-xs font-bold text-[#5f6368] uppercase tracking-widest mb-2 opacity-50">Platform</div>
+                                <div className="grid grid-cols-1 gap-2">
+                                    {productLinks.map((item) => (
+                                        <a key={item.name} href="#" className="flex items-center gap-4 py-3 px-4 rounded-xl hover:bg-gray-50 transition-colors">
+                                            <item.icon size={20} className="text-purple-600" />
+                                            <span className="text-lg font-semibold text-[#202124]">{item.name}</span>
+                                        </a>
+                                    ))}
+                                </div>
                             </div>
-                            <div className="pt-6 border-t border-gray-100 flex flex-col gap-4">
+
+                            {/* Navigation Section */}
+                            <div className="space-y-4">
+                                <div className="text-xs font-bold text-[#5f6368] uppercase tracking-widest mb-2 opacity-50">Company</div>
+                                <div className="grid grid-cols-1 gap-2">
+                                    {navLinks.map((link) => (
+                                        <a key={link.name} href={link.href} className="text-lg font-semibold text-[#202124] py-3 px-4 rounded-xl hover:bg-gray-50 transition-colors">
+                                            {link.name}
+                                        </a>
+                                    ))}
+                                </div>
+                            </div>
+
+                            {/* Auth / Mobile Bottom Section */}
+                            <div className="pt-8 border-t border-gray-100 flex flex-col gap-6">
                                 {loading ? (
                                     <div className="flex justify-center py-4">
                                         <Loader2 className="w-6 h-6 animate-spin text-purple-600" />
@@ -262,21 +274,34 @@ const Navbar = ({ className = "" }: NavbarProps) => {
                                 ) : (
                                     <>
                                         {user ? (
-                                            <div className="flex flex-col gap-4">
-                                                <div className="flex items-center gap-3 mb-2">
-                                                    <div className="w-10 h-10 rounded-full overflow-hidden border border-gray-200">
+                                            <div className="flex flex-col gap-6">
+                                                <div className="flex items-center gap-4 px-4">
+                                                    <div className="w-12 h-12 rounded-full overflow-hidden border-2 border-purple-100 shadow-sm">
                                                         <img src={avatarUrl || '/default-avatar.png'} alt="Profile" className="w-full h-full object-cover" />
                                                     </div>
-                                                    <span className="font-medium text-[#202124]">{user.email}</span>
+                                                    <div className="flex flex-col">
+                                                        <span className="font-black text-[#202124] truncate max-w-[200px]">{user.email}</span>
+                                                        <span className="text-xs font-bold text-purple-600 uppercase tracking-widest">Active Session</span>
+                                                    </div>
                                                 </div>
-                                                <a href='/dashboard' className="bg-[#202124] text-white px-5 py-3 rounded-xl text-center font-medium" >
+                                                
+                                                {/* Supercharged Mobile Dashboard Button */}
+                                                <a 
+                                                    href='/dashboard' 
+                                                    className="bg-[#202124] text-white px-6 py-4 rounded-xl text-center font-black uppercase tracking-[0.2em] text-sm hover:bg-black hover:shadow-2xl hover:-translate-y-1 transition-all active:scale-95 flex items-center justify-center gap-2 group shadow-xl shadow-zinc-200/50 mx-2"
+                                                >
                                                     Go to Dashboard
+                                                    <ArrowRight size={16} className="transition-transform group-hover:translate-x-1" strokeWidth={3} />
                                                 </a>
                                             </div>
                                         ) : (
-                                            <div className="flex flex-col gap-3">
-                                                <a href="/auth/login" className="px-5 py-3 rounded-xl border border-gray-200 text-center font-medium text-[#202124]">Sign In</a>
-                                                <a href="/auth/register" className="bg-[#202124] text-white px-5 py-3 rounded-xl text-center font-medium">Get Started</a>
+                                            <div className="flex flex-col gap-3 px-2">
+                                                <a href="/auth/login" className="px-6 py-4 rounded-xl border-2 border-gray-100 text-center font-black uppercase tracking-[0.2em] text-sm text-[#202124] hover:bg-gray-50 transition-all">
+                                                    Sign In
+                                                </a>
+                                                <a href="/auth/register" className="bg-[#202124] text-white px-6 py-4 rounded-xl text-center font-black uppercase tracking-[0.2em] text-sm hover:bg-black transition-all">
+                                                    Get Started
+                                                </a>
                                             </div>
                                         )}
                                     </>
