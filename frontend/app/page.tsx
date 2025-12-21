@@ -54,13 +54,13 @@ const Hero = () => (
 
       {/* Primary Buttons */}
       <div className="flex flex-col sm:flex-row items-center justify-center gap-4 pt-4 animate-in fade-in slide-in-from-bottom-10 duration-700 delay-150">
-        <button className="group relative w-full sm:w-auto h-14 px-8 bg-[#1a1a1a] text-white rounded-full font-medium text-[15px] hover:bg-black transition-all duration-200 flex items-center justify-center gap-3 shadow-lg hover:shadow-xl active:scale-95">
+        <button className="group relative w-full sm:w-auto h-14 px-8 bg-[#1a1a1a] text-white rounded-full font-medium text-[15px] hover:bg-black transition-all duration-200 flex items-center justify-center gap-3 shadow-lg hover:shadow-xl active:scale-95 cursor-pointer">
           <Play size={18} fill="currentColor" className="transition-transform group-hover:scale-110" /> 
           Live Demo
         </button>
         
         <a href="#architecture" className="w-full sm:w-auto">
-          <button className="w-full h-14 px-8 bg-white border border-zinc-200 text-[#3c4043] rounded-full font-medium text-[15px] hover:border-zinc-300 hover:bg-zinc-50 transition-all duration-200 flex items-center justify-center gap-2 active:scale-95">
+          <button className="w-full h-14 px-8 bg-white border border-zinc-200 text-[#3c4043] rounded-full font-medium text-[15px] hover:border-zinc-300 hover:bg-zinc-50 transition-all duration-200 flex items-center justify-center gap-2 active:scale-95 cursor-pointer">
             View Architecture
           </button>
         </a>

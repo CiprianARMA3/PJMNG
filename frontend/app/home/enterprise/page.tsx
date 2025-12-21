@@ -55,14 +55,14 @@ const EnterpriseHero = () => (
       </p>
 
       <div className="flex flex-col sm:flex-row items-center justify-center gap-4 pt-4 animate-in fade-in slide-in-from-bottom-10 duration-700 delay-150">
-        <button className="group relative w-full sm:w-auto px-8 py-4 bg-[#1a1a1a] text-white rounded-lg font-medium text-[15px] hover:bg-black transition-all duration-200 flex items-center justify-center gap-2 overflow-hidden shadow-lg hover:shadow-xl active:scale-[0.98]">
+        <a href="/home/contact">
+        <button className="group relative w-full sm:w-auto px-8 py-4 bg-[#1a1a1a] text-white rounded-lg font-medium text-[15px] hover:bg-black transition-all duration-200 flex items-center justify-center gap-2 overflow-hidden shadow-lg hover:shadow-xl active:scale-[0.98] cursor-pointer">
           <span>Talk to Sales</span>
           <ArrowRight size={16} className="transition-transform duration-300 group-hover:translate-x-1" />
         </button>
-
+      </a>
         <button className="w-full sm:w-auto px-8 py-4 bg-white border border-zinc-200 text-[#3c4043] rounded-lg font-medium text-[15px] hover:border-zinc-300 hover:bg-zinc-50 transition-all duration-200 flex items-center justify-center gap-2 active:scale-[0.98]">
-          <div className="w-2 h-2 rounded-full bg-purple-500 animate-pulse" />
-          View Demo
+          Watch Demo
         </button>
       </div>
     </div>
@@ -247,9 +247,11 @@ const ReadyToScale = () => (
       <h2 className="text-4xl md:text-5xl font-bold text-[#202124] mb-6 tracking-tight">Ready to ease out your <br /> development ?</h2>
       <p className="text-xl text-[#5f6368] mb-10 max-w-2xl mx-auto">Join the forward-thinking companies building the future with Kapry Enterprise.</p>
       <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
-        <button className="px-8 py-4 bg-[#202124] text-white rounded-full font-bold text-lg hover:bg-black transition-all shadow-lg hover:shadow-xl active:scale-95 flex items-center gap-2">
+        <a href="/home/contact">
+        <button className="px-8 py-4 bg-[#202124] text-white rounded-full font-bold text-lg hover:bg-black transition-all shadow-lg hover:shadow-xl active:scale-95 flex items-center gap-2 cursor-pointer">
           Contact Sales <ArrowRight size={18} />
         </button>
+        </a>
         <button className="px-8 py-4 bg-zinc-100 text-[#202124] rounded-full font-bold text-lg hover:bg-zinc-200 transition-all active:scale-95">
           View Documentation
         </button>

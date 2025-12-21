@@ -11,7 +11,8 @@ import {
     LayoutList,
     KanbanSquare,
     UserCog,
-    ArrowRight
+    ArrowRight,
+    Loader2 // Added for the loading state
 } from 'lucide-react';
 import { createClient } from '@/utils/supabase/client';
 import { User } from '@supabase/supabase-js';
@@ -113,7 +114,6 @@ const Navbar = ({ className = "" }: NavbarProps) => {
                     <a href="/" className="flex items-center gap-1">
                         <span className="text-2xl font-normal tracking-tight">KAPR<span className="text-purple-600 font-normal">Y</span><span className='font-black'>.DEV</span></span>
                         
-                        {/* Smoothly animate the extra text out */}
                         <AnimatePresence>
                             {!isScrolled && (
                                 <motion.span 
@@ -122,7 +122,6 @@ const Navbar = ({ className = "" }: NavbarProps) => {
                                     exit={{ opacity: 0, width: 0 }}
                                     className="text-2xl font-black tracking-tight text-[#202124] overflow-hidden whitespace-nowrap"
                                 >
-                                    {/* Text Content here if needed */}
                                 </motion.span>
                             )}
                         </AnimatePresence>
@@ -145,7 +144,6 @@ const Navbar = ({ className = "" }: NavbarProps) => {
                             </motion.div>
                         </button>
                         
-                        {/* Animated Dropdown Menu */}
                         <AnimatePresence>
                             {activeDropdown === 'product' && (
                                 <motion.div
@@ -175,7 +173,6 @@ const Navbar = ({ className = "" }: NavbarProps) => {
                         </AnimatePresence>
                     </div>
                     
-                    {/* Navigation Links */}
                     {['Blog', 'Enterprise', 'Pricing', 'Contact'].map((item) => (
                          <a key={item} href={`/home/${item.toLowerCase()}`} className="text-[15px] font-medium text-[#5f6368] hover:text-[#202124] transition-colors">
                             {item}
@@ -185,7 +182,11 @@ const Navbar = ({ className = "" }: NavbarProps) => {
 
                 {/* Auth / Dashboard Section */}
                 <div className="hidden md:flex items-center gap-3">
-                    {!loading && (
+                    {loading ? (
+                        <div className="flex items-center justify-center w-8 h-8">
+                            <Loader2 className="w-5 h-5 animate-spin text-purple-600" />
+                        </div>
+                    ) : (
                         <>
                             {user ? (
                                 <div className="flex items-center gap-3">
@@ -254,7 +255,11 @@ const Navbar = ({ className = "" }: NavbarProps) => {
                                 ))}
                             </div>
                             <div className="pt-6 border-t border-gray-100 flex flex-col gap-4">
-                                {!loading && (
+                                {loading ? (
+                                    <div className="flex justify-center py-4">
+                                        <Loader2 className="w-6 h-6 animate-spin text-purple-600" />
+                                    </div>
+                                ) : (
                                     <>
                                         {user ? (
                                             <div className="flex flex-col gap-4">
