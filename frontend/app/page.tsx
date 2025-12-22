@@ -140,7 +140,8 @@ const Features = () => (
     <div className="flex items-center justify-center gap-2 text-sm font-black text-purple-600 uppercase tracking-[0.2em] mb-4">
        <Activity size={16} strokeWidth={3} /> Core Capabilities
     </div>
-    
+          <p id='architecture-explaining'></p>
+
     {/* The Heading - Added mx-auto to center the max-width block */}
     <h2 className="text-4xl md:text-6xl font-black tracking-tighter text-[#202124] max-w-3xl mx-auto leading-[0.95]">
       Everything you need to <br className="hidden md:block" />

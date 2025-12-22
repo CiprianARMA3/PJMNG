@@ -64,10 +64,12 @@ const FeaturesSection = () => {
             </p>
             <div className="flex flex-wrap items-center gap-6">
               {/* CHANGED: Button styling */}
+              <a href="/dashboard">
               <button className="bg-[#202124] text-white px-8 py-4 rounded-xl font-black uppercase tracking-[0.2em] text-[10px] hover:bg-black transition-colors shadow-xl shadow-zinc-900/20 active:scale-95 cursor-pointer">
                 Start building now
               </button>
-              <a href="#" className="group flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-zinc-400 hover:text-zinc-600 transition-colors">
+              </a>
+              <a href="#architecture-explaining" className="group flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-zinc-400 hover:text-zinc-600 transition-colors">
                 Read more about our service.
                 <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" strokeWidth={3} />
               </a>
@@ -238,9 +240,11 @@ const FeaturesSection = () => {
     </p>
     <div className="flex items-center gap-6">
       {/* CHANGED: Button styling */}
+      <a href="/dashboard">
       <button className="bg-[#202124] text-white px-8 py-4 rounded-xl font-black uppercase tracking-[0.2em] text-[10px] hover:bg-black transition-all shadow-xl shadow-zinc-900/20 active:scale-95 ml-[-25px] cursor-pointer">
         Start Building Now
       </button>
+      </a>
     </div>
   </div>
   
