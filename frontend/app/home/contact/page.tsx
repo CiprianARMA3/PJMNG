@@ -291,7 +291,7 @@ const ContactPage = () => {
           name: 'Discord', 
           icon: Discord, 
           handle: 'KapryDEV', 
-          href: 'https://discord.gg/' 
+          href: 'https://discord.gg/EQ63vVJ9wj' 
         },
         { 
           name: 'LinkedIn', 

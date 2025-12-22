@@ -78,18 +78,18 @@ const EnterpriseHero = () => (
 
 // --- Bento Grid Features ---
 const BentoCard = ({ icon: Icon, title, text, className = "" }: any) => (
-  // SUPERCHARGED: rounded-[40px], border-2, grain
+  // SUPERCHARGED: rounded-[40px], border-2, grainy texture
   <div className={`group relative p-10 rounded-[40px] bg-white border-2 border-zinc-100 overflow-hidden hover:border-purple-200 hover:shadow-2xl hover:shadow-zinc-200/50 transition-all duration-500 ease-out hover:-translate-y-1 ${className}`}>
-    {/* Grain Texture */}
+    {/* SIGNATURE GRAIN OVERLAY */}
     <div className="absolute inset-0 bg-[url('/grainy.png')] opacity-[0.03] mix-blend-multiply pointer-events-none z-0" />
     
-    <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-purple-100/50 to-transparent rounded-full blur-3xl -mr-16 -mt-16 transition-opacity opacity-0 group-hover:opacity-100" />
 
     <div className="w-14 h-14 rounded-2xl bg-zinc-50 border-2 border-zinc-100 text-purple-600 flex items-center justify-center mb-8 shadow-sm group-hover:scale-110 group-hover:border-purple-200 transition-all duration-500 relative z-10">
       <Icon size={24} strokeWidth={2} />
     </div>
 
-    <h3 className="text-xl font-black tracking-tight text-[#202124] mb-4 relative z-10">{title}</h3>
+    {/* TYPOGRAPHY: font-black tracking-tighter */}
+    <h3 className="text-xl font-black tracking-tighter text-[#202124] mb-4 relative z-10">{title}</h3>
     <div className="text-zinc-500 font-bold leading-relaxed text-sm relative z-10">{text}</div>
   </div>
 );
@@ -98,12 +98,16 @@ const BentoFeatures = () => (
   <section className="py-24 px-6 bg-white relative z-10">
     <div className="max-w-[1200px] mx-auto w-full">
       <div className="mb-16 md:text-center max-w-2xl mx-auto">
-        <h2 className="text-3xl md:text-6xl font-black tracking-tighter text-[#202124] mb-6">Everything your organization needs.</h2>
-        <p className="text-zinc-500 text-lg font-bold">Powerful features designed to help large engineering teams ship faster, safer, and with higher quality.</p>
+        {/* TYPOGRAPHY: font-black, tracking-tighter, leading-[0.95] */}
+        <h2 className="text-3xl md:text-6xl font-black tracking-tighter text-[#202124] mb-6 leading-[0.95]">
+          Everything your organization needs.
+        </h2>
+        <p className="text-zinc-500 text-lg font-bold">
+          Powerful features designed to help large engineering teams ship faster, safer, and with higher quality.
+        </p>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-6 auto-rows-[minmax(250px,auto)]">
-        {/* Large Card 1 */}
         <BentoCard
           className="md:col-span-2 lg:col-span-2 md:row-span-1"
           icon={Bot}
@@ -123,12 +127,12 @@ const BentoFeatures = () => (
           text="Volume-based discounts on AI tokens, optimized for high-throughput engineering teams."
         />
 
-        {/* Tall Card */}
+        {/* DARK THEME CARD */}
         <BentoCard
           className="md:col-span-1 md:row-span-2 !bg-[#202124] !border-[#202124]"
           icon={Cpu}
-          title={<span className='text-white'>Dev Ecosystem</span>}
-          text={<span className="text-zinc-400">Comprehensive tools including code linking, AI project helpers, and a centralized code review dashboard. <br /><br /></span>}
+          title={<span className='text-white font-black tracking-tighter'>Dev Ecosystem</span>}
+          text={<span className="text-zinc-400 font-bold">Comprehensive tools including code linking, AI project helpers, and a centralized code review dashboard. <br /><br /></span>}
         />
 
         <BentoCard
@@ -144,19 +148,25 @@ const BentoFeatures = () => (
           text="Strategic project management with issue tracking and concept workspaces."
         />
         
-        {/* Support Card */}
+        {/* SUPPORT CTA CARD */}
         <div className="md:col-span-3 lg:col-span-3 p-10 rounded-[40px] bg-purple-600 border-2 border-purple-600 text-white relative overflow-hidden group">
-          <div className="absolute inset-0 bg-[url('/grainy.png')] opacity-20 mix-blend-multiply" />
+          {/* GRAIN OVERLAY */}
+          <div className="absolute inset-0 bg-[url('/grainy.png')] opacity-20 mix-blend-multiply pointer-events-none" />
           <div className="absolute right-0 bottom-0 w-80 h-80 bg-purple-500 rounded-full blur-[100px] opacity-50 translate-x-1/2 translate-y-1/2" />
+          
           <div className="relative z-10 flex flex-col md:flex-row items-start md:items-center justify-between gap-8">
             <div>
               <div className="flex items-center gap-2 mb-4 opacity-90">
-                <Fingerprint size={16} /> <span className="text-[10px] font-black uppercase tracking-[0.2em]">Enterprise Support</span>
+                <Fingerprint size={16} strokeWidth={3} /> 
+                {/* SUPERCHARGED LABEL: uppercase tracking-widest */}
+                <span className="text-[10px] font-black uppercase tracking-[0.2em]">Enterprise Support</span>
               </div>
-              <h3 className="text-3xl font-black tracking-tight mb-4">Fully 24/7 online support.</h3>
+              <h3 className="text-3xl font-black tracking-tighter leading-[0.95] mb-4">Fully 24/7 online support.</h3>
               <p className="text-purple-100 font-bold max-w-lg leading-relaxed">We provide help at every hour of the day for no additional costs, for you or your collaborators.</p>
             </div>
-            <button className="bg-white text-purple-600 px-8 py-4 rounded-2xl font-black text-xs uppercase tracking-[0.2em] hover:bg-purple-50 transition-colors whitespace-nowrap shadow-xl">
+            
+            {/* SUPERCHARGED BUTTON */}
+            <button className="bg-white text-purple-600 px-8 py-4 rounded-2xl font-black text-xs uppercase tracking-[0.2em] hover:bg-purple-50 transition-all whitespace-nowrap shadow-xl shadow-purple-900/20 active:scale-95">
               View Docs
             </button>
           </div>

@@ -22,6 +22,23 @@ interface NavbarProps {
     className?: string;
 }
 
+// --- 1. PRODUCT LINKS CONSTANT ---
+const productLinks = [
+    { icon: Bot, name: 'AI Assistant', desc: 'Context-aware coding help', href: '/home/products/ai' },
+    { icon: GitBranch, name: 'Repo Review', desc: 'Automated PR analysis', href: '/home/products/ai/repository-review' },
+    { icon: Database, name: 'SQL Helper', desc: 'Natural language to SQL', href: '/home/products/ai/sql-helper' },
+    { icon: LayoutList, name: 'Roadmap', desc: 'AI-generated milestones', href: '/home/products/ai/roadmap' },
+    { icon: KanbanSquare, name: 'Kanban Board', desc: 'Drag-and-drop tasks', href: '#' },
+    { icon: UserCog, name: 'Team', desc: 'Management made easier', href: '#' },
+];
+
+const navLinks = [
+    { name: 'Blog', href: '/home/blog' },
+    { name: 'Enterprise', href: '/home/enterprise' },
+    { name: 'Pricing', href: '/home/pricing' },
+    { name: 'Contact', href: '/home/contact' },
+];
+
 const Navbar = ({ className = "" }: NavbarProps) => {
     const [isOpen, setIsOpen] = useState(false);
     const [activeDropdown, setActiveDropdown] = useState<string | null>(null);
@@ -71,22 +88,6 @@ const Navbar = ({ className = "" }: NavbarProps) => {
         checkUser();
     }, [supabase]);
 
-    const productLinks = [
-        { icon: Bot, name: 'AI Assistant', desc: 'Context-aware coding help' },
-        { icon: GitBranch, name: 'Repo Review', desc: 'Automated PR analysis' },
-        { icon: Database, name: 'SQL Helper', desc: 'Natural language to SQL' },
-        { icon: LayoutList, name: 'Roadmap', desc: 'AI-generated milestones' },
-        { icon: KanbanSquare, name: 'Kanban Board', desc: 'Drag-and-drop tasks' },
-        { icon: UserCog, name: 'Team', desc: 'Management made easier' },
-    ];
-
-    const navLinks = [
-        { name: 'Blog', href: '/home/blog' },
-        { name: 'Enterprise', href: '/home/enterprise' },
-        { name: 'Pricing', href: '/home/pricing' },
-        { name: 'Contact', href: '/home/contact' },
-    ];
-
     return (
         <div className="fixed top-0 left-0 right-0 z-50 flex justify-center pointer-events-none">
             <motion.nav
@@ -96,8 +97,8 @@ const Navbar = ({ className = "" }: NavbarProps) => {
                     width: isScrolled ? "min(850px, 95%)" : "100%",
                     borderRadius: isScrolled ? "9999px" : "0px",
                     y: isScrolled ? 20 : 0,
-                    backgroundColor: isScrolled ? "rgba(255, 255, 255, 0.8)" : "rgba(255, 255, 255, 0.5)",
-                    border: isScrolled ? "1px solid rgba(228, 228, 231, 1)" : "1px solid rgba(255, 255, 255, 0.1)",
+                    backgroundColor: isScrolled ? "rgba(255, 255, 255, 0.85)" : "rgba(255, 255, 255, 0.5)",
+                    border: isScrolled ? "2px solid rgba(244, 244, 245, 1)" : "1px solid rgba(255, 255, 255, 0.1)",
                 }}
                 transition={{
                     type: "spring",
@@ -130,37 +131,49 @@ const Navbar = ({ className = "" }: NavbarProps) => {
                         className="relative h-full flex items-center"
                         onMouseEnter={() => setActiveDropdown('product')}
                     >
-                        <button className="flex items-center gap-1 text-[15px] font-medium text-[#5f6368] hover:text-[#202124] transition-colors group">
+                        <button className="flex items-center gap-1 text-[10px] font-black uppercase tracking-widest text-[#5f6368] hover:text-[#202124] transition-colors group">
                             Product 
                             <motion.div 
                                 animate={{ rotate: activeDropdown === 'product' ? 180 : 0 }}
                                 transition={{ duration: 0.2 }}
                             >
-                                <ChevronDown size={14} />
+                                <ChevronDown size={14} strokeWidth={3} />
                             </motion.div>
                         </button>
                         
                         <AnimatePresence>
                             {activeDropdown === 'product' && (
                                 <motion.div
-                                    initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                                    initial={{ opacity: 0, y: 15, scale: 0.95 }}
                                     animate={{ opacity: 1, y: 0, scale: 1 }}
-                                    exit={{ opacity: 0, y: 10, scale: 0.95 }}
+                                    exit={{ opacity: 0, y: 15, scale: 0.95 }}
                                     transition={{ duration: 0.2, ease: "easeOut" }}
                                     className={`
-                                        absolute left-1/2 -translate-x-1/2 p-6 bg-white rounded-2xl shadow-2xl border border-gray-100 grid grid-cols-2 gap-4 z-40
-                                        w-[500px] lg:w-[600px]
+                                        absolute left-1/2 -translate-x-1/2 p-6 bg-white rounded-[40px] shadow-2xl border-2 border-zinc-100 grid grid-cols-2 gap-4 z-40
+                                        w-[550px] lg:w-[600px] overflow-hidden
                                     `}
-                                    style={{ top: "calc(100% + 10px)" }}
+                                    style={{ top: "calc(100% + 15px)" }}
                                 >
+                                    {/* GRAINY TEXTURE OVERLAY */}
+                                    <div className="absolute inset-0 bg-[url('/grainy.png')] opacity-[0.03] mix-blend-multiply pointer-events-none z-0" />
+                                    
                                     {productLinks.map((item) => (
-                                        <a key={item.name} href="#" className="flex items-start gap-3 p-3 rounded-xl hover:bg-gray-50 transition-colors group/item">
-                                            <div className="w-10 h-10 rounded-lg bg-purple-50 text-purple-600 flex items-center justify-center shrink-0 group-hover/item:bg-purple-100 transition-colors">
-                                                <item.icon size={20} />
+                                        <a 
+                                            key={item.name} 
+                                            href={item.href} 
+                                            className="relative z-10 flex items-start gap-4 p-4 rounded-3xl border-2 border-transparent hover:bg-zinc-50 hover:border-zinc-100 transition-all group/item"
+                                        >
+                                            <div className="w-10 h-10 rounded-xl bg-zinc-50 border-2 border-zinc-100 text-purple-600 flex items-center justify-center shrink-0 group-hover/item:bg-purple-600 group-hover/item:text-white group-hover/item:border-purple-600 transition-all duration-300">
+                                                <item.icon size={20} strokeWidth={2.5} />
                                             </div>
                                             <div>
-                                                <div className="text-sm font-semibold text-[#202124]">{item.name}</div>
-                                                <div className="text-xs text-[#5f6368] mt-0.5">{item.desc}</div>
+                                                {/* MODIFIED: text-sm font-bold instead of font-black uppercase */}
+                                                <div className="text-sm font-bold text-[#202124] group-hover/item:text-purple-600 transition-colors">
+                                                    {item.name}
+                                                </div>
+                                                <div className="text-[11px] font-bold text-zinc-400 mt-1 leading-snug">
+                                                    {item.desc}
+                                                </div>
                                             </div>
                                         </a>
                                     ))}
@@ -170,7 +183,7 @@ const Navbar = ({ className = "" }: NavbarProps) => {
                     </div>
                     
                     {navLinks.map((link) => (
-                         <a key={link.name} href={link.href} className="text-[15px] font-medium text-[#5f6368] hover:text-[#202124] transition-colors">
+                         <a key={link.name} href={link.href} className="text-[10px] font-black uppercase tracking-widest text-[#5f6368] hover:text-[#202124] transition-colors">
                             {link.name}
                          </a>
                     ))}
@@ -190,33 +203,34 @@ const Navbar = ({ className = "" }: NavbarProps) => {
                                         layout
                                         href='/dashboard' 
                                         className={`
-    bg-[#202124] text-white rounded-xl font-black uppercase tracking-[0.2em] 
-    hover:bg-black hover:shadow-2xl hover:-translate-y-0.5 transition-all 
-    active:scale-95 flex items-center justify-center gap-2 group 
-    shadow-xl shadow-zinc-200/50 cursor-pointer
-    ${isScrolled ? 'px-4 py-2 text-[10px]' : 'px-6 py-3 text-xs'}
-`}
+                                            bg-[#202124] text-white rounded-2xl font-black uppercase tracking-[0.2em] 
+                                            hover:bg-black hover:shadow-2xl hover:-translate-y-0.5 transition-all 
+                                            active:scale-95 flex items-center justify-center gap-2 group 
+                                            shadow-xl shadow-zinc-200/50 cursor-pointer
+                                            ${isScrolled ? 'px-4 py-2 text-[9px]' : 'px-6 py-3 text-[10px]'}
+                                        `}
                                     >
                                         <motion.span layout>Dashboard</motion.span> 
-                                        <ArrowRight size={14} />
+                                        <ArrowRight size={14} strokeWidth={3} />
                                     </motion.a>
-                                    <motion.div layout className={`relative rounded-full overflow-hidden border border-gray-200 ${isScrolled ? 'h-8 w-8' : 'h-9 w-9'}`}>
+                                    <motion.div layout className={`relative rounded-full overflow-hidden border-2 border-zinc-100 ${isScrolled ? 'h-8 w-8' : 'h-10 w-10'}`}>
                                         <img src={avatarUrl || '/default-avatar.png'} alt="Profile" className="w-full h-full object-cover" />
                                     </motion.div>
                                 </div>
                             ) : (
                                 <>
-                                    <a href="/auth/login" className="text-sm font-medium text-[#5f6368] hover:text-[#202124]">Sign In</a>
+                                    <a href="/auth/login" className="text-[10px] font-black uppercase tracking-widest text-[#5f6368] hover:text-[#202124]">Sign In</a>
                                     <motion.a 
                                         layout
                                         href='/auth/register' 
                                         className={`
-                                            bg-[#202124] text-white rounded-full font-medium hover:bg-black shadow-sm flex items-center gap-2 cursor-pointer
-                                            ${isScrolled ? 'px-4 py-2 text-xs' : 'px-5 py-2.5 text-sm'}
+                                            bg-[#202124] text-white rounded-2xl font-black uppercase tracking-[0.2em] 
+                                            hover:bg-black shadow-xl shadow-zinc-200/50 flex items-center gap-2 cursor-pointer transition-all
+                                            ${isScrolled ? 'px-4 py-2 text-[9px]' : 'px-6 py-3 text-[10px]'}
                                         `} 
                                     >
                                         <motion.span layout>Get Started</motion.span> 
-                                        <ArrowRight size={14} />
+                                        <ArrowRight size={14} strokeWidth={3} />
                                     </motion.a>
                                 </>
                             )}
@@ -225,7 +239,7 @@ const Navbar = ({ className = "" }: NavbarProps) => {
                 </div>
 
                 <button onClick={() => setIsOpen(!isOpen)} className="md:hidden text-[#5f6368] p-1">
-                    {isOpen ? <X /> : <Menu />}
+                    {isOpen ? <X strokeWidth={3} /> : <Menu strokeWidth={3} />}
                 </button>
             </motion.nav>
 
@@ -242,12 +256,17 @@ const Navbar = ({ className = "" }: NavbarProps) => {
                         <div className="p-6 flex flex-col gap-8 pb-20">
                             {/* Platform Section */}
                             <div className="space-y-4">
-                                <div className="text-xs font-bold text-[#5f6368] uppercase tracking-widest mb-2 opacity-50">Platform</div>
+                                <div className="text-[10px] font-black text-[#5f6368] uppercase tracking-[0.2em] mb-2 opacity-50 px-4">Platform</div>
                                 <div className="grid grid-cols-1 gap-2">
                                     {productLinks.map((item) => (
-                                        <a key={item.name} href="#" className="flex items-center gap-4 py-3 px-4 rounded-xl hover:bg-gray-50 transition-colors">
-                                            <item.icon size={20} className="text-purple-600" />
-                                            <span className="text-lg font-semibold text-[#202124]">{item.name}</span>
+                                        <a key={item.name} href={item.href} className="flex items-center gap-4 py-4 px-4 rounded-2xl border-2 border-transparent hover:bg-zinc-50 hover:border-zinc-100 transition-all">
+                                            <div className="w-10 h-10 rounded-xl bg-zinc-50 flex items-center justify-center text-purple-600 shrink-0">
+                                                <item.icon size={20} strokeWidth={2.5} />
+                                            </div>
+                                            <div>
+                                                <span className="text-sm font-bold text-[#202124]">{item.name}</span>
+                                                <p className="text-xs font-bold text-zinc-500 mt-0.5">{item.desc}</p>
+                                            </div>
                                         </a>
                                     ))}
                                 </div>
@@ -255,18 +274,18 @@ const Navbar = ({ className = "" }: NavbarProps) => {
 
                             {/* Navigation Section */}
                             <div className="space-y-4">
-                                <div className="text-xs font-bold text-[#5f6368] uppercase tracking-widest mb-2 opacity-50">Company</div>
+                                <div className="text-[10px] font-black text-[#5f6368] uppercase tracking-[0.2em] mb-2 opacity-50 px-4">Company</div>
                                 <div className="grid grid-cols-1 gap-2">
                                     {navLinks.map((link) => (
-                                        <a key={link.name} href={link.href} className="text-lg font-semibold text-[#202124] py-3 px-4 rounded-xl hover:bg-gray-50 transition-colors">
+                                        <a key={link.name} href={link.href} className="text-lg font-black tracking-tighter text-[#202124] py-3 px-4 rounded-2xl hover:bg-zinc-50 transition-all">
                                             {link.name}
                                         </a>
                                     ))}
                                 </div>
                             </div>
 
-                            {/* Auth / Mobile Bottom Section */}
-                            <div className="pt-8 border-t border-gray-100 flex flex-col gap-6">
+                            {/* Auth Section */}
+                            <div className="pt-8 border-t-2 border-zinc-100 flex flex-col gap-6">
                                 {loading ? (
                                     <div className="flex justify-center py-4">
                                         <Loader2 className="w-6 h-6 animate-spin text-purple-600" />
@@ -276,30 +295,29 @@ const Navbar = ({ className = "" }: NavbarProps) => {
                                         {user ? (
                                             <div className="flex flex-col gap-6">
                                                 <div className="flex items-center gap-4 px-4">
-                                                    <div className="w-12 h-12 rounded-full overflow-hidden border-2 border-purple-100 shadow-sm">
+                                                    <div className="w-12 h-12 rounded-full overflow-hidden border-2 border-zinc-100 shadow-sm">
                                                         <img src={avatarUrl || '/default-avatar.png'} alt="Profile" className="w-full h-full object-cover" />
                                                     </div>
                                                     <div className="flex flex-col">
                                                         <span className="font-black text-[#202124] truncate max-w-[200px]">{user.email}</span>
-                                                        <span className="text-xs font-bold text-purple-600 uppercase tracking-widest">Active Session</span>
+                                                        <span className="text-[10px] font-black text-purple-600 uppercase tracking-widest">Active Session</span>
                                                     </div>
                                                 </div>
                                                 
-                                                {/* Supercharged Mobile Dashboard Button */}
                                                 <a 
                                                     href='/dashboard' 
-                                                    className="bg-[#202124] text-white px-6 py-4 rounded-xl text-center font-black uppercase tracking-[0.2em] text-sm hover:bg-black hover:shadow-2xl hover:-translate-y-1 transition-all active:scale-95 flex items-center justify-center gap-2 group shadow-xl shadow-zinc-200/50 mx-2"
+                                                    className="bg-[#202124] text-white px-6 py-4 rounded-2xl text-center font-black uppercase tracking-[0.2em] text-sm hover:bg-black shadow-xl shadow-zinc-200/50 mx-2 flex items-center justify-center gap-2 group"
                                                 >
                                                     Go to Dashboard
-                                                    <ArrowRight size={16} className="transition-transform group-hover:translate-x-1" strokeWidth={3} />
+                                                    <ArrowRight size={16} strokeWidth={3} className="group-hover:translate-x-1 transition-transform" />
                                                 </a>
                                             </div>
                                         ) : (
                                             <div className="flex flex-col gap-3 px-2">
-                                                <a href="/auth/login" className="px-6 py-4 rounded-xl border-2 border-gray-100 text-center font-black uppercase tracking-[0.2em] text-sm text-[#202124] hover:bg-gray-50 transition-all">
+                                                <a href="/auth/login" className="px-6 py-4 rounded-2xl border-2 border-zinc-100 text-center font-black uppercase tracking-[0.2em] text-sm text-[#202124] hover:bg-zinc-50 transition-all">
                                                     Sign In
                                                 </a>
-                                                <a href="/auth/register" className="bg-[#202124] text-white px-6 py-4 rounded-xl text-center font-black uppercase tracking-[0.2em] text-sm hover:bg-black transition-all">
+                                                <a href="/auth/register" className="bg-[#202124] text-white px-6 py-4 rounded-2xl text-center font-black uppercase tracking-[0.2em] text-sm hover:bg-black transition-all">
                                                     Get Started
                                                 </a>
                                             </div>
