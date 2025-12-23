@@ -15,7 +15,8 @@ import {
     Code2,
     Layout,
     ChevronRight,
-    Loader2
+    Loader2,
+    Terminal
 } from "lucide-react";
 
 // --- Shared Component: Page Widget ---
@@ -62,20 +63,48 @@ export default function SupportPage() {
         <div className="max-w-5xl mx-auto space-y-8 font-sans">
 
             {/* Header & System Status */}
-            <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
-                <div>
-                    <h1 className="text-xl font-medium text-white/90 light:text-black/90 mb-1">Help Center</h1>
-                    <p className="text-sm text-neutral-500 light:text-neutral-600">Find answers, documentation, and get in touch with our team.</p>
-                </div>
-                <a href="#" className="flex items-center gap-2 px-3 py-1.5 bg-[#161616] light:bg-white border border-[#222] light:border-gray-200 hover:border-[#333] light:hover:border-gray-300 rounded-lg transition-colors group">
-                    <span className="relative flex h-2 w-2">
-                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
-                        <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
-                    </span>
-                    <span className="text-xs text-neutral-400 light:text-neutral-600 font-medium group-hover:text-neutral-300 light:group-hover:text-neutral-800 transition-colors">All Systems Operational</span>
-                    <ExternalLink size={12} className="text-neutral-600 light:text-neutral-400 group-hover:text-neutral-400 light:group-hover:text-neutral-600" />
-                </a>
-            </div>
+<div className="flex flex-col md:flex-row md:items-end justify-between gap-8 mb-12 animate-in fade-in slide-in-from-top-4 duration-700">
+    
+    {/* LEFT: SUPPORT TITLES */}
+    <div className="space-y-1">
+        {/* Support Tag */}
+        <div className="flex items-center gap-2 mb-3">
+            <Terminal size={14} className="text-purple-600" strokeWidth={3} />
+            <span className="text-[10px] font-black uppercase tracking-[0.3em] text-zinc-400">
+                Assistance / Developer Support Relay
+            </span>
+        </div>
+
+        {/* Main Title */}
+        <h1 className="text-4xl md:text-5xl font-black tracking-tighter text-zinc-900 uppercase leading-none">
+            Help Center<span className="text-purple-600">.</span>
+        </h1>
+
+        {/* Description */}
+        <p className="text-zinc-500 font-bold text-sm leading-relaxed max-w-md mt-4">
+            Access system documentation nodes, troubleshoot logic failures, and synchronize with our technical relay team.
+        </p>
+    </div>
+
+    {/* RIGHT: SYSTEM STATUS RELAY */}
+<div className="flex items-center gap-4 px-6 py-4 bg-emerald-50 border-2 border-emerald-100 rounded-[24px] shadow-sm shadow-emerald-100/30">
+    {/* Dual-Core Pulse Indicator */}
+    <div className="relative flex h-3 w-3">
+        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-40"></span>
+        <span className="relative inline-flex rounded-full h-3 w-3 bg-emerald-500"></span>
+    </div>
+
+    {/* Identity Metadata */}
+    <div className="flex flex-col">
+        <span className="text-[10px] font-black uppercase tracking-[0.2em] text-emerald-600 leading-none mb-1">
+            Account Status
+        </span>
+        <span className="text-[12px] font-black uppercase tracking-tight text-emerald-700 leading-none">
+            Verified & Secured
+        </span>
+    </div>
+</div>
+</div>
 
             {/* Search Section */}
             <div className="relative group">

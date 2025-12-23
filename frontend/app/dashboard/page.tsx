@@ -1,10 +1,10 @@
 "use client";
+
 import { useState, useEffect, Suspense, lazy, useCallback, useMemo } from "react";
 import { createClient } from "@/utils/supabase/client";
 import { useRouter } from "next/navigation";
 import useRequireAuth from "@/hooks/useRequireAuth";
 import Image from 'next/image';
-import Link from 'next/link';
 import {
   Home,
   CreditCard,
@@ -12,10 +12,12 @@ import {
   LogOut,
   ChevronRight,
   User as UserIcon,
-  Bell
+  Bell,
+  Terminal,
+  Zap,
+  Loader2
 } from "lucide-react";
-import Breadcrumb from "./components/Breadcrumb";
-import { signOut } from "../actions/auth";
+import { motion, AnimatePresence, useScroll, useMotionValueEvent } from "framer-motion";
 
 // Dynamic imports
 const HomeSection = lazy(() => import("./components/dashboard-sections/HomeSection"));
@@ -41,10 +43,11 @@ const MAIN_MENU = [
   { icon: Bell, label: "Blog", section: SECTIONS.MAIL },
 ];
 
-// Loading fallback
 const SectionSkeleton = () => (
-  <div className="animate-pulse bg-zinc-900/30 border border-zinc-800 rounded-2xl h-64 flex items-center justify-center">
-    <div className="text-zinc-500 font-medium">Loading content...</div>
+  <div className="w-full bg-white border-2 border-zinc-100 rounded-[40px] h-[500px] flex flex-col items-center justify-center relative overflow-hidden">
+    <div className="absolute inset-0 bg-[url('/grainy.png')] opacity-[0.02] pointer-events-none" />
+    <Loader2 className="w-10 h-10 animate-spin text-purple-600 mb-4" strokeWidth={3} />
+    <span className="text-[10px] font-black uppercase tracking-[0.3em] text-zinc-400">Syncing Node Data...</span>
   </div>
 );
 
@@ -54,8 +57,14 @@ export default function DashboardPage() {
   const [user, setUser] = useState<any>(null);
   const [activeSection, setActiveSection] = useState(SECTIONS.HOME);
   const [userLoading, setUserLoading] = useState(true);
+  const [isScrolled, setIsScrolled] = useState(false);
 
-  // -- DATA FETCHING --
+  const { scrollY } = useScroll();
+
+  useMotionValueEvent(scrollY, "change", (latest) => {
+    setIsScrolled(latest > 20);
+  });
+
   useEffect(() => {
     const fetchUser = async () => {
       if (!sessionUser) {
@@ -69,20 +78,16 @@ export default function DashboardPage() {
           .eq("id", sessionUser.id)
           .single();
 
-        if (error) {
-          console.error("Error fetching user:", error);
-          setUser({ fullName: "User", avatar_url: DEFAULT_AVATAR });
-        } else if (data) {
+        if (data) {
           const avatarUrl = data.metadata?.avatar_url || DEFAULT_AVATAR;
           setUser({
             ...data,
-            avatar_url: avatarUrl ? `${avatarUrl}?t=${Date.now()}` : DEFAULT_AVATAR,
+            avatar_url: avatarUrl,
             fullName: `${data.name || ""} ${data.surname || ""}`.trim() || "User",
           });
         }
       } catch (error) {
         console.error("Error in fetchUser:", error);
-        setUser({ fullName: "User", avatar_url: DEFAULT_AVATAR });
       } finally {
         setUserLoading(false);
       }
@@ -96,36 +101,17 @@ export default function DashboardPage() {
   }, [router]);
 
   const avatarUrl = useMemo(() => {
-    if (!user || !user.avatar_url) return `${DEFAULT_AVATAR}?t=${Date.now()}`;
-    return user.avatar_url.includes('?') ? user.avatar_url : `${user.avatar_url}?t=${Date.now()}`;
+    return user?.avatar_url ? `${user.avatar_url}?t=${Date.now()}` : DEFAULT_AVATAR;
   }, [user?.avatar_url]);
 
   const sectionProps = useMemo(() => ({
-    userName: user?.fullName || "User",
+    userName: user?.name || "User",
     user: user
-  }), [user?.fullName, user]);
-
-  // -- RENDER CONTENT --
-  const renderMainContent = useCallback(() => {
-    switch (activeSection) {
-      case SECTIONS.HOME:
-        return <Suspense fallback={<SectionSkeleton />}><HomeSection {...sectionProps} /></Suspense>;
-      case SECTIONS.MAIL:
-        return <Suspense fallback={<SectionSkeleton />}><MailSection /></Suspense>;
-      case SECTIONS.CreditCard:
-        return <Suspense fallback={<SectionSkeleton />}><QuickActionsSection /></Suspense>;
-      case SECTIONS.SETTINGS:
-        return <Suspense fallback={<SectionSkeleton />}><SettingsSection /></Suspense>;
-      case SECTIONS.PROFILE_SETTINGS:
-        return <Suspense fallback={<SectionSkeleton />}><UserSettings user={user} /></Suspense>;
-      default:
-        return <Suspense fallback={<SectionSkeleton />}><HomeSection {...sectionProps} /></Suspense>;
-    }
-  }, [activeSection, sectionProps, user]);
+  }), [user]);
 
   if (loading || userLoading || !user) {
     return (
-      <div role="status" className="flex justify-center items-center h-screen bg-[#0a0a0a]">
+      <div role="status" className="flex justify-center items-center h-screen bg-[#0a0a0a] light:bg-white">
         {/* Spinner SVG */}
         <svg aria-hidden="true" className="inline w-8 h-8 text-neutral-400 animate-spin fill-white" viewBox="0 0 100 101" fill="none" xmlns="http://www.w3.org/2000/svg">
           <path d="M100 50.5908C100 78.2051 77.6142 100.591 50 100.591C22.3858 100.591 0 78.2051 0 50.5908C0 22.9766 22.3858 0.59082 50 0.59082C77.6142 0.59082 100 22.9766 100 50.5908ZM9.08144 50.5908C9.08144 73.1895 27.4013 91.5094 50 91.5094C72.5987 91.5094 90.9186 73.1895 90.9186 50.5908C90.9186 27.9921 72.5987 9.67226 50 9.67226C27.4013 9.67226 9.08144 27.9921 9.08144 50.5908Z" fill="currentColor" />
@@ -137,101 +123,138 @@ export default function DashboardPage() {
   }
 
   return (
-    <div className="min-h-screen bg-[#0A0A0A] light:bg-white text-white light:text-black relative font-sans selection:bg-purple-500/30">
-
-      {/* --- DYNAMIC ISLAND NAVIGATION --- */}
-      <div className="fixed top-6 left-0 right-0 z-50 flex justify-center pointer-events-none px-4">
-        <nav className="pointer-events-auto flex items-center gap-1 p-1.5 bg-[#111]/80 light:bg-white/80 backdrop-blur-xl border border-white/10 light:border-black/10 rounded-full shadow-2xl shadow-black/50 light:shadow-black/10 transition-all duration-300 hover:scale-[1.01] hover:border-white/20 light:hover:border-black/20">
-
-          {/* Logo - Restored original text style inside the island container */}
-          <a href="/">
-          <div className="pl-4 pr-2 flex items-center gap-0.5">
-            <span className="text-lg font-medium tracking-tight text-zinc-300 light:text-zinc-600">KAPR<span className="text-purple-500">Y</span></span>
-            <span className="text-lg font-bold tracking-tight text-white light:text-black">.DEV</span>
+    <div className="min-h-screen bg-white text-zinc-900 font-sans selection:bg-purple-100">
+      
+      {/* --- SUPERCHARGED ISLAND NAVIGATION --- */}
+      <div className="fixed top-0 left-0 right-0 z-[100] flex justify-center pointer-events-none">
+        <motion.nav
+          layout
+          initial={{ width: "100%", borderRadius: 0, y: 0 }}
+          animate={{
+            width: isScrolled ? "min(1200px, 95%)" : "100%",
+            borderRadius: isScrolled ? "32px" : "0px",
+            y: isScrolled ? 24 : 0,
+            backgroundColor: isScrolled ? "rgba(255, 255, 255, 0.9)" : "rgba(255, 255, 255, 1)",
+            border: isScrolled ? "2px solid #f4f4f5" : "1px solid #f4f4f5",
+          } as any}
+          transition={{ type: "spring", stiffness: 200, damping: 25, mass: 0.8 }}
+          className={`
+            pointer-events-auto flex items-center
+            h-[64px] md:h-[76px] px-8 backdrop-blur-2xl
+            ${isScrolled ? 'shadow-[0_20px_50px_rgba(0,0,0,0.05)]' : 'border-b border-zinc-100'}
+          `}
+        >
+          {/* 1. LEFT COLUMN: LOGO (Flex-1) */}
+          <div className="flex-1 flex justify-start">
+            <motion.div layout>
+              <a href="/" className="group flex flex-col leading-none border-r-2 border-zinc-50 pr-6">
+                <span className="text-[11px] font-normal tracking-tight text-zinc-400 group-hover:text-purple-600 transition-colors">
+                  KAPR<span className="text-purple-600">Y</span>
+                </span>
+                <span className="text-xl font-black tracking-tighter text-zinc-900 -mt-1">
+                  DEV<span className="text-purple-600">.</span>
+                </span>
+              </a>
+            </motion.div>
           </div>
-          </a>
 
-          {/* Divider */}
-          <div className="h-6 w-px bg-white/10 light:bg-black/10 mx-1 hidden sm:block"></div>
-
-          {/* Menu Items */}
-          <div className="flex items-center gap-1">
+          {/* 2. CENTER COLUMN: MENU MATRIX (Centered regardless of side widths) */}
+          <div className="flex-none hidden md:flex items-center gap-1.5 bg-zinc-50/50 p-1 rounded-2xl border border-zinc-100 mx-4">
             {MAIN_MENU.map(({ icon: Icon, label, section }) => {
               const isActive = activeSection === section;
               return (
                 <button
                   key={section}
                   onClick={() => setActiveSection(section)}
-                  className={`relative flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium transition-all duration-300 ${isActive
-                    ? "text-white light:text-black bg-zinc-800 light:bg-zinc-200 shadow-inner shadow-white/5 light:shadow-black/5"
-                    : "text-zinc-400 light:text-zinc-500 hover:text-white light:hover:text-black hover:bg-white/5 light:hover:bg-black/5"
-                    }`}
+                  className={`
+                    relative flex items-center gap-2 px-5 py-2.5 rounded-xl transition-all duration-300 active:scale-95 group
+                    ${isActive 
+                      ? "bg-purple-50 text-purple-600 border border-purple-100 shadow-sm" 
+                      : "text-zinc-400 hover:text-zinc-900 hover:bg-white"
+                    }
+                  `}
                 >
-                  <Icon className="w-4 h-4" />
-                  <span className="hidden sm:inline">{label}</span>
+                  <Icon size={14} strokeWidth={isActive ? 3 : 2.5} />
+                  <span className="text-[10px] font-black uppercase tracking-[0.2em]">{label}</span>
                 </button>
               );
             })}
           </div>
 
-          {/* Divider */}
-          <div className="h-6 w-px bg-white/10 light:bg-black/10 mx-1 hidden sm:block"></div>
+          {/* 3. RIGHT COLUMN: PROFILE CLUSTER (Flex-1) */}
+          <div className="flex-1 flex justify-end items-center gap-2">
+            
+            {/* Control Cluster Wrapper */}
+            <div className="flex items-center gap-2 bg-zinc-50 p-1 rounded-[30px] border-2 border-zinc-100">
+                
+                {/* Profile Node */}
+                <button
+                    onClick={() => setActiveSection(SECTIONS.PROFILE_SETTINGS)}
+                    className="flex items-center gap-3 pl-1 pr-4 py-1 bg-white border-2 border-zinc-100 hover:border-purple-600 rounded-[24px] transition-all duration-300 group shadow-sm active:scale-95"
+                >
+                    <div className="relative flex-shrink-0">
+                    <Image
+                        src={avatarUrl}
+                        alt="Profile"
+                        width={36}
+                        height={36}
+                        className="rounded-xl w-[36px] h-[36px] object-cover border-2 border-zinc-100"
+                        unoptimized
+                    />
+                    <div className="absolute -bottom-1 -right-1 flex h-4 w-4">
+                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-40"></span>
+                        <span className="relative inline-flex rounded-full h-4 w-4 bg-emerald-500 border-2 border-white"></span>
+                    </div>
+                    </div>
 
-          {/* User Profile Pill */}
-          <div className="relative group">
-            <button
-              onClick={() => setActiveSection(SECTIONS.PROFILE_SETTINGS)}
-              className="flex items-center gap-3 pl-1 pr-1.5 py-1 rounded-full hover:bg-zinc-800 light:hover:bg-zinc-200 transition-all duration-300"
-            >
-              <div className="relative">
-                <Image
-                  src={avatarUrl}
-                  alt="Profile"
-                  width={32}
-                  height={32}
-                  className="rounded-full w-[32px] h-[32px] object-cover border border-white/10 light:border-black/10"
-                  unoptimized
-                />
-                {/* Online Indicator */}
-                <div className="absolute bottom-0 right-0 w-2.5 h-2.5 bg-green-500 border-2 border-[#111] light:border-white rounded-full"></div>
-              </div>
+                    <div className="hidden md:flex flex-col items-start leading-none pr-1">
+                    <span className="text-[10px] font-black uppercase tracking-widest text-zinc-900 truncate max-w-[150px]">
+                        {user?.name || "User"} {user?.surname || ""}
+                    </span>
+                    <span className="text-[9px] font-bold text-zinc-400 uppercase tracking-tighter mt-1">
+                        {user?.email || "email"}
+                    </span>
+                    </div>
+                </button>
 
-              <span className="hidden md:block text-xs font-medium text-zinc-300 light:text-zinc-600 pr-2 group-hover:text-white light:group-hover:text-black transition-colors max-w-[80px] truncate">
-                {user?.name} {user?.surname ? `${user.surname.charAt(0).toUpperCase()}.` : ""}
-              </span>
-            </button>
+                {/* System Config Node (Settings Toggle) */}
 
-            {/* Quick Logout (Visible on Hover of Profile area) */}
-            <div className="absolute top-full right-0 pt-2 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 transform translate-y-2 group-hover:translate-y-0">
-              <button
-                onClick={() => signOut()}
-                className="flex items-center gap-2 px-4 py-2 bg-[#111] light:bg-white border border-zinc-800 light:border-zinc-200 rounded-xl text-xs font-medium text-red-400 hover:text-red-300 light:hover:text-red-500 hover:bg-zinc-900 light:hover:bg-zinc-50 shadow-xl whitespace-nowrap"
-              >
-                <LogOut size={12} />
-                Sign out
-              </button>
+
+                {/* Terminate Action Node (Hover Profile area to see Logout in previous logic, or just add Terminate button here) */}
+                <div className="relative group/logout">
+                     <button
+                        onClick={handleLogout}
+                        className="p-2.5 rounded-2xl border-2 bg-white border-zinc-100 text-zinc-400 hover:border-red-500 hover:text-red-500 transition-all active:scale-90"
+                    >
+                        <LogOut size={18} strokeWidth={2.5} />
+                    </button>
+                </div>
             </div>
           </div>
-
-        </nav>
+        </motion.nav>
       </div>
 
-      {/* Main Content - Added padding-top to account for the floating island */}
-      <main className="pt-32 min-h-screen z-10 bg-[#0A0A0A] light:bg-white">
-        <div className="max-w-6xl mx-auto px-6 pb-12">
-          {/* Breadcrumbs & Header */}
-          <div className="mb-8">
-            <Breadcrumb
-              items={[
-                "Dashboard",
-                activeSection === SECTIONS.HOME ? "" : activeSection.charAt(0).toUpperCase() + activeSection.slice(1),
-              ].filter(Boolean)}
-            />
-          </div>
-
-          {/* Content Render */}
-          <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
-            {renderMainContent()}
+      {/* --- MAIN CONTENT --- */}
+      <main className={`pt-32 pb-20 transition-all duration-500 ${isScrolled ? 'px-6' : 'px-0'}`}>
+        <div className="max-w-6xl mx-auto">
+          <div className="px-6 animate-in fade-in slide-in-from-bottom-6 duration-700">
+            <Suspense fallback={<SectionSkeleton />}>
+              <AnimatePresence mode="wait">
+                <motion.div
+                  key={activeSection}
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -20 }}
+                  transition={{ duration: 0.4 }}
+                >
+                   {activeSection === SECTIONS.HOME && <HomeSection {...sectionProps} />}
+                   {activeSection === SECTIONS.MAIL && <MailSection />}
+                   {activeSection === SECTIONS.CreditCard && <QuickActionsSection />}
+                   {activeSection === SECTIONS.SETTINGS && <SettingsSection />}
+                   {activeSection === SECTIONS.PROFILE_SETTINGS && <UserSettings user={user} />}
+                </motion.div>
+              </AnimatePresence>
+            </Suspense>
           </div>
         </div>
       </main>

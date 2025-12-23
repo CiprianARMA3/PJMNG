@@ -101,26 +101,49 @@ export default function Projects() {
     return (
         <div className="max-w-5xl mx-auto space-y-8 font-sans">
             {/* Header */}
-            <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
-                <div>
-                    <h1 className="text-xl font-medium text-white/90 light:text-black/90 mb-1">Projects</h1>
-                    <p className="text-sm text-neutral-500 light:text-neutral-600">Manage your projects and access team workspaces.</p>
-                </div>
+<div className="flex flex-col md:flex-row md:items-end justify-between gap-8 mb-12 animate-in fade-in slide-in-from-top-4 duration-700">
+    
+    {/* LEFT: ORCHESTRATION TITLES */}
+    <div className="space-y-1">
+        {/* Status Label */}
+        <div className="flex items-center gap-2 mb-3">
+            <span className="text-[10px] font-black uppercase tracking-[0.3em] text-zinc-400">
+                Active Projects
+            </span>
+        </div>
 
-                {/* Search Bar */}
-                <div className="relative group">
-                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                        <Search className="h-3.5 w-3.5 text-neutral-500 group-focus-within:text-white light:group-focus-within:text-black transition-colors" />
-                    </div>
-                    <input
-                        type="text"
-                        placeholder="Search projects..."
-                        value={searchQuery}
-                        onChange={(e) => setSearchQuery(e.target.value)}
-                        className="bg-[#111] light:bg-white border border-[#222] light:border-gray-200 text-neutral-200 light:text-black text-xs rounded-lg block w-full pl-9 pr-3 py-2 placeholder-neutral-600 light:placeholder-neutral-400 focus:outline-none focus:border-neutral-500 focus:bg-[#161616] light:focus:bg-gray-50 transition-all w-full md:w-64"
-                    />
-                </div>
-            </div>
+        {/* Main Title */}
+        <h1 className="text-4xl md:text-5xl font-black tracking-tighter text-zinc-900 uppercase leading-none">
+            Projects<span className="text-purple-600">.</span>
+        </h1>
+
+        {/* Description */}
+        <p className="text-zinc-500 font-bold text-sm leading-relaxed max-w-md mt-4">
+            Manage your active deployment environments and coordinate team workspaces.
+        </p>
+    </div>
+
+    {/* RIGHT: SEARCH PROTOCOL */}
+    <div className="relative group w-full md:w-80">
+        <div className="absolute inset-y-0 left-5 flex items-center pointer-events-none">
+            <Search className="h-4 w-4 text-zinc-300 group-focus-within:text-purple-600 transition-colors" strokeWidth={3} />
+        </div>
+        <input
+            type="text"
+            placeholder="FILTER CLUSTERS..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="w-full bg-white border-2 border-zinc-100 text-zinc-900 rounded-2xl pl-12 pr-5 py-4 font-black uppercase tracking-widest text-[10px] placeholder:text-zinc-300 focus:outline-none focus:border-purple-600 focus:bg-zinc-50/50 transition-all shadow-sm"
+        />
+        
+        {/* Subtle Input Shortcut Decorator */}
+        <div className="absolute inset-y-0 right-5 flex items-center pointer-events-none">
+            <span className="text-[9px] font-black text-zinc-200 border border-zinc-100 px-1.5 py-0.5 rounded shadow-sm group-focus-within:hidden transition-all">
+                CMD + F
+            </span>
+        </div>
+    </div>
+</div>
 
             {/* Projects List Widget */}
             <PageWidget

@@ -18,7 +18,9 @@ import {
   UserCog,
   ShieldCheck,
   Zap,
-  Cpu
+  Cpu,
+  Layers,
+  Sparkles
 } from 'lucide-react';
 import Navbar from './components/Navbar';
 import Footer from './components/Footer';
@@ -55,23 +57,31 @@ const Hero = () => (
 
       {/* Primary Buttons */}
       <div className="flex flex-col sm:flex-row items-center justify-center gap-4 pt-4 animate-in fade-in slide-in-from-bottom-10 duration-700 delay-150">
-        <button className="group relative w-full sm:w-auto h-14 px-8 bg-[#1a1a1a] text-white rounded-full font-medium text-[15px] hover:bg-black transition-all duration-200 flex items-center justify-center gap-3 shadow-lg hover:shadow-xl active:scale-95 cursor-pointer">
-          <Play size={18} fill="currentColor" className="transition-transform group-hover:scale-110" /> 
-          Live Demo
-        </button>
-        
-        <a href="#architecture" className="w-full sm:w-auto">
-          <button className="w-full h-14 px-8 bg-white border border-zinc-200 text-[#3c4043] rounded-full font-medium text-[15px] hover:border-zinc-300 hover:bg-zinc-50 transition-all duration-200 flex items-center justify-center gap-2 active:scale-95 cursor-pointer">
-            View Architecture
-          </button>
-        </a>
+{/* PRIMARY: LIVE DEMO */}
+  <button className="group relative w-full sm:w-auto px-10 py-5 bg-[#202124] text-white rounded-2xl font-black uppercase tracking-[0.3em] text-[11px] hover:bg-black transition-all duration-300 flex items-center justify-center gap-3 shadow-2xl shadow-zinc-900/20 active:scale-95 cursor-pointer overflow-hidden">
+    {/* Subtle Inner Glow */}
+    <div className="absolute inset-0 bg-gradient-to-tr from-purple-500/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+    
+    <Play size={14} fill="currentColor" className="transition-transform group-hover:scale-110 group-hover:text-purple-400" /> 
+    <span>Initialize Demo</span>
+  </button>
+  
+  {/* SECONDARY: ARCHITECTURE */}
+  <a href="#architecture" className="w-full sm:w-auto">
+    <button className="w-full px-10 py-5 bg-white border-2 border-zinc-100 text-zinc-900 rounded-2xl font-black uppercase tracking-[0.3em] text-[11px] hover:border-purple-200 hover:bg-zinc-50 transition-all duration-300 flex items-center justify-center gap-3 active:scale-95 shadow-lg shadow-zinc-200/50 group">
+      <Layers size={14} strokeWidth={3} className="text-zinc-400 group-hover:text-purple-600 transition-colors" />
+      <span>System Core</span>
+    </button>
+  </a>
       </div>
 
       {/* Gemini Attribution Badge (Safe Version) */}
       <div className="pt-8 animate-in fade-in duration-1000 delay-300">
         <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-gray-50 border border-gray-100">
-          <span className="text-[10px] uppercase tracking-wider font-bold text-[#9aa0a6]">Utilizing Google Gemini AI</span>
-        </div>
+<Sparkles size={12} className="text-purple-600" strokeWidth={3} />
+  <span className="text-[9px] font-black uppercase tracking-[0.4em] text-zinc-500">
+    Utilizing Gemini AI
+  </span>        </div>
       </div>
     </div>
 

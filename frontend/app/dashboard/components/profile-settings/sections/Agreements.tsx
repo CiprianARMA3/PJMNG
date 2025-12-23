@@ -90,16 +90,44 @@ export default function AgreementsPage() {
         <div className="max-w-5xl mx-auto space-y-8 font-sans">
 
             {/* Page Header */}
-            <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
-                <div>
-                    <h1 className="text-xl font-medium text-white/90 light:text-black/90 mb-1">Legal & Compliance</h1>
-                    <p className="text-sm text-neutral-500 light:text-neutral-600">View your signed agreements and manage your data rights.</p>
-                </div>
-                <div className="flex items-center gap-2 px-3 py-1.5 bg-[#161616] light:bg-white border border-[#222] light:border-gray-200 rounded-lg">
-                    <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></div>
-                    <span className="text-xs text-neutral-400 light:text-neutral-600 font-medium">Account in Good Standing</span>
-                </div>
-            </div>
+<div className="flex flex-col md:flex-row md:items-end justify-between gap-8 mb-12 animate-in fade-in slide-in-from-top-4 duration-700">
+    
+    {/* LEFT: GOVERNANCE TITLES */}
+    <div className="space-y-1">
+        {/* Governance Tag */}
+        <div className="flex items-center gap-2 mb-3">
+            <span className="text-[10px] font-black uppercase tracking-[0.3em] text-zinc-400">
+                Governance / Regulatory Nodes
+            </span>
+        </div>
+
+        {/* Main Title */}
+        <h1 className="text-4xl md:text-5xl font-black tracking-tighter text-zinc-900 uppercase leading-none">
+            Legal & Compliance<span className="text-purple-600">.</span>
+        </h1>
+
+        {/* Description */}
+        <p className="text-zinc-500 font-bold text-sm leading-relaxed max-w-md mt-4">
+            Audit your signed cryptographic agreements and execute your global data rights protocols.
+        </p>
+    </div>
+
+    {/* RIGHT: STATUS PROTOCOL */}
+    <div className="flex items-center gap-4 px-6 py-4 bg-emerald-50 border-2 border-emerald-100 rounded-[24px] shadow-sm shadow-emerald-100/50">
+        <div className="relative">
+            <div className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" />
+            <div className="absolute inset-0 w-2.5 h-2.5 rounded-full bg-emerald-500 animate-ping opacity-40" />
+        </div>
+        <div className="flex flex-col">
+            <span className="text-[10px] font-black uppercase tracking-[0.2em] text-emerald-600">
+                Account Status
+            </span>
+            <span className="text-[12px] font-black uppercase tracking-tight text-emerald-700">
+             Verified & Secured
+            </span>
+        </div>
+    </div>
+</div>
 
             {/* Regional Protections Cards */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">

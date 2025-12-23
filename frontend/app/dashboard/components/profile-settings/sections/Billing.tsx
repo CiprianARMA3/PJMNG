@@ -197,10 +197,27 @@ export default function BillingPage() {
         <div className="max-w-5xl mx-auto space-y-8 font-sans">
 
             {/* Header */}
-            <div>
-                <h1 className="text-xl font-medium text-white/90 light:text-black/90 mb-1">Billing & Subscription</h1>
-                <p className="text-sm text-neutral-500 light:text-neutral-600">Manage your plan, payments, and billing details.</p>
-            </div>
+<div className="mb-12 animate-in fade-in slide-in-from-left-4 duration-500">
+  {/* Infrastructure Status Tag */}
+  <div className="flex items-center gap-2 mb-3">
+    <span className="text-[10px] font-black uppercase tracking-[0.3em] text-zinc-400">
+      Infrastructure / Billing 
+    </span>
+  </div>
+
+  {/* Main Title */}
+  <h1 className="text-4xl font-black tracking-tighter text-zinc-900 uppercase leading-none mb-4">
+    Billing & Subscription<span className="text-purple-600">.</span>
+  </h1>
+
+  {/* Description */}
+  <p className="text-zinc-500 font-bold text-sm leading-relaxed max-w-lg">
+    Configure your payment protocol, manage subscription tiers, and audit node credit allocations.
+  </p>
+
+  {/* Accent Line */}
+  <div className="h-1 w-12 bg-zinc-100 mt-6 rounded-full" />
+</div>
 
             {/* Warning for Past Due */}
             {isPastDueOrUnpaid && subscriptionData && (

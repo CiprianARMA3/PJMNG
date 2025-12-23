@@ -53,14 +53,28 @@ export default function HomeSection({ user, userName }: HomeSectionProps) {
   return (
     <div className="space-y-8 animate-in fade-in duration-500">
       {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
-        <div>
-          <h1 className="text-xl font-medium text-white/90 light:text-black/90 mb-1">
-            Welcome back, {userName}
-          </h1>
-          <p className="text-sm text-neutral-500 light:text-neutral-600">Here are your active projects.</p>
+<div className="flex flex-col md:flex-row md:items-end justify-between gap-8 mb-12 animate-in fade-in slide-in-from-top-4 duration-700">
+    
+    {/* LEFT: SESSION GREETING */}
+    <div className="space-y-1">
+        {/* Session Metadata Tag */}
+        <div className="flex items-center gap-2 mb-3">
+            <span className="text-[10px] font-black uppercase tracking-[0.3em] text-zinc-400">
+                Authorized Node / Session Initialized
+            </span>
         </div>
-      </div>
+
+        {/* Main Title */}
+        <h1 className="text-4xl md:text-6xl font-black tracking-tighter text-zinc-900 uppercase leading-none">
+            Welcome back, {userName}<span className="text-purple-600">.</span>
+        </h1>
+
+        {/* Description */}
+      <p className="text-zinc-500 font-bold text-sm leading-relaxed max-w-md mt-4">
+          Audit your active workspace clusters and monitor real-time status across the development ecosystem of your projects.
+      </p>
+    </div>
+</div>
 
       {/* Projects Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 pb-12">

@@ -317,10 +317,22 @@ export default function AccountPage({ user }: AccountPageProps) {
 
   return (
     <div className="max-w-4xl mx-auto space-y-8 font-sans">
-      <div className="mb-8">
-        <h1 className="text-xl font-medium text-white/90 light:text-black/90 mb-1">Account Settings</h1>
-        <p className="text-sm text-neutral-500 light:text-neutral-600">Manage your profile, security, and contact preferences.</p>
-      </div>
+<div className="mb-8">
+  {/* Technical Module Tag */}
+  <div className="flex items-center gap-2 mb-2">
+    <span className="text-[10px] font-black uppercase tracking-[0.3em] text-zinc-400">
+      KAPRYDEV Secured informations
+    </span>
+  </div>
+  
+  {/* Main Title */}
+  <h1 className="text-4xl font-black tracking-tighter text-zinc-900 uppercase leading-none">
+    Account Settings<span className="text-purple-600">.</span>
+  </h1>
+  
+  {/* Subtle Divider Line */}
+  <div className="h-1 w-12 bg-zinc-100 mt-4 rounded-full" />
+</div>
 
       {/* Message Alert */}
       {message && (

@@ -1,4 +1,3 @@
-// frontend/app/dashboard/components/dashboard-sections/MailSection.tsx
 "use client";
 
 import { useEffect, useState, useRef } from "react";
@@ -14,9 +13,12 @@ import {
   User,
   ArrowUp,
   ArrowDown,
-  Check
+  Terminal,
+  Zap,
+  Info
 } from "lucide-react";
 import { createClient } from "@/utils/supabase/client";
+import { motion, AnimatePresence } from "framer-motion";
 
 // --- Types ---
 interface UpdateTag {
@@ -46,35 +48,36 @@ interface UpdateItem {
 type SortKey = 'date' | 'tag';
 type SortOrder = 'asc' | 'desc';
 
-// --- Components ---
-
-const PageWidget = ({ title, icon: Icon, children, action }: any) => (
-  <div className="relative z-10 w-full bg-[#111111] light:bg-white border border-[#222] light:border-gray-200 rounded-xl flex flex-col overflow-visible shadow-[0_15px_30px_-10px_rgba(0,0,0,0.5)] light:shadow-lg hover:border-[#333] light:hover:border-gray-300 transition-colors h-[600px]">
-    <div className="px-5 py-4 border-b border-[#222] light:border-gray-200 flex items-center justify-between bg-[#141414] light:bg-gray-50 rounded-t-xl shrink-0">
-      <div className="flex items-center gap-3">
-        <div className="p-1.5 bg-[#1a1a1a] light:bg-white rounded-md border border-[#2a2a2a] light:border-gray-200">
-          <Icon size={14} className="text-neutral-400 light:text-neutral-500" />
+// --- SUPERCHARGED WIDGET CONTAINER ---
+const TelemetryNode = ({ title, icon: Icon, children, action }: any) => (
+  <div className="relative w-full bg-white border-2 border-zinc-100 rounded-[40px] flex flex-col overflow-hidden shadow-2xl shadow-zinc-200/50 h-[650px]">
+    {/* GRAINY TEXTURE */}
+    <div className="absolute inset-0 bg-[url('/grainy.png')] opacity-[0.02] pointer-events-none z-0" />
+    
+    <div className="relative z-10 px-8 py-6 border-b-2 border-zinc-50 flex items-center justify-between bg-zinc-50/30">
+      <div className="flex items-center gap-4">
+        <div className="p-2.5 bg-white rounded-2xl border-2 border-zinc-100 text-purple-600 shadow-sm">
+          <Icon size={18} strokeWidth={3} />
         </div>
-        <h3 className="text-sm font-medium text-neutral-300 light:text-neutral-700 tracking-wide">{title}</h3>
+        <div>
+          <span className="text-[10px] font-black uppercase tracking-[0.3em] text-zinc-400 block mb-0.5">Developer Updates</span>
+          <h3 className="text-sm font-black text-zinc-900 uppercase tracking-widest">{title}</h3>
+        </div>
       </div>
       {action}
     </div>
-    <div className="flex-1 bg-[#111111] light:bg-white min-h-0 relative flex flex-col rounded-b-xl text-neutral-300 light:text-neutral-600 overflow-hidden">
+    <div className="relative z-10 flex-1 bg-white min-h-0 flex flex-col overflow-hidden">
       {children}
     </div>
   </div>
 );
 
-// Helper to format date
 const formatDate = (dateString: string) => {
   return new Date(dateString).toLocaleDateString("en-US", {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
+    month: "short", day: "numeric", year: "numeric",
   });
 };
 
-// Helper to get initials
 const getInitials = (name?: string | null, surname?: string | null) => {
   return `${name?.[0] || ""}${surname?.[0] || ""}`.toUpperCase() || "?";
 };
@@ -84,7 +87,6 @@ export default function MailSection() {
   const [loading, setLoading] = useState(true);
   const [selectedUpdate, setSelectedUpdate] = useState<UpdateItem | null>(null);
 
-  // Sorting State
   const [isFilterOpen, setIsFilterOpen] = useState(false);
   const [sortKey, setSortKey] = useState<SortKey>('date');
   const [sortOrder, setSortOrder] = useState<SortOrder>('desc');
@@ -92,324 +94,225 @@ export default function MailSection() {
 
   const supabase = createClient();
 
-  // Close filter dropdown when clicking outside
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
-      if (filterRef.current && !filterRef.current.contains(event.target as Node)) {
-        setIsFilterOpen(false);
-      }
+      if (filterRef.current && !filterRef.current.contains(event.target as Node)) setIsFilterOpen(false);
     }
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  // Fetch Data
   useEffect(() => {
-    const fetchUpdates = async () => {
+    (async () => {
       try {
-        const { data, error } = await supabase
-          .from("updates")
-          .select(`
-            *,
-            users (
-              name,
-              surname,
-              metadata
-            )
-          `); // We will handle sorting on the client side to avoid re-fetching
-
+        const { data, error } = await supabase.from("updates").select(`*, users (name, surname, metadata)`);
         if (error) throw error;
         setUpdates((data as any) || []);
-      } catch (err) {
-        console.error("Error fetching updates:", err);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchUpdates();
+      } catch (err) { console.error("Error fetching updates:", err);
+      } finally { setLoading(false); }
+    })();
   }, []);
 
-  // Sorting Logic
-  const getSortedUpdates = () => {
-    return [...updates].sort((a, b) => {
-      if (sortKey === 'date') {
-        const dateA = new Date(a.created_at).getTime();
-        const dateB = new Date(b.created_at).getTime();
-        return sortOrder === 'asc' ? dateA - dateB : dateB - dateA;
-      } else {
-        const tagA = a.tag?.tag || '';
-        const tagB = b.tag?.tag || '';
-        // If 'asc', empty tags go last. If 'desc', empty tags go last.
-        if (!tagA) return 1;
-        if (!tagB) return -1;
-        return sortOrder === 'asc'
-          ? tagA.localeCompare(tagB)
-          : tagB.localeCompare(tagA);
-      }
-    });
-  };
-
-  const sortedUpdates = getSortedUpdates();
+  const sortedUpdates = [...updates].sort((a, b) => {
+    if (sortKey === 'date') {
+      const dateA = new Date(a.created_at).getTime();
+      const dateB = new Date(b.created_at).getTime();
+      return sortOrder === 'asc' ? dateA - dateB : dateB - dateA;
+    } else {
+      const tagA = a.tag?.tag || '';
+      const tagB = b.tag?.tag || '';
+      if (!tagA) return 1; if (!tagB) return -1;
+      return sortOrder === 'asc' ? tagA.localeCompare(tagB) : tagB.localeCompare(tagA);
+    }
+  });
 
   const handleSort = (key: SortKey) => {
-    if (sortKey === key) {
-      // Toggle order if clicking same key
-      setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
-    } else {
-      // Default to desc for date, asc for tags when switching
-      setSortKey(key);
-      setSortOrder(key === 'date' ? 'desc' : 'asc');
-    }
+    if (sortKey === key) setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
+    else { setSortKey(key); setSortOrder(key === 'date' ? 'desc' : 'asc'); }
   };
 
   return (
-    <div className="space-y-8 font-sans">
-      <div>
-        <h1 className="text-xl font-medium text-white/90 light:text-black/90 mb-1">Updates & Messages</h1>
-        <p className="text-sm text-neutral-500 light:text-neutral-600">System notifications and project updates.</p>
+    <div className="space-y-8 animate-in fade-in duration-700">
+      
+      {/* --- SUPERCHARGED HEADER --- */}
+      <div className="mb-12">
+        <div className="flex items-center gap-2 mb-3">
+          <Terminal size={14} className="text-purple-600" strokeWidth={3} />
+          <span className="text-[10px] font-black uppercase tracking-[0.3em] text-zinc-400">
+            Telemetry / Broadcast Protocol
+          </span>
+        </div>
+        <h1 className="text-5xl font-black tracking-tighter text-zinc-900 uppercase leading-none mb-4">
+          Updates & Messages<span className="text-purple-600">.</span>
+        </h1>
+        <p className="text-zinc-500 font-bold text-sm leading-relaxed max-w-lg">
+          Audit real-time broadcast logs, system notifications, and synchronized project telemetry updates.
+        </p>
+        <div className="h-1 w-12 bg-zinc-100 mt-6 rounded-full" />
       </div>
 
-      <PageWidget
-        title="Inbox"
+      <TelemetryNode
+        title="Blog Posts"
         icon={Inbox}
         action={
           <div className="relative" ref={filterRef}>
-            <button
+            {/* <button
               onClick={() => setIsFilterOpen(!isFilterOpen)}
-              className={`p-1.5 rounded-md transition-colors ${isFilterOpen ? 'bg-[#222] light:bg-gray-200 text-white light:text-black' : 'text-neutral-500 hover:text-neutral-300 light:hover:text-neutral-700 hover:bg-[#1a1a1a] light:hover:bg-gray-100'}`}
+              className={`flex items-center gap-2 px-5 py-2.5 rounded-xl font-black text-[10px] uppercase tracking-widest border-2 transition-all active:scale-95 ${isFilterOpen ? 'bg-zinc-900 border-zinc-900 text-white' : 'bg-white border-zinc-100 text-zinc-500 hover:border-zinc-200'}`}
             >
-              <Filter size={14} />
-            </button>
+              <Filter size={14} strokeWidth={3} />
+              Filter Matrix
+            </button> */}
 
-            {/* Dropdown Menu */}
-            {isFilterOpen && (
-              <div className="absolute right-0 top-full mt-2 w-48 bg-[#1a1a1a] light:bg-white border border-[#333] light:border-gray-200 rounded-xl shadow-2xl light:shadow-lg overflow-hidden z-50 animate-in fade-in slide-in-from-top-2 duration-150">
-                <div className="px-3 py-2 border-b border-[#2a2a2a] light:border-gray-100 text-[10px] font-semibold text-neutral-500 uppercase tracking-wider">
-                  Sort by
-                </div>
-
-                {/* Date Sort Option */}
-                <button
-                  onClick={() => handleSort('date')}
-                  className="w-full text-left px-4 py-2.5 text-xs text-neutral-300 light:text-neutral-700 hover:bg-[#222] light:hover:bg-gray-50 hover:text-white light:hover:text-black transition-colors flex items-center justify-between group"
+            <AnimatePresence>
+              {isFilterOpen && (
+                <motion.div 
+                  initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                  exit={{ opacity: 0, y: 10, scale: 0.95 }}
+                  className="absolute right-0 top-full mt-3 w-56 bg-white border-2 border-zinc-100 rounded-3xl shadow-2xl z-50 overflow-hidden"
                 >
-                  <div className="flex items-center gap-2">
-                    <Calendar size={12} className="text-neutral-500 group-hover:text-neutral-400" />
-                    <span>Date</span>
+                  <div className="p-4 bg-zinc-50 border-b-2 border-zinc-100 text-[9px] font-black text-zinc-400 uppercase tracking-[0.2em]">Sort Protocol</div>
+                  <div className="p-2 space-y-1">
+                    {[
+                      { key: 'date', label: 'Timestamp', icon: Calendar },
+                      { key: 'tag', label: 'Tag Cluster', icon: TagIcon }
+                    ].map((opt) => (
+                      <button
+                        key={opt.key}
+                        onClick={() => handleSort(opt.key as SortKey)}
+                        className={`w-full flex items-center justify-between p-3 rounded-2xl transition-all group ${sortKey === opt.key ? 'bg-purple-50 text-purple-600' : 'hover:bg-zinc-50 text-zinc-500'}`}
+                      >
+                        <div className="flex items-center gap-3">
+                          <opt.icon size={14} strokeWidth={3} />
+                          <span className="text-[10px] font-black uppercase tracking-widest">{opt.label}</span>
+                        </div>
+                        {sortKey === opt.key && (sortOrder === 'desc' ? <ArrowDown size={14} strokeWidth={3} /> : <ArrowUp size={14} strokeWidth={3} />)}
+                      </button>
+                    ))}
                   </div>
-                  {sortKey === 'date' && (
-                    <div className="flex items-center gap-1 text-indigo-400">
-                      <span className="text-[10px] font-mono">{sortOrder === 'desc' ? 'Newest' : 'Oldest'}</span>
-                      {sortOrder === 'desc' ? <ArrowDown size={12} /> : <ArrowUp size={12} />}
-                    </div>
-                  )}
-                </button>
-
-                {/* Tag Sort Option */}
-                <button
-                  onClick={() => handleSort('tag')}
-                  className="w-full text-left px-4 py-2.5 text-xs text-neutral-300 light:text-neutral-700 hover:bg-[#222] light:hover:bg-gray-50 hover:text-white light:hover:text-black transition-colors flex items-center justify-between group"
-                >
-                  <div className="flex items-center gap-2">
-                    <TagIcon size={12} className="text-neutral-500 group-hover:text-neutral-400" />
-                    <span>Tag</span>
-                  </div>
-                  {sortKey === 'tag' && (
-                    <div className="flex items-center gap-1 text-indigo-400">
-                      <span className="text-[10px] font-mono">{sortOrder === 'asc' ? 'A-Z' : 'Z-A'}</span>
-                      {sortOrder === 'asc' ? <ArrowDown size={12} /> : <ArrowUp size={12} />}
-                    </div>
-                  )}
-                </button>
-              </div>
-            )}
+                </motion.div>
+              )}
+            </AnimatePresence>
           </div>
         }
       >
-        {/* Loading State */}
-        {loading && (
-          <div className="flex flex-col items-center justify-center h-full text-neutral-500">
-            <Loader2 className="w-6 h-6 animate-spin mb-2" />
-            <span className="text-xs">Checking for updates...</span>
+        {loading ? (
+          <div className="flex flex-col items-center justify-center h-full">
+            <Loader2 className="w-10 h-10 animate-spin text-purple-600 mb-4" strokeWidth={3} />
+            <span className="text-[10px] font-black uppercase tracking-widest text-zinc-400">Syncing...</span>
           </div>
-        )}
-
-        {/* Empty State */}
-        {!loading && updates.length === 0 && (
-          <div className="flex flex-col items-center justify-center h-full text-center p-6">
-            <div className="w-16 h-16 bg-[#161616] light:bg-gray-50 rounded-full flex items-center justify-center mb-4 border border-[#222] light:border-gray-200">
-              <Bell className="w-6 h-6 text-neutral-600 light:text-neutral-400" />
+        ) : updates.length === 0 ? (
+          <div className="flex flex-col items-center justify-center h-full p-10 text-center">
+            <div className="w-20 h-20 bg-zinc-50 rounded-[32px] border-2 border-zinc-100 flex items-center justify-center mb-6 text-zinc-200">
+              <Bell size={40} strokeWidth={2.5} />
             </div>
-            <h3 className="text-neutral-300 light:text-neutral-700 font-medium text-sm mb-1">All caught up</h3>
-            <p className="text-neutral-500 text-xs max-w-xs mx-auto">
-              You have no new notifications or messages at this time.
-            </p>
+            <h3 className="text-lg font-black text-zinc-900 uppercase tracking-tighter mb-2">Streams Nominal</h3>
+            <p className="text-zinc-500 font-bold text-sm max-w-xs">No Blog updates fetched.</p>
+          </div>
+        ) : (
+          <div className="overflow-y-auto h-full p-4 space-y-3 custom-scrollbar">
+            {sortedUpdates.map((update) => (
+              <div
+                key={update.id}
+                onClick={() => setSelectedUpdate(update)}
+                className="group relative p-6 bg-white border-2 border-zinc-50 rounded-[32px] hover:border-purple-600 hover:bg-zinc-50/50 transition-all cursor-pointer flex flex-col md:flex-row md:items-center justify-between gap-6"
+              >
+                <div className="flex items-center gap-5">
+                  <div className="relative shrink-0">
+                    <div className="w-14 h-14 rounded-2xl bg-zinc-50 border-2 border-zinc-100 overflow-hidden flex items-center justify-center">
+                      {update.users?.metadata?.avatar_url ? (
+                        <img src={update.users.metadata.avatar_url} className="w-full h-full object-cover" />
+                      ) : (
+                        <span className="text-xs font-black text-zinc-400">{getInitials(update.users?.name, update.users?.surname)}</span>
+                      )}
+                    </div>
+                    <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-emerald-500 border-2 border-white rounded-full" />
+                  </div>
+
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-2">
+                       <h4 className="text-base font-black text-zinc-900 tracking-tight group-hover:text-purple-600 transition-colors uppercase">
+                        {update.title || "Transmission"}
+                      </h4>
+                      {update.version && <span className="text-[9px] font-black bg-zinc-900 text-white px-2 py-0.5 rounded-md uppercase tracking-widest">v{update.version}</span>}
+                    </div>
+                    <p className="text-xs font-bold text-zinc-400 line-clamp-1 max-w-md">{update.description}</p>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-4">
+                  <div className="text-right hidden sm:block">
+                    <div className="text-[10px] font-black uppercase tracking-widest text-zinc-900">{update.users?.name || "System"}</div>
+                    <div className="text-[9px] font-bold text-zinc-400 uppercase tracking-tighter">{formatDate(update.created_at)}</div>
+                  </div>
+                  <div className="w-10 h-10 rounded-xl bg-zinc-50 flex items-center justify-center text-zinc-300 group-hover:bg-purple-600 group-hover:text-white transition-all">
+                    <ChevronRight size={20} strokeWidth={3} />
+                  </div>
+                </div>
+              </div>
+            ))}
           </div>
         )}
+      </TelemetryNode>
 
-        {/* List of Updates */}
-        {!loading && sortedUpdates.length > 0 && (
-          <div className="overflow-y-auto h-full scrollbar-thin scrollbar-thumb-neutral-800 scrollbar-track-transparent">
-            {sortedUpdates.map((update) => {
-              const author = update.users;
-              const avatarUrl = author?.metadata?.avatar_url;
-
-              return (
-                <div
-                  key={update.id}
-                  onClick={() => setSelectedUpdate(update)}
-                  className="group border-b border-[#1a1a1a] light:border-gray-100 p-4 hover:bg-[#161616] light:hover:bg-gray-50 cursor-pointer transition-all duration-200 flex flex-col gap-2 relative"
-                >
-                  <div className="flex items-start justify-between w-full">
+      {/* --- SUPERCHARGED BROADCAST MODAL --- */}
+      <AnimatePresence>
+        {selectedUpdate && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-6">
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setSelectedUpdate(null)} className="absolute inset-0 bg-white/80 backdrop-blur-xl" />
+            
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.9, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.9, y: 20 }}
+              className="relative w-full max-w-3xl bg-white border-2 border-zinc-100 rounded-[40px] shadow-2xl flex flex-col max-h-[85vh] overflow-hidden"
+            >
+              <div className="absolute inset-0 bg-[url('/grainy.png')] opacity-[0.03] pointer-events-none" />
+              
+              <div className="relative z-10 p-10 border-b-2 border-zinc-50 bg-zinc-50/30 flex items-start justify-between">
+                <div className="flex items-start gap-6">
+                  <div className="w-16 h-16 rounded-[20px] bg-white border-2 border-zinc-100 shadow-sm flex items-center justify-center shrink-0 overflow-hidden">
+                    {selectedUpdate.users?.metadata?.avatar_url ? (
+                      <img src={selectedUpdate.users.metadata.avatar_url} className="w-full h-full object-cover" />
+                    ) : (
+                      <span className="text-sm font-black text-zinc-400">{getInitials(selectedUpdate.users?.name, selectedUpdate.users?.surname)}</span>
+                    )}
+                  </div>
+                  <div className="space-y-3">
                     <div className="flex items-center gap-3">
-                      {/* Avatar in List */}
-                      <div className="w-8 h-8 rounded-full bg-[#222] light:bg-gray-100 border border-[#333] light:border-gray-200 flex items-center justify-center overflow-hidden shrink-0">
-                        {avatarUrl ? (
-                          <img src={avatarUrl} alt="Avatar" className="w-full h-full object-cover" />
-                        ) : (
-                          <span className="text-[10px] font-medium text-neutral-500">
-                            {getInitials(author?.name, author?.surname)}
-                          </span>
-                        )}
-                      </div>
-
-                      <div>
-                        <h4 className="text-sm font-medium text-neutral-200 light:text-neutral-800 group-hover:text-white light:group-hover:text-black transition-colors">
-                          {update.title || "Untitled Update"}
-                        </h4>
-                        <p className="text-[10px] text-neutral-500">
-                          by {author?.name || "Unknown"} {author?.surname || ""}
-                        </p>
-                      </div>
+                      <h2 className="text-3xl font-black tracking-tighter text-zinc-900 uppercase">{selectedUpdate.title || "Transmission"}</h2>
+                      {selectedUpdate.tag && (
+                         <span className="px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest border-2" style={{ borderColor: selectedUpdate.tag.tag_color, color: selectedUpdate.tag.tag_color }}>
+                            {selectedUpdate.tag.tag}
+                         </span>
+                      )}
                     </div>
-                    <span className="text-[10px] font-mono text-neutral-600 group-hover:text-neutral-500 whitespace-nowrap ml-2">
-                      {formatDate(update.created_at)}
-                    </span>
+                    <div className="flex items-center gap-4 text-[10px] font-black uppercase tracking-[0.2em] text-zinc-400">
+                      <span className="flex items-center gap-2"><User size={14} strokeWidth={3} className="text-purple-600" /> {selectedUpdate.users?.name} {selectedUpdate.users?.surname}</span>
+                      <span className="flex items-center gap-2"><Calendar size={14} strokeWidth={3} className="text-purple-600" /> {formatDate(selectedUpdate.created_at)}</span>
+                    </div>
                   </div>
-
-                  <p className="text-xs text-neutral-500 line-clamp-2 pl-11 pr-4">
-                    {update.description}
-                  </p>
-
-                  <div className="pl-11 flex items-center gap-2 mt-1">
-                    {update.version && (
-                      <span className="text-[10px] px-1.5 py-0.5 rounded border border-[#2a2a2a] light:border-gray-200 bg-[#1a1a1a] light:bg-gray-50 text-neutral-400 light:text-neutral-500 font-mono">
-                        v{update.version}
-                      </span>
-                    )}
-                    {update.tag && update.tag.tag && (
-                      <span
-                        className="text-[10px] px-1.5 py-0.5 rounded border border-[#2a2a2a] light:border-gray-200 bg-[#1a1a1a] light:bg-gray-50 flex items-center gap-1"
-                        style={{ color: update.tag.tag_color || '#999' }}
-                      >
-                        <span className="w-1 h-1 rounded-full bg-current" />
-                        {update.tag.tag}
-                      </span>
-                    )}
-                  </div>
-
-                  <ChevronRight size={14} className="absolute right-4 top-1/2 -translate-y-1/2 text-neutral-700 opacity-0 group-hover:opacity-100 transition-opacity" />
                 </div>
-              );
-            })}
-          </div>
-        )}
-      </PageWidget>
+                <button onClick={() => setSelectedUpdate(null)} className="p-3 bg-white border-2 border-zinc-100 rounded-2xl text-zinc-400 hover:text-zinc-900 transition-colors shadow-sm"><X size={20} strokeWidth={3} /></button>
+              </div>
 
-      {/* --- Full Screen Modal --- */}
-      {selectedUpdate && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6">
-          <div
-            className="absolute inset-0 bg-black/60 backdrop-blur-sm transition-opacity"
-            onClick={() => setSelectedUpdate(null)}
-          />
-
-          <div className="relative w-full max-w-2xl bg-[#0f0f0f] light:bg-white border border-[#222] light:border-gray-200 rounded-2xl shadow-2xl flex flex-col max-h-[85vh] animate-in fade-in zoom-in-95 duration-200">
-            <div className="flex items-start justify-between p-6 border-b border-[#1f1f1f] light:border-gray-100">
-              <div className="flex items-start gap-4">
-                <div className="w-12 h-12 rounded-full bg-[#1a1a1a] light:bg-gray-50 border border-[#333] light:border-gray-200 flex items-center justify-center overflow-hidden shrink-0 mt-1">
-                  {selectedUpdate.users?.metadata?.avatar_url ? (
-                    <img src={selectedUpdate.users.metadata.avatar_url} alt="Avatar" className="w-full h-full object-cover" />
-                  ) : (
-                    <span className="text-sm font-medium text-neutral-500">
-                      {getInitials(selectedUpdate.users?.name, selectedUpdate.users?.surname)}
-                    </span>
-                  )}
-                </div>
-
-                <div className="space-y-1">
-                  <div className="flex items-center gap-3">
-                    <h2 className="text-xl font-semibold text-white light:text-black tracking-tight leading-tight">
-                      {selectedUpdate.title || "Update Details"}
-                    </h2>
-                    {selectedUpdate.version && (
-                      <span className="px-2 py-0.5 rounded-full bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 text-xs font-mono">
-                        v{selectedUpdate.version}
-                      </span>
-                    )}
-                  </div>
-
-                  <div className="flex items-center gap-3 text-xs text-neutral-400 light:text-neutral-500">
-                    <div className="flex items-center gap-1.5 text-neutral-300 light:text-neutral-700">
-                      <User size={12} className="text-neutral-500" />
-                      <span>
-                        {selectedUpdate.users?.name || "Unknown"} {selectedUpdate.users?.surname || ""}
-                      </span>
-                    </div>
-                    <span className="w-1 h-1 rounded-full bg-neutral-700" />
-                    <div className="flex items-center gap-1.5">
-                      <Calendar size={12} className="text-neutral-500" />
-                      <span>{formatDate(selectedUpdate.created_at)}</span>
-                    </div>
-                  </div>
-
-                  {selectedUpdate.tag && selectedUpdate.tag.tag && (
-                    <div className="pt-2">
-                      <span
-                        className="inline-flex items-center gap-1.5 px-2 py-1 rounded-md border border-[#2a2a2a] light:border-gray-200 bg-[#161616] light:bg-gray-50 text-xs"
-                        style={{ color: selectedUpdate.tag.tag_color || '#999' }}
-                      >
-                        <TagIcon size={10} />
-                        {selectedUpdate.tag.tag}
-                      </span>
-                    </div>
-                  )}
+              <div className="relative z-10 p-10 overflow-y-auto flex-1 custom-scrollbar">
+                <div className="prose prose-zinc max-w-none">
+                  {selectedUpdate.description?.split('\n').map((paragraph, idx) => (
+                    <p key={idx} className="text-zinc-500 font-bold text-lg leading-relaxed mb-6 last:mb-0">{paragraph}</p>
+                  ))}
+                  {!selectedUpdate.description && <p className="text-zinc-300 font-black uppercase tracking-widest text-center py-10">Stream Empty / No Data Logged</p>}
                 </div>
               </div>
 
-              <button
-                onClick={() => setSelectedUpdate(null)}
-                className="p-2 rounded-lg bg-[#1a1a1a] light:bg-gray-100 hover:bg-[#222] light:hover:bg-gray-200 text-neutral-400 light:text-neutral-500 hover:text-white light:hover:text-black transition-colors border border-[#2a2a2a] light:border-gray-200"
-              >
-                <X size={18} />
-              </button>
-            </div>
-
-            <div className="p-8 overflow-y-auto text-neutral-300 light:text-neutral-700 leading-relaxed space-y-4">
-              {selectedUpdate.description?.split('\n').map((paragraph, idx) => (
-                <p key={idx} className={paragraph.trim() === '' ? 'h-4' : ''}>
-                  {paragraph}
-                </p>
-              ))}
-
-              {!selectedUpdate.description && (
-                <p className="text-neutral-600 italic">No description provided for this update.</p>
-              )}
-            </div>
-
-            <div className="p-4 border-t border-[#1f1f1f] light:border-gray-100 bg-[#111111] light:bg-gray-50 rounded-b-2xl flex justify-end">
-              <button
-                onClick={() => setSelectedUpdate(null)}
-                className="px-4 py-2 text-sm font-medium text-neutral-300 light:text-neutral-700 bg-[#1a1a1a] light:bg-white border border-[#2a2a2a] light:border-gray-200 rounded-lg hover:bg-[#222] light:hover:bg-gray-50 hover:text-white light:hover:text-black transition-colors"
-              >
-                Close
-              </button>
-            </div>
-
+              <div className="relative z-10 p-8 border-t-2 border-zinc-50 bg-zinc-50/50 flex justify-end">
+                <button onClick={() => setSelectedUpdate(null)} className="px-10 py-4 bg-[#202124] text-white rounded-2xl font-black uppercase text-[10px] tracking-widest shadow-xl shadow-zinc-900/10 active:scale-95 transition-all">Close</button>
+              </div>
+            </motion.div>
           </div>
-        </div>
-      )}
+        )}
+      </AnimatePresence>
     </div>
   );
 }

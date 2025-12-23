@@ -1,7 +1,7 @@
 "use client";
 
 import { JSX, useState } from "react";
-import { User, CreditCard, Bell, Shield, HelpCircle, Users, Home, FileText } from "lucide-react";
+import { User, CreditCard, Bell, Shield, HelpCircle, Users, Home, FileText, Terminal } from "lucide-react";
 import Agreements from "./sections/Agreements";
 import SUPPORT from "./sections/HelpSupport";
 
@@ -74,9 +74,14 @@ export default function UserSettings({ user }: UserSettingsProps) {
       {/* LEFT SIDEBAR */}
       <aside className="w-80 pr-8 border-r border-[#222] light:border-gray-200">
         <div className="sticky top-6">
-          <div className="mb-10 pl-2">
-            <h2 className="text-xl font-medium mb-1 text-white/90 light:text-black/90">Settings</h2>
-            <p className="text-xs text-neutral-500 light:text-neutral-600 font-medium">Manage your account and project preferences</p>
+<div className="mb-12 pl-4">
+            <div className="flex items-center gap-2 mb-2">
+              <Terminal size={14} className="text-purple-600" strokeWidth={3} />
+              <span className="text-[10px] font-black uppercase tracking-[0.3em] text-zinc-400">Settings Protocol</span>
+            </div>
+            <h1 className="text-4xl font-black tracking-tighter text-zinc-900 leading-none">
+              Config<span className="text-purple-600">.</span>
+            </h1>
           </div>
 
           <nav className="space-y-10">
