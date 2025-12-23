@@ -49,34 +49,34 @@ function ConfirmationModal({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-white/80 backdrop-blur-xl p-4 animate-in fade-in duration-200">
-      <div className="w-full max-w-md bg-white border-2 border-zinc-100 rounded-[40px] shadow-2xl shadow-zinc-200/50 p-10 relative flex flex-col items-center text-center overflow-hidden">
+    <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-white/80 dark:bg-black/80 backdrop-blur-xl p-4 animate-in fade-in duration-200">
+      <div className="w-full max-w-md bg-white dark:bg-[#0A0A0A] border-2 border-zinc-100 dark:border-zinc-800 rounded-[40px] shadow-2xl shadow-zinc-200/50 dark:shadow-black/50 p-10 relative flex flex-col items-center text-center overflow-hidden">
         <div className="absolute inset-0 bg-[url('/grainy.png')] opacity-[0.03] pointer-events-none" />
         
         {isSuccess ? (
           <div className="animate-in zoom-in duration-300 relative z-10">
-            <div className="w-20 h-20 rounded-3xl bg-emerald-50 text-emerald-600 flex items-center justify-center mb-6 mx-auto shadow-lg shadow-emerald-100">
+            <div className="w-20 h-20 rounded-3xl bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400 flex items-center justify-center mb-6 mx-auto shadow-lg shadow-emerald-100 dark:shadow-none">
               <CheckCircle2 size={40} strokeWidth={2.5} />
             </div>
-            <h3 className="text-2xl font-black tracking-tighter text-zinc-900 mb-2 uppercase">Protocol Updated</h3>
-            <p className="text-zinc-500 font-bold text-sm mb-6 leading-relaxed">Identity synced with new tier nodes.</p>
+            <h3 className="text-2xl font-black tracking-tighter text-zinc-900 dark:text-white mb-2 uppercase">Protocol Updated</h3>
+            <p className="text-zinc-500 dark:text-zinc-400 font-bold text-sm mb-6 leading-relaxed">Identity synced with new tier nodes.</p>
             <Loader2 className="w-6 h-6 animate-spin text-purple-600 mx-auto" />
           </div>
         ) : (
           <div className="relative z-10 w-full">
-            <div className={`w-16 h-16 rounded-3xl flex items-center justify-center mb-6 mx-auto ${isUpgrade ? 'bg-purple-50 text-purple-600' : 'bg-orange-50 text-orange-600'}`}>
+            <div className={`w-16 h-16 rounded-3xl flex items-center justify-center mb-6 mx-auto ${isUpgrade ? 'bg-purple-50 dark:bg-purple-900/20 text-purple-600 dark:text-purple-400' : 'bg-orange-50 dark:bg-orange-900/20 text-orange-600'}`}>
               <Zap size={32} strokeWidth={2.5} fill="currentColor" />
             </div>
-            <h3 className="text-2xl font-black tracking-tighter text-zinc-900 mb-4 uppercase">
+            <h3 className="text-2xl font-black tracking-tighter text-zinc-900 dark:text-white mb-4 uppercase">
               Confirm {isUpgrade ? 'Upgrade' : 'Downgrade'}
             </h3>
-            <p className="text-zinc-500 text-sm font-bold leading-relaxed mb-8">
-              Transitioning session to <span className="text-zinc-900">{planName}</span>. 
+            <p className="text-zinc-500 dark:text-zinc-400 text-sm font-bold leading-relaxed mb-8">
+              Transitioning session to <span className="text-zinc-900 dark:text-white">{planName}</span>. 
               {isUpgrade ? " Prorated charges apply immediately." : " Changes reflect next cycle."}
             </p>
             <div className="grid grid-cols-2 gap-4 w-full">
-              <button onClick={onClose} disabled={isLoading} className="py-4 rounded-2xl font-black uppercase text-[10px] tracking-widest bg-zinc-50 text-zinc-400 border-2 border-transparent hover:border-zinc-200 transition-all disabled:opacity-50">Cancel</button>
-              <button onClick={onConfirm} disabled={isLoading} className={`py-4 rounded-2xl font-black uppercase text-[10px] tracking-widest text-white transition-all shadow-xl disabled:opacity-50 ${isUpgrade ? 'bg-purple-600 shadow-purple-200' : 'bg-zinc-900 shadow-zinc-200'}`}>
+              <button onClick={onClose} disabled={isLoading} className="py-4 rounded-2xl font-black uppercase text-[10px] tracking-widest bg-zinc-50 dark:bg-zinc-900 text-zinc-400 dark:text-zinc-500 border-2 border-transparent hover:border-zinc-200 dark:hover:border-zinc-700 transition-all disabled:opacity-50">Cancel</button>
+              <button onClick={onConfirm} disabled={isLoading} className={`py-4 rounded-2xl font-black uppercase text-[10px] tracking-widest text-white transition-all shadow-xl disabled:opacity-50 ${isUpgrade ? 'bg-purple-600 shadow-purple-200 dark:shadow-none' : 'bg-zinc-900 dark:bg-white dark:text-black shadow-zinc-200 dark:shadow-none'}`}>
                 {isLoading ? <Loader2 className="animate-spin mx-auto w-4 h-4" /> : "Authorize"}
               </button>
             </div>
@@ -91,16 +91,16 @@ function ConfirmationModal({
 const FeatureValue = memo(({ value }: { value: string | boolean | number }) => {
   if (typeof value === 'boolean') {
     return value ? (
-      <div className="bg-purple-600 p-1 rounded-lg shadow-sm shadow-purple-200"><Check size={14} className="text-white" strokeWidth={4} /></div>
+      <div className="bg-purple-600 p-1 rounded-lg shadow-sm shadow-purple-200 dark:shadow-none"><Check size={14} className="text-white" strokeWidth={4} /></div>
     ) : (
-      <Minus size={18} className="text-zinc-200" strokeWidth={3} />
+      <Minus size={18} className="text-zinc-200 dark:text-zinc-800" strokeWidth={3} />
     );
   }
-  return <span className="text-xs font-black uppercase tracking-wider text-zinc-900">{value}</span>;
+  return <span className="text-xs font-black uppercase tracking-wider text-zinc-900 dark:text-zinc-100">{value}</span>;
 });
 FeatureValue.displayName = 'FeatureValue';
 
-// --- DATA (RETAINED) ---
+// --- DATA ---
 const defaultTiers: PricingTier[] = [
   {
     name: 'Individual',
@@ -227,30 +227,30 @@ const PricingTable: React.FC<PricingTableProps> = ({ tiers = defaultTiers, class
       
       {/* Supercharged Toggle */}
       <div className="flex justify-center mb-16">
-        <div className="bg-white p-1.5 rounded-full border-2 border-zinc-100 shadow-xl shadow-zinc-200/50 flex relative">
+        <div className="bg-white dark:bg-zinc-900 p-1.5 rounded-full border-2 border-zinc-100 dark:border-zinc-800 shadow-xl shadow-zinc-200/50 dark:shadow-none flex relative">
           <button
             onClick={() => setBillingInterval('month')}
-            className={`px-10 py-3 text-[10px] font-black uppercase tracking-widest rounded-full transition-all z-10 ${billingInterval === 'month' ? 'text-white bg-[#202124]' : 'text-zinc-400 hover:text-zinc-900'}`}
+            className={`px-10 py-3 text-[10px] font-black uppercase tracking-widest rounded-full transition-all z-10 ${billingInterval === 'month' ? 'text-white bg-[#202124] dark:bg-white dark:text-black' : 'text-zinc-400 dark:text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-200'}`}
           >
             Monthly
           </button>
           <button
             onClick={() => setBillingInterval('year')}
-            className={`px-10 py-3 text-[10px] font-black uppercase tracking-widest rounded-full transition-all z-10 flex items-center gap-2 ${billingInterval === 'year' ? 'text-white bg-[#202124]' : 'text-zinc-400 hover:text-zinc-900'}`}
+            className={`px-10 py-3 text-[10px] font-black uppercase tracking-widest rounded-full transition-all z-10 flex items-center gap-2 ${billingInterval === 'year' ? 'text-white bg-[#202124] dark:bg-white dark:text-black' : 'text-zinc-400 dark:text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-200'}`}
           >
-            Yearly <span className={`text-[9px] px-1.5 py-0.5 rounded font-black ${billingInterval === 'year' ? 'bg-white/20' : 'bg-emerald-100 text-emerald-700'}`}>-17%</span>
+            Yearly <span className={`text-[9px] px-1.5 py-0.5 rounded font-black ${billingInterval === 'year' ? 'bg-white/20 dark:bg-black/10' : 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400'}`}>-17%</span>
           </button>
         </div>
       </div>
 
-      {/* Main Table Container (SUPERCHARGED: rounded-[40px], border-2) */}
-      <div className="bg-white border-2 border-zinc-100 rounded-[40px] overflow-hidden shadow-2xl shadow-zinc-200/50 relative">
-        <div className="absolute inset-0 bg-[url('/grainy.png')] opacity-[0.02] pointer-events-none" />
+      {/* Main Table Container */}
+      <div className="bg-white dark:bg-[#0A0A0A] border-2 border-zinc-100 dark:border-zinc-800 rounded-[40px] overflow-hidden shadow-2xl shadow-zinc-200/50 dark:shadow-black/50 relative">
+        <div className="absolute inset-0 bg-[url('/grainy.png')] opacity-[0.02] dark:opacity-[0.03] pointer-events-none" />
 
         {/* Header Grid */}
-        <div className="grid grid-cols-4 bg-zinc-50 border-b-2 border-zinc-100 relative z-10">
+        <div className="grid grid-cols-4 bg-zinc-50 dark:bg-zinc-900/50 border-b-2 border-zinc-100 dark:border-zinc-800 relative z-10">
           <div className="p-8 flex flex-col justify-end">
-            <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.4em] text-zinc-400">
+            <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.4em] text-zinc-400 dark:text-zinc-500">
               <Terminal size={14} strokeWidth={3} /> Matrix
             </div>
           </div>
@@ -260,17 +260,18 @@ const PricingTable: React.FC<PricingTableProps> = ({ tiers = defaultTiers, class
             const isDev = tier.name === 'Developers';
 
             return (
-              <div key={tier.name} className={`p-8 text-center border-l-2 border-zinc-100 flex flex-col items-center ${isCurrent ? 'bg-emerald-50/30' : isDev ? 'bg-purple-50/30' : ''}`}>
-                <h4 className="text-[11px] font-black uppercase tracking-widest text-zinc-900 mb-4 flex items-center gap-2">
+              <div key={tier.name} className={`p-8 text-center border-l-2 border-zinc-100 dark:border-zinc-800 flex flex-col items-center ${isCurrent ? 'bg-emerald-50/30 dark:bg-emerald-900/10' : isDev ? 'bg-purple-50/30 dark:bg-purple-900/10' : ''}`}>
+                <h4 className="text-[11px] font-black uppercase tracking-widest text-zinc-900 dark:text-white mb-4 flex items-center gap-2">
                     {tier.name}
                     {isCurrent && <CheckCircle2 size={14} className="text-emerald-500" strokeWidth={3} />}
                 </h4>
                 <div className="flex items-baseline gap-1 mb-6">
-                  <span className="text-3xl font-black tracking-tighter text-zinc-900">
+                  <span className="text-3xl font-black tracking-tighter text-zinc-900 dark:text-white">
                     €{billingInterval === 'month' ? tier.price.month : Math.round(tier.price.year / 12)}
                   </span>
-                  <span className="text-zinc-400 text-[10px] font-black uppercase tracking-widest">/mo</span>
+                  <span className="text-zinc-400 dark:text-zinc-600 text-[10px] font-black uppercase tracking-widest">/mo</span>
                 </div>
+                {/* CTA logic would go here if you added buttons to tiers later */}
               </div>
             );
           })}
@@ -280,17 +281,17 @@ const PricingTable: React.FC<PricingTableProps> = ({ tiers = defaultTiers, class
         <div className="relative z-10">
           {featureCategories.map((category) => (
             <React.Fragment key={category.name}>
-              <div className="bg-zinc-50/80 backdrop-blur-sm p-4 px-8 text-[10px] font-black uppercase tracking-[0.3em] text-zinc-400 border-b-2 border-zinc-100">
+              <div className="bg-zinc-50/80 dark:bg-zinc-900/80 backdrop-blur-sm p-4 px-8 text-[10px] font-black uppercase tracking-[0.3em] text-zinc-400 dark:text-zinc-500 border-b-2 border-zinc-100 dark:border-zinc-800">
                 {category.name}
               </div>
 
               {category.features.map((feature) => (
-                <div key={feature.key} className="grid grid-cols-4 hover:bg-zinc-50/30 transition-colors group border-b-2 border-zinc-50 last:border-b-0">
-                  <div className="p-6 px-8 text-[13px] font-bold text-zinc-500 group-hover:text-zinc-900 transition-colors flex items-center">
+                <div key={feature.key} className="grid grid-cols-4 hover:bg-zinc-50/30 dark:hover:bg-zinc-900/30 transition-colors group border-b-2 border-zinc-50 dark:border-zinc-900 last:border-b-0">
+                  <div className="p-6 px-8 text-[13px] font-bold text-zinc-500 dark:text-zinc-400 group-hover:text-zinc-900 dark:group-hover:text-white transition-colors flex items-center">
                     {feature.label}
                   </div>
                   {tiers?.map((tier) => (
-                    <div key={`${tier.name}-${feature.key}`} className={`p-6 border-l-2 border-zinc-100 flex items-center justify-center ${tier.name === 'Developers' ? 'bg-purple-50/10' : ''}`}>
+                    <div key={`${tier.name}-${feature.key}`} className={`p-6 border-l-2 border-zinc-100 dark:border-zinc-800 flex items-center justify-center ${tier.name === 'Developers' ? 'bg-purple-50/10 dark:bg-purple-900/5' : ''}`}>
                       <FeatureValue value={tier.features[feature.key]} />
                     </div>
                   ))}
@@ -300,6 +301,16 @@ const PricingTable: React.FC<PricingTableProps> = ({ tiers = defaultTiers, class
           ))}
         </div>
       </div>
+
+      <ConfirmationModal
+        isOpen={modalOpen}
+        onClose={() => setModalOpen(false)}
+        onConfirm={confirmSubscription}
+        isLoading={isPending}
+        isSuccess={isSuccess}
+        planName={selectedPlan?.name}
+        isUpgrade={isUpgrade}
+      />
 
     </div>
   );

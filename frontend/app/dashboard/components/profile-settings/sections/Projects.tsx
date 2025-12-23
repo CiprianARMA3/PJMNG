@@ -113,7 +113,7 @@ export default function Projects() {
         </div>
 
         {/* Main Title */}
-        <h1 className="text-4xl md:text-5xl font-black tracking-tighter text-zinc-900 uppercase leading-none">
+        <h1 className="text-4xl md:text-5xl font-black tracking-tighter text-zinc-900 uppercase leading-none dark:text-white">
             Projects<span className="text-purple-600">.</span>
         </h1>
 
@@ -133,14 +133,25 @@ export default function Projects() {
             placeholder="FILTER CLUSTERS..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full bg-white border-2 border-zinc-100 text-zinc-900 rounded-2xl pl-12 pr-5 py-4 font-black uppercase tracking-widest text-[10px] placeholder:text-zinc-300 focus:outline-none focus:border-purple-600 focus:bg-zinc-50/50 transition-all shadow-sm"
-        />
+className="w-full bg-white dark:bg-zinc-900 
+           border-2 border-zinc-100 dark:border-zinc-800 
+           text-zinc-900 dark:text-zinc-100 
+           rounded-2xl pl-12 pr-5 py-4 
+           font-black uppercase tracking-widest text-[10px] 
+           placeholder:text-zinc-300 dark:placeholder:text-zinc-600 
+           focus:outline-none focus:border-purple-600 dark:focus:border-purple-500 
+           focus:bg-zinc-50/50 dark:focus:bg-zinc-900/50 
+           transition-all shadow-sm dark:shadow-none"        />
         
         {/* Subtle Input Shortcut Decorator */}
         <div className="absolute inset-y-0 right-5 flex items-center pointer-events-none">
-            <span className="text-[9px] font-black text-zinc-200 border border-zinc-100 px-1.5 py-0.5 rounded shadow-sm group-focus-within:hidden transition-all">
-                CMD + F
-            </span>
+<span className="text-[9px] font-black text-zinc-300 dark:text-zinc-600 
+                 bg-transparent dark:bg-zinc-900/50 
+                 border border-zinc-100 dark:border-zinc-800 
+                 px-1.5 py-0.5 rounded shadow-sm dark:shadow-none 
+                 group-focus-within:hidden transition-all">
+    CMD + F
+</span>
         </div>
     </div>
 </div>

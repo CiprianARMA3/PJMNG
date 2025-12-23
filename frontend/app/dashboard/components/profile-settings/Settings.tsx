@@ -79,7 +79,7 @@ export default function UserSettings({ user }: UserSettingsProps) {
               <Terminal size={14} className="text-purple-600" strokeWidth={3} />
               <span className="text-[10px] font-black uppercase tracking-[0.3em] text-zinc-400">Settings Protocol</span>
             </div>
-            <h1 className="text-4xl font-black tracking-tighter text-zinc-900 leading-none">
+            <h1 className="text-4xl font-black tracking-tighter text-zinc-900 leading-none dark:text-white">
               Config<span className="text-purple-600">.</span>
             </h1>
           </div>

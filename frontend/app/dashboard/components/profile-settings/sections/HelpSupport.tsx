@@ -76,9 +76,9 @@ export default function SupportPage() {
         </div>
 
         {/* Main Title */}
-        <h1 className="text-4xl md:text-5xl font-black tracking-tighter text-zinc-900 uppercase leading-none">
-            Help Center<span className="text-purple-600">.</span>
-        </h1>
+<h1 className="text-4xl md:text-5xl font-black tracking-tighter text-zinc-900 dark:text-white uppercase leading-none">
+        Help Center<span className="text-purple-600 dark:text-purple-500">.</span>
+    </h1>
 
         {/* Description */}
         <p className="text-zinc-500 font-bold text-sm leading-relaxed max-w-md mt-4">
@@ -86,24 +86,6 @@ export default function SupportPage() {
         </p>
     </div>
 
-    {/* RIGHT: SYSTEM STATUS RELAY */}
-<div className="flex items-center gap-4 px-6 py-4 bg-emerald-50 border-2 border-emerald-100 rounded-[24px] shadow-sm shadow-emerald-100/30">
-    {/* Dual-Core Pulse Indicator */}
-    <div className="relative flex h-3 w-3">
-        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-40"></span>
-        <span className="relative inline-flex rounded-full h-3 w-3 bg-emerald-500"></span>
-    </div>
-
-    {/* Identity Metadata */}
-    <div className="flex flex-col">
-        <span className="text-[10px] font-black uppercase tracking-[0.2em] text-emerald-600 leading-none mb-1">
-            Account Status
-        </span>
-        <span className="text-[12px] font-black uppercase tracking-tight text-emerald-700 leading-none">
-            Verified & Secured
-        </span>
-    </div>
-</div>
 </div>
 
             {/* Search Section */}

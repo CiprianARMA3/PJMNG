@@ -102,30 +102,14 @@ export default function AgreementsPage() {
         </div>
 
         {/* Main Title */}
-        <h1 className="text-4xl md:text-5xl font-black tracking-tighter text-zinc-900 uppercase leading-none">
-            Legal & Compliance<span className="text-purple-600">.</span>
-        </h1>
+<h1 className="text-5xl md:text-6xl font-black tracking-tighter text-zinc-900 dark:text-white uppercase leading-none">
+                        Legal & Compliance<span className="text-purple-600">.</span>
+                    </h1>
 
         {/* Description */}
         <p className="text-zinc-500 font-bold text-sm leading-relaxed max-w-md mt-4">
             Audit your signed cryptographic agreements and execute your global data rights protocols.
         </p>
-    </div>
-
-    {/* RIGHT: STATUS PROTOCOL */}
-    <div className="flex items-center gap-4 px-6 py-4 bg-emerald-50 border-2 border-emerald-100 rounded-[24px] shadow-sm shadow-emerald-100/50">
-        <div className="relative">
-            <div className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" />
-            <div className="absolute inset-0 w-2.5 h-2.5 rounded-full bg-emerald-500 animate-ping opacity-40" />
-        </div>
-        <div className="flex flex-col">
-            <span className="text-[10px] font-black uppercase tracking-[0.2em] text-emerald-600">
-                Account Status
-            </span>
-            <span className="text-[12px] font-black uppercase tracking-tight text-emerald-700">
-             Verified & Secured
-            </span>
-        </div>
     </div>
 </div>
 

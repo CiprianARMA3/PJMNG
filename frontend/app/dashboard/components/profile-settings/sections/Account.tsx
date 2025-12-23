@@ -326,12 +326,12 @@ export default function AccountPage({ user }: AccountPageProps) {
   </div>
   
   {/* Main Title */}
-  <h1 className="text-4xl font-black tracking-tighter text-zinc-900 uppercase leading-none">
+  <h1 className="text-4xl font-black tracking-tighter text-zinc-900 uppercase leading-none dark:text-white">
     Account Settings<span className="text-purple-600">.</span>
   </h1>
   
   {/* Subtle Divider Line */}
-  <div className="h-1 w-12 bg-zinc-100 mt-4 rounded-full" />
+  <div className="h-1 w-12 bg-zinc-100 mt-4 rounded-full dark:bg-zinc-400" />
 </div>
 
       {/* Message Alert */}

@@ -50,23 +50,23 @@ type SortOrder = 'asc' | 'desc';
 
 // --- SUPERCHARGED WIDGET CONTAINER ---
 const TelemetryNode = ({ title, icon: Icon, children, action }: any) => (
-  <div className="relative w-full bg-white border-2 border-zinc-100 rounded-[40px] flex flex-col overflow-hidden shadow-2xl shadow-zinc-200/50 h-[650px]">
+  <div className="relative w-full bg-white dark:bg-[#0A0A0A] border-2 border-zinc-100 dark:border-zinc-800 rounded-[40px] flex flex-col overflow-hidden shadow-2xl shadow-zinc-200/50 dark:shadow-black/50 h-[650px]">
     {/* GRAINY TEXTURE */}
-    <div className="absolute inset-0 bg-[url('/grainy.png')] opacity-[0.02] pointer-events-none z-0" />
+    <div className="absolute inset-0 bg-[url('/grainy.png')] opacity-[0.02] dark:opacity-[0.03] pointer-events-none z-0" />
     
-    <div className="relative z-10 px-8 py-6 border-b-2 border-zinc-50 flex items-center justify-between bg-zinc-50/30">
+    <div className="relative z-10 px-8 py-6 border-b-2 border-zinc-50 dark:border-zinc-800 flex items-center justify-between bg-zinc-50/30 dark:bg-zinc-900/30">
       <div className="flex items-center gap-4">
-        <div className="p-2.5 bg-white rounded-2xl border-2 border-zinc-100 text-purple-600 shadow-sm">
+        <div className="p-2.5 bg-white dark:bg-zinc-900 rounded-2xl border-2 border-zinc-100 dark:border-zinc-800 text-purple-600 shadow-sm">
           <Icon size={18} strokeWidth={3} />
         </div>
         <div>
-          <span className="text-[10px] font-black uppercase tracking-[0.3em] text-zinc-400 block mb-0.5">Developer Updates</span>
-          <h3 className="text-sm font-black text-zinc-900 uppercase tracking-widest">{title}</h3>
+          <span className="text-[10px] font-black uppercase tracking-[0.3em] text-zinc-400 dark:text-zinc-500 block mb-0.5">Developer Updates</span>
+          <h3 className="text-sm font-black text-zinc-900 dark:text-white uppercase tracking-widest">{title}</h3>
         </div>
       </div>
       {action}
     </div>
-    <div className="relative z-10 flex-1 bg-white min-h-0 flex flex-col overflow-hidden">
+    <div className="relative z-10 flex-1 bg-white dark:bg-transparent min-h-0 flex flex-col overflow-hidden">
       {children}
     </div>
   </div>
@@ -138,17 +138,17 @@ export default function MailSection() {
       <div className="mb-12">
         <div className="flex items-center gap-2 mb-3">
           <Terminal size={14} className="text-purple-600" strokeWidth={3} />
-          <span className="text-[10px] font-black uppercase tracking-[0.3em] text-zinc-400">
+          <span className="text-[10px] font-black uppercase tracking-[0.3em] text-zinc-400 dark:text-zinc-500">
             Telemetry / Broadcast Protocol
           </span>
         </div>
-        <h1 className="text-5xl font-black tracking-tighter text-zinc-900 uppercase leading-none mb-4">
+        <h1 className="text-5xl font-black tracking-tighter text-zinc-900 dark:text-white uppercase leading-none mb-4">
           Updates & Messages<span className="text-purple-600">.</span>
         </h1>
-        <p className="text-zinc-500 font-bold text-sm leading-relaxed max-w-lg">
+        <p className="text-zinc-500 dark:text-zinc-400 font-bold text-sm leading-relaxed max-w-lg">
           Audit real-time broadcast logs, system notifications, and synchronized project telemetry updates.
         </p>
-        <div className="h-1 w-12 bg-zinc-100 mt-6 rounded-full" />
+        <div className="h-1 w-12 bg-zinc-100 dark:bg-zinc-800 mt-6 rounded-full" />
       </div>
 
       <TelemetryNode
@@ -156,23 +156,15 @@ export default function MailSection() {
         icon={Inbox}
         action={
           <div className="relative" ref={filterRef}>
-            {/* <button
-              onClick={() => setIsFilterOpen(!isFilterOpen)}
-              className={`flex items-center gap-2 px-5 py-2.5 rounded-xl font-black text-[10px] uppercase tracking-widest border-2 transition-all active:scale-95 ${isFilterOpen ? 'bg-zinc-900 border-zinc-900 text-white' : 'bg-white border-zinc-100 text-zinc-500 hover:border-zinc-200'}`}
-            >
-              <Filter size={14} strokeWidth={3} />
-              Filter Matrix
-            </button> */}
-
             <AnimatePresence>
               {isFilterOpen && (
                 <motion.div 
                   initial={{ opacity: 0, y: 10, scale: 0.95 }}
                   animate={{ opacity: 1, y: 0, scale: 1 }}
                   exit={{ opacity: 0, y: 10, scale: 0.95 }}
-                  className="absolute right-0 top-full mt-3 w-56 bg-white border-2 border-zinc-100 rounded-3xl shadow-2xl z-50 overflow-hidden"
+                  className="absolute right-0 top-full mt-3 w-56 bg-white dark:bg-[#0A0A0A] border-2 border-zinc-100 dark:border-zinc-800 rounded-3xl shadow-2xl z-50 overflow-hidden"
                 >
-                  <div className="p-4 bg-zinc-50 border-b-2 border-zinc-100 text-[9px] font-black text-zinc-400 uppercase tracking-[0.2em]">Sort Protocol</div>
+                  <div className="p-4 bg-zinc-50 dark:bg-zinc-900 border-b-2 border-zinc-100 dark:border-zinc-800 text-[9px] font-black text-zinc-400 dark:text-zinc-500 uppercase tracking-[0.2em]">Sort Protocol</div>
                   <div className="p-2 space-y-1">
                     {[
                       { key: 'date', label: 'Timestamp', icon: Calendar },
@@ -181,7 +173,7 @@ export default function MailSection() {
                       <button
                         key={opt.key}
                         onClick={() => handleSort(opt.key as SortKey)}
-                        className={`w-full flex items-center justify-between p-3 rounded-2xl transition-all group ${sortKey === opt.key ? 'bg-purple-50 text-purple-600' : 'hover:bg-zinc-50 text-zinc-500'}`}
+                        className={`w-full flex items-center justify-between p-3 rounded-2xl transition-all group ${sortKey === opt.key ? 'bg-purple-50 dark:bg-purple-900/20 text-purple-600' : 'hover:bg-zinc-50 dark:hover:bg-zinc-900 text-zinc-500'}`}
                       >
                         <div className="flex items-center gap-3">
                           <opt.icon size={14} strokeWidth={3} />
@@ -200,15 +192,15 @@ export default function MailSection() {
         {loading ? (
           <div className="flex flex-col items-center justify-center h-full">
             <Loader2 className="w-10 h-10 animate-spin text-purple-600 mb-4" strokeWidth={3} />
-            <span className="text-[10px] font-black uppercase tracking-widest text-zinc-400">Syncing...</span>
+            <span className="text-[10px] font-black uppercase tracking-widest text-zinc-400 dark:text-zinc-500">Syncing...</span>
           </div>
         ) : updates.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-full p-10 text-center">
-            <div className="w-20 h-20 bg-zinc-50 rounded-[32px] border-2 border-zinc-100 flex items-center justify-center mb-6 text-zinc-200">
+            <div className="w-20 h-20 bg-zinc-50 dark:bg-zinc-900 rounded-[32px] border-2 border-zinc-100 dark:border-zinc-800 flex items-center justify-center mb-6 text-zinc-200 dark:text-zinc-700">
               <Bell size={40} strokeWidth={2.5} />
             </div>
-            <h3 className="text-lg font-black text-zinc-900 uppercase tracking-tighter mb-2">Streams Nominal</h3>
-            <p className="text-zinc-500 font-bold text-sm max-w-xs">No Blog updates fetched.</p>
+            <h3 className="text-lg font-black text-zinc-900 dark:text-white uppercase tracking-tighter mb-2">Streams Nominal</h3>
+            <p className="text-zinc-500 dark:text-zinc-400 font-bold text-sm max-w-xs">No Blog updates fetched.</p>
           </div>
         ) : (
           <div className="overflow-y-auto h-full p-4 space-y-3 custom-scrollbar">
@@ -216,37 +208,37 @@ export default function MailSection() {
               <div
                 key={update.id}
                 onClick={() => setSelectedUpdate(update)}
-                className="group relative p-6 bg-white border-2 border-zinc-50 rounded-[32px] hover:border-purple-600 hover:bg-zinc-50/50 transition-all cursor-pointer flex flex-col md:flex-row md:items-center justify-between gap-6"
+                className="group relative p-6 bg-white dark:bg-zinc-900/30 border-2 border-zinc-50 dark:border-zinc-800 rounded-[32px] hover:border-purple-600 hover:bg-zinc-50/50 dark:hover:bg-zinc-800/50 transition-all cursor-pointer flex flex-col md:flex-row md:items-center justify-between gap-6"
               >
                 <div className="flex items-center gap-5">
                   <div className="relative shrink-0">
-                    <div className="w-14 h-14 rounded-2xl bg-zinc-50 border-2 border-zinc-100 overflow-hidden flex items-center justify-center">
+                    <div className="w-14 h-14 rounded-2xl bg-zinc-50 dark:bg-zinc-800 border-2 border-zinc-100 dark:border-zinc-700 overflow-hidden flex items-center justify-center">
                       {update.users?.metadata?.avatar_url ? (
-                        <img src={update.users.metadata.avatar_url} className="w-full h-full object-cover" />
+                        <img src={update.users.metadata.avatar_url} className="w-full h-full object-cover" alt="User Avatar" />
                       ) : (
-                        <span className="text-xs font-black text-zinc-400">{getInitials(update.users?.name, update.users?.surname)}</span>
+                        <span className="text-xs font-black text-zinc-400 dark:text-zinc-500">{getInitials(update.users?.name, update.users?.surname)}</span>
                       )}
                     </div>
-                    <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-emerald-500 border-2 border-white rounded-full" />
+                    <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-emerald-500 border-2 border-white dark:border-zinc-900 rounded-full shadow-sm shadow-emerald-500/50" />
                   </div>
 
                   <div className="space-y-1">
                     <div className="flex items-center gap-2">
-                       <h4 className="text-base font-black text-zinc-900 tracking-tight group-hover:text-purple-600 transition-colors uppercase">
+                       <h4 className="text-base font-black text-zinc-900 dark:text-white tracking-tight group-hover:text-purple-600 dark:group-hover:text-purple-400 transition-colors uppercase">
                         {update.title || "Transmission"}
                       </h4>
-                      {update.version && <span className="text-[9px] font-black bg-zinc-900 text-white px-2 py-0.5 rounded-md uppercase tracking-widest">v{update.version}</span>}
+                      {update.version && <span className="text-[9px] font-black bg-zinc-900 dark:bg-zinc-100 text-white dark:text-black px-2 py-0.5 rounded-md uppercase tracking-widest">v{update.version}</span>}
                     </div>
-                    <p className="text-xs font-bold text-zinc-400 line-clamp-1 max-w-md">{update.description}</p>
+                    <p className="text-xs font-bold text-zinc-400 dark:text-zinc-500 line-clamp-1 max-w-md">{update.description}</p>
                   </div>
                 </div>
 
                 <div className="flex items-center gap-4">
                   <div className="text-right hidden sm:block">
-                    <div className="text-[10px] font-black uppercase tracking-widest text-zinc-900">{update.users?.name || "System"}</div>
-                    <div className="text-[9px] font-bold text-zinc-400 uppercase tracking-tighter">{formatDate(update.created_at)}</div>
+                    <div className="text-[10px] font-black uppercase tracking-widest text-zinc-900 dark:text-zinc-300">{update.users?.name || "System"}</div>
+                    <div className="text-[9px] font-bold text-zinc-400 dark:text-zinc-500 uppercase tracking-tighter">{formatDate(update.created_at)}</div>
                   </div>
-                  <div className="w-10 h-10 rounded-xl bg-zinc-50 flex items-center justify-center text-zinc-300 group-hover:bg-purple-600 group-hover:text-white transition-all">
+                  <div className="w-10 h-10 rounded-xl bg-zinc-50 dark:bg-zinc-800 flex items-center justify-center text-zinc-300 dark:text-zinc-600 group-hover:bg-purple-600 group-hover:text-white transition-all">
                     <ChevronRight size={20} strokeWidth={3} />
                   </div>
                 </div>
@@ -260,54 +252,54 @@ export default function MailSection() {
       <AnimatePresence>
         {selectedUpdate && (
           <div className="fixed inset-0 z-[100] flex items-center justify-center p-6">
-            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setSelectedUpdate(null)} className="absolute inset-0 bg-white/80 backdrop-blur-xl" />
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setSelectedUpdate(null)} className="absolute inset-0 bg-white/80 dark:bg-black/80 backdrop-blur-xl" />
             
             <motion.div 
               initial={{ opacity: 0, scale: 0.9, y: 20 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.9, y: 20 }}
-              className="relative w-full max-w-3xl bg-white border-2 border-zinc-100 rounded-[40px] shadow-2xl flex flex-col max-h-[85vh] overflow-hidden"
+              className="relative w-full max-w-3xl bg-white dark:bg-[#0A0A0A] border-2 border-zinc-100 dark:border-zinc-800 rounded-[40px] shadow-2xl flex flex-col max-h-[85vh] overflow-hidden"
             >
               <div className="absolute inset-0 bg-[url('/grainy.png')] opacity-[0.03] pointer-events-none" />
               
-              <div className="relative z-10 p-10 border-b-2 border-zinc-50 bg-zinc-50/30 flex items-start justify-between">
+              <div className="relative z-10 p-10 border-b-2 border-zinc-50 dark:border-zinc-800 bg-zinc-50/30 dark:bg-zinc-900/30 flex items-start justify-between">
                 <div className="flex items-start gap-6">
-                  <div className="w-16 h-16 rounded-[20px] bg-white border-2 border-zinc-100 shadow-sm flex items-center justify-center shrink-0 overflow-hidden">
+                  <div className="w-16 h-16 rounded-[20px] bg-white dark:bg-zinc-900 border-2 border-zinc-100 dark:border-zinc-800 shadow-sm flex items-center justify-center shrink-0 overflow-hidden">
                     {selectedUpdate.users?.metadata?.avatar_url ? (
-                      <img src={selectedUpdate.users.metadata.avatar_url} className="w-full h-full object-cover" />
+                      <img src={selectedUpdate.users.metadata.avatar_url} className="w-full h-full object-cover" alt="Detail Avatar" />
                     ) : (
-                      <span className="text-sm font-black text-zinc-400">{getInitials(selectedUpdate.users?.name, selectedUpdate.users?.surname)}</span>
+                      <span className="text-sm font-black text-zinc-400 dark:text-zinc-500">{getInitials(selectedUpdate.users?.name, selectedUpdate.users?.surname)}</span>
                     )}
                   </div>
                   <div className="space-y-3">
                     <div className="flex items-center gap-3">
-                      <h2 className="text-3xl font-black tracking-tighter text-zinc-900 uppercase">{selectedUpdate.title || "Transmission"}</h2>
+                      <h2 className="text-3xl font-black tracking-tighter text-zinc-900 dark:text-white uppercase">{selectedUpdate.title || "Transmission"}</h2>
                       {selectedUpdate.tag && (
                          <span className="px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest border-2" style={{ borderColor: selectedUpdate.tag.tag_color, color: selectedUpdate.tag.tag_color }}>
                             {selectedUpdate.tag.tag}
                          </span>
                       )}
                     </div>
-                    <div className="flex items-center gap-4 text-[10px] font-black uppercase tracking-[0.2em] text-zinc-400">
-                      <span className="flex items-center gap-2"><User size={14} strokeWidth={3} className="text-purple-600" /> {selectedUpdate.users?.name} {selectedUpdate.users?.surname}</span>
-                      <span className="flex items-center gap-2"><Calendar size={14} strokeWidth={3} className="text-purple-600" /> {formatDate(selectedUpdate.created_at)}</span>
+                    <div className="flex items-center gap-4 text-[10px] font-black uppercase tracking-[0.2em] text-zinc-400 dark:text-zinc-500">
+                      <span className="flex items-center gap-2"><User size={14} strokeWidth={3} className="text-purple-600 dark:text-purple-400" /> {selectedUpdate.users?.name} {selectedUpdate.users?.surname}</span>
+                      <span className="flex items-center gap-2"><Calendar size={14} strokeWidth={3} className="text-purple-600 dark:text-purple-400" /> {formatDate(selectedUpdate.created_at)}</span>
                     </div>
                   </div>
                 </div>
-                <button onClick={() => setSelectedUpdate(null)} className="p-3 bg-white border-2 border-zinc-100 rounded-2xl text-zinc-400 hover:text-zinc-900 transition-colors shadow-sm"><X size={20} strokeWidth={3} /></button>
+                <button onClick={() => setSelectedUpdate(null)} className="p-3 bg-white dark:bg-zinc-900 border-2 border-zinc-100 dark:border-zinc-800 rounded-2xl text-zinc-400 dark:text-zinc-500 hover:text-zinc-900 dark:hover:text-white transition-colors shadow-sm"><X size={20} strokeWidth={3} /></button>
               </div>
 
               <div className="relative z-10 p-10 overflow-y-auto flex-1 custom-scrollbar">
-                <div className="prose prose-zinc max-w-none">
+                <div className="prose dark:prose-invert prose-zinc max-w-none">
                   {selectedUpdate.description?.split('\n').map((paragraph, idx) => (
-                    <p key={idx} className="text-zinc-500 font-bold text-lg leading-relaxed mb-6 last:mb-0">{paragraph}</p>
+                    <p key={idx} className="text-zinc-500 dark:text-zinc-400 font-bold text-lg leading-relaxed mb-6 last:mb-0">{paragraph}</p>
                   ))}
-                  {!selectedUpdate.description && <p className="text-zinc-300 font-black uppercase tracking-widest text-center py-10">Stream Empty / No Data Logged</p>}
+                  {!selectedUpdate.description && <p className="text-zinc-300 dark:text-zinc-700 font-black uppercase tracking-widest text-center py-10">Stream Empty / No Data Logged</p>}
                 </div>
               </div>
 
-              <div className="relative z-10 p-8 border-t-2 border-zinc-50 bg-zinc-50/50 flex justify-end">
-                <button onClick={() => setSelectedUpdate(null)} className="px-10 py-4 bg-[#202124] text-white rounded-2xl font-black uppercase text-[10px] tracking-widest shadow-xl shadow-zinc-900/10 active:scale-95 transition-all">Close</button>
+              <div className="relative z-10 p-8 border-t-2 border-zinc-50 dark:border-zinc-800 bg-zinc-50/50 dark:bg-zinc-900/30 flex justify-end">
+                <button onClick={() => setSelectedUpdate(null)} className="px-10 py-4 bg-[#202124] dark:bg-white text-white dark:text-black rounded-2xl font-black uppercase text-[10px] tracking-widest shadow-xl shadow-zinc-900/10 dark:shadow-black/50 active:scale-95 transition-all">Close</button>
               </div>
             </motion.div>
           </div>

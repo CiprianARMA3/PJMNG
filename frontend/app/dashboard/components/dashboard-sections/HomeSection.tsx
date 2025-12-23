@@ -1,16 +1,44 @@
-// frontend/app/dashboard/components/dashboard-sections/HomeSection.tsx
 "use client";
 
 import { useEffect, useState } from "react";
 import { createClient } from "@/utils/supabase/client";
-import { Loader2, FolderOpen } from "lucide-react";
+import { Loader2, FolderOpen, LayoutGrid } from "lucide-react";
 import ProjectTemplate, { ProjectData } from "../projects/Project";
 import AddProjectButton from "../projects/component/addMore";
+import { motion, Variants } from "framer-motion";
 
 interface HomeSectionProps {
   user: any;
   userName: string;
 }
+
+/**
+ * MOTION PROTOCOL: 
+ * Explicitly typed Variants to prevent TypeScript "String Widening" errors.
+ */
+const containerVariants: Variants = {
+  hidden: { opacity: 0 },
+  visible: {
+    opacity: 1,
+    transition: { 
+      staggerChildren: 0.1, 
+      delayChildren: 0.2 
+    }
+  }
+};
+
+const itemVariants: Variants = {
+  hidden: { opacity: 0, y: 20 },
+  visible: { 
+    opacity: 1, 
+    y: 0, 
+    transition: { 
+      type: "spring", 
+      stiffness: 260, 
+      damping: 20 
+    } 
+  }
+};
 
 export default function HomeSection({ user, userName }: HomeSectionProps) {
   const supabase = createClient();
@@ -20,13 +48,11 @@ export default function HomeSection({ user, userName }: HomeSectionProps) {
   useEffect(() => {
     const fetchProjects = async () => {
       if (!user?.id) return;
-
       try {
         const { data, error } = await supabase
           .from("projects")
           .select("*")
           .order("created_at", { ascending: false });
-
         if (error) throw error;
         setProjects(data || []);
       } catch (error) {
@@ -35,61 +61,102 @@ export default function HomeSection({ user, userName }: HomeSectionProps) {
         setLoading(false);
       }
     };
-
     fetchProjects();
-  }, [user?.id]);
+  }, [user?.id, supabase]);
 
   if (loading) {
     return (
-      <div className="flex h-64 items-center justify-center">
-        <div className="flex flex-col items-center gap-3">
-          <Loader2 className="h-6 w-6 animate-spin text-neutral-600" />
-          <span className="text-xs text-neutral-500 font-medium">Loading workspace...</span>
-        </div>
-      </div>
+      <motion.div 
+        initial={{ opacity: 0 }} 
+        animate={{ opacity: 1 }}
+        className="flex h-96 flex-col items-center justify-center bg-zinc-50/50 dark:bg-zinc-900/30 rounded-[40px] border-2 border-dashed border-zinc-100 dark:border-zinc-800"
+      >
+        <Loader2 className="h-10 w-10 animate-spin text-purple-600 mb-4" strokeWidth={3} />
+        <span className="text-[10px] font-black uppercase tracking-[0.3em] text-zinc-400">
+          Initializing Workspace Node...
+        </span>
+      </motion.div>
     );
   }
 
   return (
-    <div className="space-y-8 animate-in fade-in duration-500">
-      {/* Header */}
-<div className="flex flex-col md:flex-row md:items-end justify-between gap-8 mb-12 animate-in fade-in slide-in-from-top-4 duration-700">
-    
-    {/* LEFT: SESSION GREETING */}
-    <div className="space-y-1">
-        {/* Session Metadata Tag */}
-        <div className="flex items-center gap-2 mb-3">
-            <span className="text-[10px] font-black uppercase tracking-[0.3em] text-zinc-400">
-                Authorized Node / Session Initialized
+    <div className="space-y-12 pb-20">
+      
+      {/* --- HEADER BLOCK --- */}
+      <motion.header 
+        initial={{ opacity: 0, x: -20 }}
+        animate={{ opacity: 1, x: 0 }}
+        transition={{ duration: 0.6, ease: "easeOut" }}
+        className="flex flex-col md:flex-row md:items-end justify-between gap-8 mb-16 px-2"
+      >
+        <div className="space-y-1">
+          <div className="flex items-center gap-2 mb-4">
+            <span className="text-[10px] font-black uppercase tracking-[0.3em] text-zinc-400 dark:text-zinc-500">
+              Session secured by KAPRYDEV
+            </span>
+          </div>
+
+          <h1 className="text-4xl md:text-6xl font-black tracking-tighter text-zinc-900 dark:text-white uppercase leading-none">
+            Welcome back, {userName}<span className="text-purple-600">.</span>
+          </h1>
+
+          <p className="text-zinc-500 dark:text-zinc-400 font-bold text-sm leading-relaxed max-w-md mt-6">
+            Audit your active workspace projects and monitor real-time status across the development ecosystem.
+          </p>
+        </div>
+      </motion.header>
+
+      {/* --- INFRASTRUCTURE GRID --- */}
+      <motion.section 
+        variants={containerVariants}
+        initial="hidden"
+        animate="visible"
+        className="space-y-6"
+      >
+        {/* Matrix Header Label */}
+        <div className="flex items-center gap-2 px-4">
+            <LayoutGrid size={14} className="text-purple-600" strokeWidth={3} />
+            <span className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-400 dark:text-zinc-500">
+                Projects
             </span>
         </div>
 
-        {/* Main Title */}
-        <h1 className="text-4xl md:text-6xl font-black tracking-tighter text-zinc-900 uppercase leading-none">
-            Welcome back, {userName}<span className="text-purple-600">.</span>
-        </h1>
+        {/* The Staggered Grid */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+          {projects.map((project) => (
+            <motion.div 
+              key={project.id} 
+              variants={itemVariants}
+              whileHover={{ y: -8 }}
+              className="relative"
+            >
+              <ProjectTemplate project={project} creatorName={userName} />
+            </motion.div>
+          ))}
 
-        {/* Description */}
-      <p className="text-zinc-500 font-bold text-sm leading-relaxed max-w-md mt-4">
-          Audit your active workspace clusters and monitor real-time status across the development ecosystem of your projects.
-      </p>
-    </div>
-</div>
+          {/* Add Project Action Node */}
+          <motion.div variants={itemVariants} whileHover={{ y: -8 }}>
+            <AddProjectButton />
+          </motion.div>
+        </div>
+      </motion.section>
 
-      {/* Projects Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 pb-12">
-        {/* Render Active Projects */}
-        {projects.map((project) => (
-          <ProjectTemplate
-            key={project.id}
-            project={project}
-            creatorName={userName}
-          />
-        ))}
-
-        {/* Render "Create New" Card as the last item */}
-        <AddProjectButton />
-      </div>
+      {/* --- EMPTY STATE PROTOCOL --- */}
+      {!loading && projects.length === 0 && (
+        <motion.div 
+          initial={{ opacity: 0, scale: 0.95 }}
+          animate={{ opacity: 1, scale: 1 }}
+          className="flex flex-col items-center justify-center p-20 bg-zinc-50/50 dark:bg-zinc-900/30 border-2 border-zinc-100 dark:border-zinc-800 rounded-[40px] text-center"
+        >
+            <FolderOpen size={48} className="text-zinc-200 dark:text-zinc-700 mb-6" strokeWidth={1.5} />
+            <h3 className="text-lg font-black text-zinc-900 dark:text-white uppercase tracking-tighter">
+              No Clusters Detected
+            </h3>
+            <p className="text-zinc-400 dark:text-zinc-500 font-bold text-xs uppercase tracking-widest mt-2">
+              Initialize your first deployment node to begin.
+            </p>
+        </motion.div>
+      )}
     </div>
   );
 }
