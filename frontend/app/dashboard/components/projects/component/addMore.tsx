@@ -139,7 +139,7 @@ export default function AddProjectButton() {
               <h3 className={`text-sm font-medium text-neutral-300 light:text-neutral-700 transition-colors ${isOpen ? 'text-white light:text-black' : 'group-hover:text-white light:group-hover:text-black'}`}>
                 Add Project
               </h3>
-              <p className="text-xs text-neutral-500 light:text-neutral-500 group-hover:text-neutral-400 light:group-hover:text-neutral-600 transition-colors max-w-[180px]">
+              <p className="text-xs text-neutral-500 light:text-neutral-500 group-hover:text-neutral-400 light:group-hover:text-neutral-600 transition-colors max-w-[300px]">
                 Create a new workspace or join an existing team.
               </p>
             </div>

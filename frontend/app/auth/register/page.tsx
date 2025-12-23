@@ -3,28 +3,49 @@
 import { useState } from "react";
 import { createClient } from "@/utils/supabase/client";
 import useRedirectIfAuth from "@/hooks/useRedirectIfAuth";
-import Image from "next/image";
 import Link from "next/link";
+import { 
+  ArrowLeft, 
+  Github, 
+  Mail, 
+  Lock, 
+  Eye, 
+  EyeOff, 
+  Terminal, 
+  Chrome, 
+  UserPlus,
+  Sparkles,
+  ShieldCheck,
+  Zap,
+  Check
+} from "lucide-react";
+import AuroraBackground from "@/app/components/AuroraBackground";
+import { motion } from "framer-motion";
 
 const supabase = createClient();
 
 export default function RegisterPage() {
-  useRedirectIfAuth(); // redirect if logged in
+  useRedirectIfAuth(); 
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
+  
+  // NEW STATES FOR CONSENT
+  const [agreedToTerms, setAgreedToTerms] = useState(false);
+  const [agreedToCookies, setAgreedToCookies] = useState(false);
+
   const [errorMsg, setErrorMsg] = useState("");
   const [successMsg, setSuccessMsg] = useState("");
   const [loading, setLoading] = useState(false);
 
+  // --- PRESERVED BACKEND LOGIC ---
   const handleRegister = async () => {
     setErrorMsg("");
     setSuccessMsg("");
     setLoading(true);
 
     try {
-      // 1️⃣ Check users table for existing profile
       const { data: existingUser } = await supabase
         .from("users")
         .select("id")
@@ -37,7 +58,6 @@ export default function RegisterPage() {
         return;
       }
 
-      // 2️⃣ Sign up via Supabase Auth
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
@@ -49,7 +69,6 @@ export default function RegisterPage() {
       if (error) {
         setErrorMsg(error.message);
       } else if (data.user) {
-        // Create user profile in database but don't log them in
         const { error: dbError } = await supabase
           .from("users")
           .insert({
@@ -70,8 +89,7 @@ export default function RegisterPage() {
           console.error('Database error:', dbError);
         }
 
-        setSuccessMsg("Check your email to confirm your account! After verification, you'll need to sign in manually.");
-        // Reset form
+        setSuccessMsg("Check your email to confirm your account!");
         setEmail("");
         setPassword("");
       }
@@ -85,206 +103,194 @@ export default function RegisterPage() {
   const handleOAuthLogin = async (provider: 'github' | 'google') => {
     const { error } = await supabase.auth.signInWithOAuth({
       provider,
-      options: {
-        redirectTo: `${window.location.origin}/auth/callback`
-      }
+      options: { redirectTo: `${window.location.origin}/auth/callback` }
     });
-
-    if (error) {
-      setErrorMsg(error.message);
-    }
+    if (error) setErrorMsg(error.message);
   };
 
   return (
-    <div className="min-h-screen flex font-sans">
+    <div className="min-h-screen flex bg-white font-sans selection:bg-purple-100">
       
-      {/* LEFT SIDE - Visuals & Branding */}
-      <div className="hidden lg:flex flex-1 relative bg-black text-white overflow-hidden flex-col justify-end p-12">
+      {/* LEFT SIDE - Narrower Visual Branding (lg:w-[35%]) */}
+      <div className="hidden lg:flex lg:w-[35%] relative bg-zinc-50 overflow-hidden flex-col justify-center p-12 border-r-2 border-zinc-100">
+        <AuroraBackground />
+        <div className="absolute inset-0 bg-[url('/grainy.png')] opacity-[0.03] mix-blend-multiply pointer-events-none" />
         
-        {/* Abstract Background Elements - UPDATED with Purple Tint */}
-        <div className="absolute top-0 left-0 w-full h-full bg-gradient-to-br from-purple-900/20 to-black z-0"></div>
-        
-        {/* Floating Code Card Effect */}
-        <div className="absolute top-20 left-10 w-[120%] opacity-90 transform -rotate-6 skew-y-3 z-10 pointer-events-none">
-          <div className="bg-[#0d1117] border border-gray-700 rounded-xl p-6 shadow-2xl text-xs md:text-sm font-mono text-gray-300">
-            <div className="flex gap-2 mb-4">
-               <div className="w-3 h-3 rounded-full bg-red-500"></div>
-               <div className="w-3 h-3 rounded-full bg-yellow-500"></div>
-               <div className="w-3 h-3 rounded-full bg-green-500"></div>
-            </div>
-            <p><span className="text-purple-400">import</span> OpenAI <span className="text-purple-400">from</span> <span className="text-green-400">'openai'</span>;</p>
-            <p className="mt-2"><span className="text-blue-400">const</span> openai = <span className="text-blue-400">new</span> <span className="text-yellow-400">OpenAI</span>({`{`}</p>
-            <p className="pl-4">apiKey: <span className="text-green-400">"YOUR_API_KEY"</span>,</p>
-            <p className="pl-4">baseURL: <span className="text-green-400">"https://api.kaprydev.com/v1"</span>,</p>
-            <p className="pl-4">dangerouslyAllowBrowser: <span className="text-blue-400">true</span></p>
-            <p>{`});`}</p>
-            <p className="mt-4"><span className="text-blue-400">const</span> completion = <span className="text-purple-400">await</span> openai.chat.completions.<span className="text-yellow-400">create</span>({`{`}</p>
-            <p className="pl-4">messages: [{`{`} role: <span className="text-green-400">"system"</span>, content: <span className="text-green-400">"You are a helpful assistant."</span> {`}`}],</p>
-            <p className="pl-4">model: <span className="text-green-400">"gpt-4-turbo"</span>,</p>
-            <p>{`});`}</p>
-            <div className="mt-4 text-gray-500">// Initialize powerful AI features instantly</div>
-          </div>
-        </div>
+        <div className="relative z-20 space-y-6">
+          <motion.div
+            initial={{ opacity: 0, x: -20 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ duration: 0.6 }}
+          >
+            <h2 className="text-4xl xl:text-5xl font-black tracking-tighter text-zinc-900 leading-[0.95] mb-6">
+              Join the developer <br /> 
+              <span className="text-purple-600">revolution.</span>
+            </h2>
+            <p className="text-zinc-500 text-base font-bold max-w-xs leading-relaxed">
+              Deploy your account today and gain immediate access to our specialized AI implementations.
+            </p>
+          </motion.div>
 
-        {/* Text Content */}
-        <div className="relative z-20 mt-auto mb-10">
-          <h1 className="text-4xl md:text-5xl font-bold leading-tight mb-4">
-            Join the Developer<br />
-            Revolution
-          </h1>
-          <p className="text-gray-400 text-lg max-w-xl">
-            Start building with Text-to-Image, Text-to-Video, Music Generation, 
-            Voice, and advanced Vision models today.
-          </p>
+          <div className="pt-8 flex flex-wrap gap-4 opacity-30 grayscale scale-90 origin-left">
+            <Sparkles size={28} />
+            <Terminal size={28} />
+            <ShieldCheck size={28} />
+          </div>
         </div>
       </div>
 
-      {/* RIGHT SIDE - Registration Form */}
-      <div className="flex-1 bg-white flex flex-col items-center justify-center p-6 sm:p-12 relative overflow-y-auto">
+      {/* RIGHT SIDE - Larger Form Area */}
+      <div className="flex-1 bg-white flex flex-col items-center justify-center p-8 relative overflow-y-auto">
+        <div className="absolute inset-0 bg-[url('/grainy.png')] opacity-[0.02] pointer-events-none" />
         
-        {/* --- ADDED: GO BACK LINK --- */}
         <Link 
           href="/" 
-          className="absolute top-6 left-6 flex items-center gap-2 text-sm text-gray-500 hover:text-gray-900 transition-colors z-50 group"
+          className="absolute top-10 left-10 flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.2em] text-zinc-400 hover:text-purple-600 transition-all group z-50"
         >
-          <svg 
-            className="w-4 h-4 transition-transform group-hover:-translate-x-1" 
-            fill="none" 
-            viewBox="0 0 24 24" 
-            stroke="currentColor"
-          >
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
-          </svg>
-          Back to Home
+          <ArrowLeft size={14} className="transition-transform group-hover:-translate-x-1" strokeWidth={3} />
+          Return to Home
         </Link>
-        {/* --------------------------- */}
 
-        <div className="w-full max-w-md space-y-6">
+        <div className="w-full max-w-[420px] space-y-8 relative z-10 py-12">
           
-          {/* Logo Area */}
-          <div className="flex flex-col items-center mb-4">
-            <div className="flex flex-col leading-none text-gray-900 mb-2">
-              <span className="text-6xl font-normal tracking-wide">
-                KAPR<span className="text-purple-600 font-normal">Y</span>
-              </span>
-              <span className="text-5xl font-black tracking-tight -mt-1">
-                DEV
-              </span>
+          <div className="flex flex-col items-start">
+            <div className="flex flex-col leading-none text-zinc-900">
+              <span className="text-5xl font-normal tracking-tight">KAPR<span className="text-purple-600">Y</span></span>
+              <span className="text-4xl font-black tracking-tighter -mt-1">DEV</span>
             </div>          
           </div>
 
-          {/* Messages */}
           {errorMsg && (
-            <div className="p-3 bg-red-50 border border-red-200 text-red-600 text-sm rounded-lg text-center shadow-sm">
+            <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }}
+              className="p-4 bg-red-50 border-2 border-red-100 text-red-600 text-[13px] font-bold rounded-2xl text-center shadow-sm"
+            >
               {errorMsg}
-            </div>
+            </motion.div>
           )}
           {successMsg && (
-            <div className="p-3 bg-green-50 border border-green-200 text-green-700 text-sm rounded-lg text-center shadow-sm">
+            <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }}
+              className="p-4 bg-emerald-50 border-2 border-emerald-100 text-emerald-700 text-[13px] font-bold rounded-2xl text-center shadow-sm"
+            >
               {successMsg}
-            </div>
+            </motion.div>
           )}
 
-          {/* Social Logins */}
-          <div className="space-y-3">
+          <div className="grid grid-cols-2 gap-4">
             <button
               onClick={() => handleOAuthLogin('google')}
               disabled={loading}
-              className="w-full flex items-center justify-center gap-3 px-4 py-3 border border-gray-200 rounded-lg text-gray-700 hover:bg-gray-50 font-medium transition-all shadow-sm"
+              className="flex items-center justify-center gap-3 px-4 py-4 border-2 border-zinc-100 rounded-[20px] text-zinc-900 font-black text-[12px] uppercase tracking-widest hover:bg-zinc-50 hover:border-purple-200 transition-all shadow-sm active:scale-95 disabled:opacity-50"
             >
-              <img src="https://www.svgrepo.com/show/475656/google-color.svg" alt="Google" className="w-5 h-5" />
-              Sign up with Google
+              <Chrome size={18} strokeWidth={2.5} /> Google
             </button>
             <button
               onClick={() => handleOAuthLogin('github')}
               disabled={loading}
-              className="w-full flex items-center justify-center gap-3 px-4 py-3 bg-gray-900 text-white rounded-lg hover:bg-gray-800 font-medium transition-all shadow-sm"
+              className="flex items-center justify-center gap-3 px-4 py-4 bg-[#202124] text-white rounded-[20px] font-black text-[12px] uppercase tracking-widest hover:bg-black transition-all shadow-xl active:scale-95 disabled:opacity-50"
             >
-              <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/></svg>
-              Sign up with GitHub
+              <Github size={18} strokeWidth={2.5} /> GitHub
             </button>
           </div>
 
-          <div className="relative">
-            <div className="absolute inset-0 flex items-center">
-              <div className="w-full border-t border-gray-200"></div>
-            </div>
-            <div className="relative flex justify-center text-sm">
-              <span className="px-2 bg-white text-gray-400">Or register with email</span>
-            </div>
+          <div className="relative py-2">
+            <div className="absolute inset-0 flex items-center"><div className="w-full border-t-2 border-zinc-50"></div></div>
+            <div className="relative flex justify-center text-[10px]"><span className="px-4 bg-white text-zinc-400 font-black uppercase tracking-widest">New Node Registration</span></div>
           </div>
 
-          {/* Tab Switcher - 'Sign Up' active */}
-          <div className="bg-gray-100 p-1 rounded-xl flex mb-6">
+          <div className="bg-zinc-50 p-1.5 rounded-2xl flex border-2 border-zinc-100">
             <Link 
               href="/auth/login" 
-              className="flex-1 text-gray-500 py-2 rounded-lg text-sm font-medium text-center hover:text-gray-700 transition-all"
+              className="flex-1 text-zinc-400 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest text-center hover:text-zinc-900 transition-all"
             >
               Sign In
             </Link>
-            <button className="flex-1 bg-white shadow-sm text-gray-900 py-2 rounded-lg text-sm font-semibold transition-all">
+            <div className="flex-1 bg-white shadow-md text-zinc-900 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest text-center border border-zinc-100">
               Sign Up
-            </button>
+            </div>
           </div>
 
-          {/* Form */}
           <div className="space-y-4">
-            <div>
+            <div className="relative group">
+              <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-300 group-focus-within:text-purple-600 transition-colors" size={18} strokeWidth={2.5} />
               <input
                 type="email"
-                placeholder="Email address"
+                placeholder="EMAIL ADDRESS"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 disabled={loading}
-                className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg focus:bg-white focus:ring-2 focus:ring-gray-900 focus:border-transparent outline-none transition-all"
+                className="w-full pl-12 pr-4 py-4 bg-zinc-50 border-2 border-zinc-100 rounded-2xl focus:bg-white focus:border-purple-600 text-sm font-bold placeholder:text-zinc-300 outline-none transition-all"
               />
             </div>
-            <div className="relative">
+            <div className="relative group">
+              <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-300 group-focus-within:text-purple-600 transition-colors" size={18} strokeWidth={2.5} />
               <input
                 type={showPassword ? "text" : "password"}
-                placeholder="Create password"
+                placeholder="CREATE SECURITY KEY"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 disabled={loading}
-                className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg focus:bg-white focus:ring-2 focus:ring-gray-900 focus:border-transparent outline-none transition-all"
+                className="w-full pl-12 pr-12 py-4 bg-zinc-50 border-2 border-zinc-100 rounded-2xl focus:bg-white focus:border-purple-600 text-sm font-bold placeholder:text-zinc-300 outline-none transition-all"
               />
               <button
                 type="button"
                 onClick={() => setShowPassword(!showPassword)}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                className="absolute right-4 top-1/2 -translate-y-1/2 text-zinc-300 hover:text-zinc-900 transition-colors"
               >
-                {showPassword ? (
-                  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21" />
-                  </svg>
-                ) : (
-                  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                  </svg>
-                )}
+                {showPassword ? <EyeOff size={18} strokeWidth={2.5} /> : <Eye size={18} strokeWidth={2.5} />}
               </button>
+            </div>
+
+            {/* ADHERENCE BOXES SECTION */}
+            <div className="space-y-3 pt-2">
+              <label className="flex items-start gap-3 cursor-pointer group">
+                <div className="relative mt-0.5">
+                  <input 
+                    type="checkbox" 
+                    className="sr-only" 
+                    checked={agreedToTerms}
+                    onChange={() => setAgreedToTerms(!agreedToTerms)}
+                  />
+                  <div className={`w-5 h-5 rounded-md border-2 transition-all flex items-center justify-center ${agreedToTerms ? 'bg-purple-600 border-purple-600 shadow-lg shadow-purple-200' : 'border-zinc-200 bg-zinc-50 group-hover:border-zinc-300'}`}>
+                    {agreedToTerms && <Check size={12} className="text-white" strokeWidth={4} />}
+                  </div>
+                </div>
+                <span className="text-[11px] font-bold text-zinc-500 leading-tight">
+                  I adhere to the <Link href="/terms" className="text-purple-600 font-black hover:underline">Terms of Protocol</Link> and Security standards.
+                </span>
+              </label>
+
+              <label className="flex items-start gap-3 cursor-pointer group">
+                <div className="relative mt-0.5">
+                  <input 
+                    type="checkbox" 
+                    className="sr-only" 
+                    checked={agreedToCookies}
+                    onChange={() => setAgreedToCookies(!agreedToCookies)}
+                  />
+                  <div className={`w-5 h-5 rounded-md border-2 transition-all flex items-center justify-center ${agreedToCookies ? 'bg-purple-600 border-purple-600 shadow-lg shadow-purple-200' : 'border-zinc-200 bg-zinc-50 group-hover:border-zinc-300'}`}>
+                    {agreedToCookies && <Check size={12} className="text-white" strokeWidth={4} />}
+                  </div>
+                </div>
+                <span className="text-[11px] font-bold text-zinc-500 leading-tight mb-5">
+                  I accept the <Link href="/cookies" className="text-purple-600 font-black hover:underline">Cookie Policy</Link> for session management.
+                </span>
+              </label>
             </div>
             
             <button
               onClick={handleRegister}
-              disabled={loading || !email || !password}
-              className="w-full bg-gray-800 text-white font-semibold py-3 rounded-lg hover:bg-black transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              // UPDATED DISABLED LOGIC: Must agree to both
+              disabled={loading || !email || !password || !agreedToTerms || !agreedToCookies}
+              className="group w-full bg-[#202124] text-white font-black py-5 rounded-2xl hover:bg-black transition-all shadow-xl active:scale-[0.98] disabled:opacity-20 disabled:cursor-not-allowed uppercase text-xs tracking-[0.3em] flex items-center justify-center gap-2"
             >
-              {loading ? "Creating Account..." : "Create Account"}
+              {loading ? "Initializing..." : "Deploy Account"}
+              {!loading && <UserPlus size={14} className="fill-white" />}
             </button>
           </div>
 
-          {/* Footer Logos Area */}
-          <div className="pt-8 mt-4 border-t border-gray-100">
-            <p className="text-center text-xs text-gray-400 font-semibold mb-4 uppercase tracking-wider">Trusted by developers at</p>
-            <div className="flex justify-center gap-6 opacity-40 grayscale">
-              <div className="flex items-center gap-1 font-bold text-lg text-black">X</div>
-              <div className="flex items-center gap-1 font-bold text-lg text-black">Y</div>
-              <div className="flex items-center gap-1 font-bold text-lg text-black">Z</div>
-            </div>
+          <div className="text-center text-[10px] font-bold text-zinc-400">
+             Ensuring compliance with GDPR and high-level encryption standards.
           </div>
-
         </div>
       </div>
     </div>

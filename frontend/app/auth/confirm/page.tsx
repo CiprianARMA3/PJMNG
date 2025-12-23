@@ -4,12 +4,24 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/utils/supabase/client";
 import Link from "next/link";
+import { 
+  ShieldCheck, 
+  Loader2, 
+  CheckCircle2, 
+  AlertCircle, 
+  ArrowRight, 
+  ArrowLeft,
+  Terminal,
+  Zap
+} from "lucide-react";
+import AuroraBackground from "@/app/components/AuroraBackground";
+import { motion } from "framer-motion";
 
 const supabase = createClient();
 
 export default function ConfirmPage() {
   const router = useRouter();
-  const [message, setMessage] = useState("Verifying your email...");
+  const [message, setMessage] = useState("Initializing protocol...");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
 
@@ -20,35 +32,32 @@ export default function ConfirmPage() {
       const refresh_token = url.searchParams.get("refresh_token");
       const type = url.searchParams.get("type");
 
-      // Only process email verification type
       if (type !== "signup") {
-        setMessage("You can close this page.");
+        setMessage("Session type mismatch. Protocol closed.");
         setLoading(false);
         return;
       }
 
       if (!access_token || !refresh_token) {
-        setMessage("Invalid verification link.");
+        setMessage("Invalid verification token.");
         setLoading(false);
         return;
       }
 
       try {
-        // Set temporary session to get user info
+        setMessage("Syncing identity with core...");
         const { data: { user }, error: sessionError } = await supabase.auth.setSession({
           access_token,
           refresh_token,
         });
 
         if (sessionError) {
-          console.error("Failed to set session:", sessionError);
-          setError("Verification failed. Please try signing in.");
+          setError("Handshake failed. Protocol requires manual sign-in.");
           setLoading(false);
           return;
         }
 
         if (user) {
-          // Update user profile to mark as verified
           const { error: updateError } = await supabase
             .from("users")
             .update({ 
@@ -57,20 +66,15 @@ export default function ConfirmPage() {
             })
             .eq("auth_id", user.id);
 
-          if (updateError) {
-            console.error("Failed to update user:", updateError);
-          }
+          if (updateError) console.error("Update error:", updateError);
         }
 
-        // 🔥 IMPORTANT: Sign out immediately after verification
         await supabase.auth.signOut();
-
-        setMessage("Email verified successfully!");
+        setMessage("Authentication handshake complete.");
         setLoading(false);
 
       } catch (err: any) {
-        console.error("Verification error:", err);
-        setError("An error occurred during verification. Please try signing in.");
+        setError("Inbound protocol error. Please try signing in manually.");
         setLoading(false);
       }
     };
@@ -79,110 +83,108 @@ export default function ConfirmPage() {
   }, [router]);
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 p-4 font-sans">
+    <div className="min-h-screen flex items-center justify-center bg-white font-sans selection:bg-purple-100 p-6">
+      <AuroraBackground />
+      <div className="absolute inset-0 bg-[url('/grainy.png')] opacity-[0.03] mix-blend-multiply pointer-events-none" />
       
-      {/* Centered Card */}
-      <div className="w-full max-w-md bg-white rounded-2xl shadow-xl p-8 sm:p-10 relative overflow-hidden">
+      {/* VERIFICATION TERMINAL CARD */}
+      <motion.div 
+        initial={{ opacity: 0, scale: 0.95 }}
+        animate={{ opacity: 1, scale: 1 }}
+        className="relative w-full max-w-[480px] bg-white border-2 border-zinc-100 rounded-[40px] shadow-2xl shadow-zinc-200/50 p-10 sm:p-12 z-20 overflow-hidden"
+      >
+        <div className="absolute inset-0 bg-[url('/grainy.png')] opacity-[0.02] pointer-events-none" />
         
-        {/* Logo Area */}
-        <div className="flex flex-col items-center mb-8">
-          <div className="flex flex-col leading-none text-gray-900 mb-2">
-            <span className="text-5xl font-normal tracking-wide">
-              KAPR<span className="text-purple-600 font-normal">Y</span>
-            </span>
-            <span className="text-4xl font-black tracking-tight -mt-1">
-              DEV
-            </span>
+        {/* Brand Header */}
+        <div className="flex flex-col items-center mb-12">
+          <div className="flex flex-col leading-none text-zinc-900 mb-2">
+            <span className="text-5xl font-normal tracking-tight">KAPR<span className="text-purple-600">Y</span></span>
+            <span className="text-4xl font-black tracking-tighter -mt-1">DEV</span>
           </div>          
         </div>
 
         {/* DYNAMIC CONTENT AREA */}
-        <div className="text-center">
+        <div className="relative z-10">
           
-          {/* 1. Loading State */}
+          {/* 1. LOADING STATE */}
           {loading && (
-            <div className="flex flex-col items-center justify-center space-y-6 py-4">
-              <div className="relative w-16 h-16">
-                <div className="absolute top-0 left-0 w-full h-full border-4 border-gray-100 rounded-full"></div>
-                <div className="absolute top-0 left-0 w-full h-full border-4 border-purple-600 rounded-full animate-spin border-t-transparent"></div>
+            <div className="flex flex-col items-center justify-center space-y-8 py-4">
+              <div className="relative">
+                <div className="w-20 h-20 border-4 border-zinc-50 rounded-full"></div>
+                <Loader2 className="absolute top-0 left-0 w-20 h-20 text-purple-600 animate-spin" strokeWidth={2.5} />
               </div>
-              <div>
-                <h3 className="text-xl font-bold text-gray-900">Verifying...</h3>
-                <p className="text-gray-500 mt-2">{message}</p>
+              <div className="text-center">
+                <h3 className="text-xl font-black tracking-tighter text-zinc-900 uppercase">Verifying Node...</h3>
+                <p className="text-zinc-400 font-bold text-sm mt-2 tracking-tight">{message}</p>
               </div>
             </div>
           )}
 
-          {/* 2. Error State */}
+          {/* 2. ERROR STATE */}
           {!loading && error && (
-            <div className="flex flex-col items-center justify-center space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
-              <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mb-2">
-                <svg className="w-8 h-8 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                </svg>
+            <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="flex flex-col items-center space-y-8">
+              <div className="w-20 h-20 bg-red-50 rounded-[24px] flex items-center justify-center shadow-inner">
+                <AlertCircle className="text-red-600" size={40} strokeWidth={2.5} />
               </div>
-              <div>
-                <h3 className="text-xl font-bold text-gray-900">Verification Failed</h3>
-                <p className="text-red-600 mt-2 text-sm bg-red-50 p-3 rounded-lg border border-red-100">{error}</p>
+              <div className="text-center">
+                <h3 className="text-xl font-black tracking-tighter text-zinc-900 uppercase">Protocol Error</h3>
+                <p className="text-red-500 font-bold text-sm mt-3 bg-red-50/50 px-4 py-2 rounded-xl border border-red-100">{error}</p>
               </div>
-              <Link
-                href="/auth/login"
-                className="w-full bg-gray-800 text-white font-semibold py-3 rounded-lg hover:bg-black transition-colors shadow-sm"
-              >
-                Go to Sign In
+              <Link href="/auth/login" className="w-full">
+                <button className="w-full bg-zinc-900 text-white font-black py-5 rounded-2xl hover:bg-black transition-all shadow-xl uppercase text-xs tracking-widest flex items-center justify-center gap-2">
+                  <ArrowLeft size={16} strokeWidth={3} /> Return to Login
+                </button>
               </Link>
-            </div>
+            </motion.div>
           )}
 
-          {/* 3. Success State */}
+          {/* 3. SUCCESS STATE */}
           {!loading && !error && (
-            <div className="flex flex-col items-center justify-center space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
-              <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mb-2">
-                 <svg className="w-8 h-8 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                </svg>
+            <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="flex flex-col items-center space-y-8">
+              <div className="w-20 h-20 bg-emerald-50 rounded-[24px] flex items-center justify-center shadow-inner">
+                 <CheckCircle2 className="text-emerald-600" size={40} strokeWidth={2.5} />
               </div>
-              <div>
-                <h3 className="text-xl font-bold text-gray-900">Successfully Verified!</h3>
-                <p className="text-gray-500 mt-2">
-                  Your email has been verified. You can now sign in to your account.
+              <div className="text-center">
+                <h3 className="text-xl font-black tracking-tighter text-zinc-900 uppercase leading-none">Identity Verified</h3>
+                <p className="text-zinc-400 font-bold text-sm mt-3 tracking-tight max-w-[280px] mx-auto leading-relaxed">
+                  Handshake successful. Your account is now active on the Kapry network.
                 </p>
               </div>
               
-              <div className="w-full space-y-3">
-                <Link
-                  href="/auth/login"
-                  className="block w-full bg-gray-800 text-white font-semibold py-3 rounded-lg hover:bg-black transition-colors shadow-sm"
-                >
-                  Sign In Now
+              <div className="w-full space-y-4">
+                <Link href="/auth/login" className="block w-full">
+                  <button className="w-full bg-purple-600 text-white font-black py-5 rounded-2xl hover:bg-purple-700 transition-all shadow-xl shadow-purple-200 uppercase text-xs tracking-[0.3em] flex items-center justify-center gap-2 group">
+                    Login page <Zap size={14} className="fill-white group-hover:scale-125 transition-transform" />
+                  </button>
                 </Link>
-                <Link
-                  href="/"
-                  className="block w-full bg-white text-gray-700 border border-gray-200 font-semibold py-3 rounded-lg hover:bg-gray-50 transition-colors"
-                >
-                  Return to Home
+                <Link href="/" className="block w-full text-center">
+                   <span className="text-[10px] font-black uppercase tracking-widest text-zinc-400 hover:text-zinc-900 transition-colors cursor-pointer">Return to Home Page</span>
                 </Link>
               </div>
-
-              {/* <div className="text-xs text-blue-600 bg-blue-50 border border-blue-100 p-3 rounded-lg mt-4 w-full">
-                <strong>Note:</strong> You have been signed out automatically. Please sign in to continue.
-              </div> */}
-            </div>
+            </motion.div>
           )}
 
         </div>
         
-        {/* Footer Logos Area */}
-        <div className="pt-8 mt-8 border-t border-gray-100">
-          <p className="text-center text-xs text-gray-400 font-semibold mb-4 uppercase tracking-wider">Trusted by developers at</p>
-          <div className="flex justify-center gap-6 opacity-40 grayscale">
-            <div className="flex items-center gap-1 font-bold text-lg text-black">X</div>
-            <div className="flex items-center gap-1 font-bold text-lg text-black">Y</div>
-            <div className="flex items-center gap-1 font-bold text-lg text-black">Z</div>
+        {/* Footer Audit Area */}
+        <div className="pt-10 mt-10 border-t-2 border-zinc-50 flex flex-col items-center">
+          <div className="flex items-center gap-2 text-[9px] font-black text-zinc-300 uppercase tracking-[0.4em] mb-4">
+             <ShieldCheck size={12} strokeWidth={3} /> Secured Protocol
+          </div>
+          <div className="flex justify-center gap-8 opacity-20 grayscale scale-90">
+             <Terminal size={20} />
+             <Zap size={20} />
+             <Activity size={20} />
           </div>
         </div>
-
-      </div>
+      </motion.div>
     </div>
   );
 }
+
+// Simple Activity Icon Import
+const Activity = ({ size, className }: any) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className={className}>
+    <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />
+  </svg>
+);

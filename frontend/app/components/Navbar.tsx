@@ -28,8 +28,8 @@ const productLinks = [
     { icon: GitBranch, name: 'Repo Review', desc: 'Automated PR analysis', href: '/home/products/ai/repository-review' },
     { icon: Database, name: 'SQL Helper', desc: 'Natural language to SQL', href: '/home/products/ai/sql-helper' },
     { icon: LayoutList, name: 'Roadmap', desc: 'AI-generated milestones', href: '/home/products/ai/roadmap' },
-    { icon: KanbanSquare, name: 'Kanban Board', desc: 'Drag-and-drop tasks', href: '#' },
-    { icon: UserCog, name: 'Team', desc: 'Management made easier', href: '#' },
+    { icon: KanbanSquare, name: 'Kanban Board', desc: 'Drag-and-drop tasks', href: '/home/products/management/kanban-board' },
+    { icon: UserCog, name: 'Team', desc: 'Management made easier', href: '/home/products/management/team' },
 ];
 
 const navLinks = [

@@ -189,7 +189,7 @@ export default function DashboardPage() {
                   alt="Profile"
                   width={32}
                   height={32}
-                  className="rounded-full object-cover border border-white/10 light:border-black/10"
+                  className="rounded-full w-[32px] h-[32px] object-cover border border-white/10 light:border-black/10"
                   unoptimized
                 />
                 {/* Online Indicator */}

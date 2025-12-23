@@ -125,7 +125,7 @@ const ContactPage = () => {
             We're here to <br />
             <span className="text-transparent bg-clip-text bg-gradient-to-r from-purple-600 to-indigo-600">help you scale.</span>
           </h1>
-          <p className="text-xl text-[#5f6368] max-w-2xl mx-auto leading-relaxed animate-in fade-in slide-in-from-bottom-8 duration-700 delay-100">
+          <p className="text-xl text-[#5f6368] max-w-2xl mx-auto leading-relaxed animate-in fade-in slide-in-from-bottom-8 duration-700 delay-100 font-bold">
             Choose the department you'd like to reach. Our global team is distributed across time zones to ensure 24/7 coverage.
           </p>
         </div>
