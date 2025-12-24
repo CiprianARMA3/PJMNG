@@ -243,8 +243,8 @@ export default function AgreementsPage() {
                                     
                                     <td className="px-6 py-4">
                                         <div className="flex items-center gap-1.5">
-                                            <div className={`w-1.5 h-1.5 rounded-full ${doc.adheredDate ? 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.4)]' : 'bg-orange-500/50'}`} />
-                                            <span className={`text-[11px] font-medium uppercase tracking-tight ${doc.adheredDate ? 'text-emerald-500/90' : 'text-neutral-500'}`}>
+                                            <div className={`w-1.5 h-1.5 rounded-full ${doc.adheredDate ? 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.4)]' : 'bg-orange-500/50 '}`} />
+                                            <span className={`text-[11px] font-medium uppercase tracking-tight ${doc.adheredDate ? 'text-emerald-500/90' : 'text-orange-500/50'}`}>
                                                 {doc.adheredDate ? 'Adhered' : 'Pending'}
                                             </span>
                                         </div>
@@ -254,10 +254,10 @@ export default function AgreementsPage() {
                                         <div className="flex items-center gap-2 group/date">
                                             <Calendar size={14} className="opacity-50" />
                                             <span 
-                                                className={`text-xs cursor-help ${!doc.adheredDate ? 'text-orange-500/60 font-mono' : ''}`}
+                                                className={`text-xs  ${!doc.adheredDate ? 'text-orange-500/60 font-mono font-black' : ''}`}
                                                 title={!doc.adheredDate ? "Not adhered to" : undefined}
                                             >
-                                                {doc.adheredDate || "NAT"}
+                                                {doc.adheredDate || <span><sup className="mt-2 mr-1 font-black">1</sup>NAT</span>}
                                             </span>
                                         </div>
                                     </td>
@@ -286,6 +286,7 @@ export default function AgreementsPage() {
                     <div className="flex items-center gap-2">
                         <CheckCircle2 size={12} className="text-green-800" />
                         <span>All active agreements are up to date.</span>
+                        <span className="text-orange-500/50 font-black flex ml-100"><sup className="mt-2 mr-1 font-black">1</sup>Not Adhered To</span>
                     </div>
                 </div>
             </PageWidget>
