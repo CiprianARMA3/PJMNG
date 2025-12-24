@@ -132,9 +132,9 @@ export default function RegisterPage() {
           </motion.div>
 
           <div className="pt-8 flex flex-wrap gap-4 opacity-30 grayscale scale-90 origin-left">
-            <Sparkles size={28} />
+            {/* <Sparkles size={28} />
             <Terminal size={28} />
-            <ShieldCheck size={28} />
+            <ShieldCheck size={28} /> */}
           </div>
         </div>
       </div>
@@ -175,26 +175,38 @@ export default function RegisterPage() {
             </motion.div>
           )}
 
-          <div className="grid grid-cols-2 gap-4">
-            <button
-              onClick={() => handleOAuthLogin('google')}
-              disabled={loading}
-              className="flex items-center justify-center gap-3 px-4 py-4 border-2 border-zinc-100 rounded-[20px] text-zinc-900 font-black text-[12px] uppercase tracking-widest hover:bg-zinc-50 hover:border-purple-200 transition-all shadow-sm active:scale-95 disabled:opacity-50"
-            >
-              <Chrome size={18} strokeWidth={2.5} /> Google
-            </button>
-            <button
-              onClick={() => handleOAuthLogin('github')}
-              disabled={loading}
-              className="flex items-center justify-center gap-3 px-4 py-4 bg-[#202124] text-white rounded-[20px] font-black text-[12px] uppercase tracking-widest hover:bg-black transition-all shadow-xl active:scale-95 disabled:opacity-50"
-            >
-              <Github size={18} strokeWidth={2.5} /> GitHub
-            </button>
-          </div>
+<div className="flex flex-col gap-3 w-full max-w-md mx-auto"> 
+  {/* Google Button */}
+  <button
+    onClick={() => handleOAuthLogin('google')}
+    disabled={loading}
+    className="flex w-full items-center justify-center gap-3 px-4 py-4 border-2 border-zinc-100 rounded-[20px] text-[#1f1f1f] font-black text-[12px] uppercase tracking-widest transition-all shadow-xl hover:bg-zinc-50 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
+  >
+    <div className="flex h-[18px] w-[18px] items-center justify-center bg-white">
+      <svg version="1.1" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" className="block">
+        <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"></path>
+        <path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"></path>
+        <path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"></path>
+        <path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"></path>
+      </svg>
+    </div>
+    <span>{loading ? 'Loading...' : 'Sign up with Google'}</span>
+  </button>
+
+  {/* GitHub Button */}
+  <button
+    onClick={() => handleOAuthLogin('github')}
+    disabled={loading}
+    className="flex w-full items-center justify-center gap-3 px-4 py-4 bg-[#202124] text-white rounded-[20px] font-black text-[12px] uppercase tracking-widest hover:bg-black transition-all shadow-xl active:scale-95 disabled:opacity-50"
+  >
+    <Github size={18} strokeWidth={2.5} /> 
+    <span>{loading ? 'Loading...' : 'Sign up with Github'}</span>
+  </button>
+</div>
 
           <div className="relative py-2">
             <div className="absolute inset-0 flex items-center"><div className="w-full border-t-2 border-zinc-50"></div></div>
-            <div className="relative flex justify-center text-[10px]"><span className="px-4 bg-white text-zinc-400 font-black uppercase tracking-widest">New Node Registration</span></div>
+            <div className="relative flex justify-center text-[10px]"><span className="px-4 bg-white text-zinc-400 font-black uppercase tracking-widest">New Profile Registration</span></div>
           </div>
 
           <div className="bg-zinc-50 p-1.5 rounded-2xl flex border-2 border-zinc-100">
@@ -255,7 +267,7 @@ export default function RegisterPage() {
                   </div>
                 </div>
                 <span className="text-[11px] font-bold text-zinc-500 leading-tight">
-                  I adhere to the <Link href="/terms" className="text-purple-600 font-black hover:underline">Terms of Protocol</Link> and Security standards.
+                  I adhere to the <Link href="/terms" className="text-purple-600 font-black hover:underline">Terms of Service</Link> and Security standards.
                 </span>
               </label>
 
