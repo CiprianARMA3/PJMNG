@@ -8,14 +8,13 @@ import {
     Download,
     Shield,
     CheckCircle2,
-    ExternalLink,
     AlertCircle,
-    Clock,
     Globe,
     FileCheck,
     Lock,
     Server,
-    History
+    History,
+    Calendar
 } from "lucide-react";
 
 // --- Shared Component: Page Widget ---
@@ -30,7 +29,7 @@ const PageWidget = ({ title, icon: Icon, children, action }: any) => (
             </div>
             {action}
         </div>
-        <div className="flex-1 p-6 bg-[#111111] light:bg-white min-h-0 relative flex flex-col rounded-b-xl text-neutral-300 light:text-neutral-600">
+        <div className="flex-1 bg-[#111111] light:bg-white min-h-0 relative flex flex-col rounded-b-xl text-neutral-300 light:text-neutral-600">
             {children}
         </div>
     </div>
@@ -46,7 +45,8 @@ const signedAgreements = [
         signedDate: "Oct 24, 2024",
         region: "Global",
         status: "active",
-        type: "Standard"
+        type: "Standard",
+        adheredDate: "01/01/2025"
     },
     {
         id: "pp_v3_0",
@@ -57,6 +57,7 @@ const signedAgreements = [
         region: "Global",
         status: "active",
         type: "Standard"
+        // adheredDate missing to test "NAT"
     },
     {
         id: "dpa_eu_1_4",
@@ -67,6 +68,7 @@ const signedAgreements = [
         region: "EU Only",
         status: "active",
         type: "Compliance"
+        // adheredDate missing to test "NAT"
     }
 ];
 
@@ -76,7 +78,6 @@ export default function AgreementsPage() {
 
     const handleDownload = (docId: string) => {
         setDownloading(docId);
-        // Simulate download
         setTimeout(() => setDownloading(null), 1500);
     };
 
@@ -88,40 +89,30 @@ export default function AgreementsPage() {
 
     return (
         <div className="max-w-5xl mx-auto space-y-8 font-sans">
-
             {/* Page Header */}
-<div className="flex flex-col md:flex-row md:items-end justify-between gap-8 mb-12 animate-in fade-in slide-in-from-top-4 duration-700">
-    
-    {/* LEFT: GOVERNANCE TITLES */}
-    <div className="space-y-1">
-        {/* Governance Tag */}
-        <div className="flex items-center gap-2 mb-3">
-            <span className="text-[10px] font-black uppercase tracking-[0.3em] text-zinc-400">
-                Governance / Regulatory Nodes
-            </span>
-        </div>
-
-        {/* Main Title */}
-<h1 className="text-5xl md:text-6xl font-black tracking-tighter text-zinc-900 dark:text-white uppercase leading-none">
+            <div className="flex flex-col md:flex-row md:items-end justify-between gap-8 mb-12 animate-in fade-in slide-in-from-top-4 duration-700">
+                <div className="space-y-1">
+                    <div className="flex items-center gap-2 mb-3">
+                        <span className="text-[10px] font-black uppercase tracking-[0.3em] text-zinc-400">
+                            Governance / Regulatory Nodes
+                        </span>
+                    </div>
+                    <h1 className="text-5xl md:text-6xl font-black tracking-tighter text-zinc-900 dark:text-white uppercase leading-none">
                         Legal & Compliance<span className="text-purple-600">.</span>
                     </h1>
-
-        {/* Description */}
-        <p className="text-zinc-500 font-bold text-sm leading-relaxed max-w-md mt-4">
-            Audit your signed cryptographic agreements and execute your global data rights protocols.
-        </p>
-    </div>
-</div>
+                    <p className="text-zinc-500 font-bold text-sm leading-relaxed max-w-md mt-4">
+                        Audit your signed cryptographic agreements and execute your global data rights protocols.
+                    </p>
+                </div>
+            </div>
 
             {/* Regional Protections Cards */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-
                 {/* EU / GDPR Card */}
                 <div className="bg-gradient-to-b from-[#161616] to-[#111] light:from-gray-50 light:to-white border border-[#222] light:border-gray-200 rounded-xl p-6 relative overflow-hidden group hover:border-blue-900/30 light:hover:border-blue-200 transition-colors">
                     <div className="absolute top-0 right-0 p-8 opacity-[0.03] group-hover:opacity-[0.06] transition-opacity">
                         <Globe className="w-32 h-32 text-blue-400" />
                     </div>
-
                     <div className="relative z-10">
                         <div className="flex items-center justify-between mb-4">
                             <div className="flex items-center gap-3">
@@ -132,11 +123,9 @@ export default function AgreementsPage() {
                             </div>
                             <span className="text-[10px] font-bold uppercase tracking-wider text-blue-400 bg-blue-900/10 px-2 py-1 rounded border border-blue-900/20">GDPR Compliant</span>
                         </div>
-
                         <p className="text-xs text-neutral-500 leading-relaxed mb-6 h-10">
                             Your data is processed in accordance with GDPR. You have the right to access, rectify, and erase your personal data.
                         </p>
-
                         <div className="space-y-3">
                             <div className="flex items-center justify-between text-xs py-2 border-t border-[#222]">
                                 <span className="text-neutral-400 flex items-center gap-2">
@@ -155,7 +144,6 @@ export default function AgreementsPage() {
                                 </span>
                             </div>
                         </div>
-
                         <div className="mt-6 pt-4 border-t border-[#222] flex gap-3">
                             <button
                                 onClick={handleDataExport}
@@ -173,7 +161,6 @@ export default function AgreementsPage() {
                     <div className="absolute top-0 right-0 p-8 opacity-[0.03] group-hover:opacity-[0.06] transition-opacity">
                         <Lock className="w-32 h-32 text-green-400" />
                     </div>
-
                     <div className="relative z-10">
                         <div className="flex items-center justify-between mb-4">
                             <div className="flex items-center gap-3">
@@ -184,11 +171,9 @@ export default function AgreementsPage() {
                             </div>
                             <span className="text-[10px] font-bold uppercase tracking-wider text-green-400 bg-green-900/10 px-2 py-1 rounded border border-green-900/20">CCPA Ready</span>
                         </div>
-
                         <p className="text-xs text-neutral-500 leading-relaxed mb-6 h-10">
                             We adhere to CCPA standards for California residents and industry-standard encryption for all US-based data.
                         </p>
-
                         <div className="space-y-3">
                             <div className="flex items-center justify-between text-xs py-2 border-t border-[#222]">
                                 <span className="text-neutral-400 flex items-center gap-2">
@@ -205,7 +190,6 @@ export default function AgreementsPage() {
                                 <a href="#" className="text-neutral-300 light:text-neutral-700 hover:text-white light:hover:text-black underline decoration-neutral-700 light:decoration-neutral-300">View List</a>
                             </div>
                         </div>
-
                         <div className="mt-6 pt-4 border-t border-[#222] light:border-gray-200 flex gap-3">
                             <button className="flex-1 py-2 text-xs font-medium bg-[#1a1a1a] light:bg-white hover:bg-[#222] light:hover:bg-gray-50 text-neutral-300 light:text-neutral-700 hover:text-white light:hover:text-black border border-[#2a2a2a] light:border-gray-200 rounded-lg transition-colors flex items-center justify-center gap-2">
                                 Privacy Settings
@@ -217,14 +201,16 @@ export default function AgreementsPage() {
 
             {/* Signed Agreements Table */}
             <PageWidget title="Your Signed Agreements" icon={FileText}>
-                <div className="overflow-x-auto -mx-6">
+                <div className="overflow-x-auto">
                     <table className="w-full text-left border-collapse">
-                        <thead className="bg-[#141414] light:bg-gray-50 text-neutral-500 light:text-neutral-600 font-medium uppercase text-[10px] tracking-wider border-y border-[#222] light:border-gray-200">
+                        <thead className="bg-[#141414] light:bg-gray-50 text-neutral-500 border-b border-zinc-400">
                             <tr>
-                                <th className="px-6 py-3 font-medium">Document</th>
-                                <th className="px-6 py-3 font-medium">Signed Date</th>
-                                <th className="px-6 py-3 font-medium">Version</th>
-                                <th className="px-6 py-3 font-medium text-right">Reference Copy</th>
+                                <th className="px-6 py-3 font-medium uppercase text-[10px] tracking-wider">Document</th>
+                                <th className="px-6 py-3 font-medium uppercase text-[10px] tracking-wider">Signed Date</th>
+                                <th className="px-6 py-3 font-medium uppercase text-[10px] tracking-wider">Version</th>
+                                <th className="px-6 py-3 font-medium uppercase text-[10px] tracking-wider">Adhered To</th>
+                                <th className="px-6 py-3 font-medium uppercase text-[10px] tracking-wider">Date Adhered</th>
+                                <th className="px-6 py-3 font-medium uppercase text-[10px] tracking-wider text-right">Reference Copy</th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-[#222] light:divide-gray-200 text-sm">
@@ -254,6 +240,28 @@ export default function AgreementsPage() {
                                             v{doc.version}
                                         </span>
                                     </td>
+                                    
+                                    <td className="px-6 py-4">
+                                        <div className="flex items-center gap-1.5">
+                                            <div className={`w-1.5 h-1.5 rounded-full ${doc.adheredDate ? 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.4)]' : 'bg-orange-500/50'}`} />
+                                            <span className={`text-[11px] font-medium uppercase tracking-tight ${doc.adheredDate ? 'text-emerald-500/90' : 'text-neutral-500'}`}>
+                                                {doc.adheredDate ? 'Adhered' : 'Pending'}
+                                            </span>
+                                        </div>
+                                    </td>
+
+                                    <td className="px-6 py-4 text-neutral-400 light:text-neutral-600">
+                                        <div className="flex items-center gap-2 group/date">
+                                            <Calendar size={14} className="opacity-50" />
+                                            <span 
+                                                className={`text-xs cursor-help ${!doc.adheredDate ? 'text-orange-500/60 font-mono' : ''}`}
+                                                title={!doc.adheredDate ? "Not adhered to" : undefined}
+                                            >
+                                                {doc.adheredDate || "NAT"}
+                                            </span>
+                                        </div>
+                                    </td>
+
                                     <td className="px-6 py-4 text-right">
                                         <button
                                             onClick={() => handleDownload(doc.id)}
@@ -274,13 +282,11 @@ export default function AgreementsPage() {
                     </table>
                 </div>
 
-                {/* Audit Footer */}
-                <div className="mt-6 pt-4 border-t border-[#222] light:border-gray-200 flex items-center justify-between text-[11px] text-neutral-600 light:text-neutral-500">
+                <div className="px-6 py-4 border-t border-[#222] light:border-gray-200 flex items-center justify-between text-[11px] text-neutral-600">
                     <div className="flex items-center gap-2">
                         <CheckCircle2 size={12} className="text-green-800" />
-                        <span>All active agreements are up to date. No action required.</span>
+                        <span>All active agreements are up to date.</span>
                     </div>
-                    <div className="font-mono">ID: USR-{Math.floor(Math.random() * 100000)}</div>
                 </div>
             </PageWidget>
 

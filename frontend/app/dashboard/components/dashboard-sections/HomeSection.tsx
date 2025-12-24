@@ -156,7 +156,6 @@ export default function HomeSection({ user, userName }: HomeSectionProps) {
 
 {/* This will now sit next to the Empty State on the same line */}
 <motion.div variants={itemVariants} whileHover={{ y: -8 }}>
-  <AddProjectButton />
 </motion.div>
         </div>
         

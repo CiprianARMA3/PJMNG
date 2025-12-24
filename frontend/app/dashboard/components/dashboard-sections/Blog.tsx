@@ -268,7 +268,7 @@ export default function MailSection() {
                     {selectedUpdate.users?.metadata?.avatar_url ? (
                       <img src={selectedUpdate.users.metadata.avatar_url} className="w-full h-full object-cover" alt="Detail Avatar" />
                     ) : (
-                      <span className="text-sm font-black text-zinc-400 dark:text-zinc-500">{getInitials(selectedUpdate.users?.name, selectedUpdate.users?.surname)}</span>
+                        <img src={"/logo-light.png"} className="w-full h-full object-cover" alt="User Avatar" />
                     )}
                   </div>
                   <div className="space-y-3">
@@ -281,8 +281,13 @@ export default function MailSection() {
                       )}
                     </div>
                     <div className="flex items-center gap-4 text-[10px] font-black uppercase tracking-[0.2em] text-zinc-400 dark:text-zinc-500">
-                      <span className="flex items-center gap-2"><User size={14} strokeWidth={3} className="text-purple-600 dark:text-purple-400" /> {selectedUpdate.users?.name} {selectedUpdate.users?.surname}</span>
-                      <span className="flex items-center gap-2"><Calendar size={14} strokeWidth={3} className="text-purple-600 dark:text-purple-400" /> {formatDate(selectedUpdate.created_at)}</span>
+  <span className="flex items-center gap-2">
+    <User size={14} strokeWidth={3} className="text-purple-600 dark:text-purple-400" /> 
+    {selectedUpdate.users?.name 
+      ? `${selectedUpdate.users.name} ${selectedUpdate.users.surname || ""}` 
+      : "KapryDEV Team"}
+  </span>                      
+  <span className="flex items-center gap-2"><Calendar size={14} strokeWidth={3} className="text-purple-600 dark:text-purple-400" /> {formatDate(selectedUpdate.created_at)}</span>
                     </div>
                   </div>
                 </div>
