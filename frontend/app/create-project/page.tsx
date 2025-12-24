@@ -554,7 +554,7 @@ export default function CreateProjectPage() {
                     className="w-full py-5 bg-zinc-900 dark:bg-white text-white dark:text-black rounded-2xl font-black uppercase text-[11px] tracking-[0.2em] shadow-2xl active:scale-95 transition-all flex items-center justify-center gap-3 disabled:opacity-30 disabled:grayscale"
                   >
                     {loading ? <Loader2 className="animate-spin" /> : <Zap size={16} strokeWidth={3} />}
-                    {(!isUnlimitedProjects && projectCount >= (selectedPlan?.max_projects || 0)) ? "Quota Exhausted" : "Create Project"}
+                    {(!isUnlimitedProjects && projectCount >= (selectedPlan?.max_projects || 0)) ? "Quota Reached" : "Create Project"}
                   </button>
                 </div>
               </DeploymentNode>

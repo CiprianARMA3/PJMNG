@@ -150,7 +150,7 @@ export default function HomeSection({ user, userName }: HomeSectionProps) {
         >
             <FolderOpen size={48} className="text-zinc-200 dark:text-zinc-700 mb-6" strokeWidth={1.5} />
             <h3 className="text-lg font-black text-zinc-900 dark:text-white uppercase tracking-tighter">
-              No Clusters Detected
+              No Projects Detected
             </h3>
             <p className="text-zinc-400 dark:text-zinc-500 font-bold text-xs uppercase tracking-widest mt-2">
               Initialize your first deployment node to begin.

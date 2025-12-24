@@ -216,7 +216,7 @@ export default function MailSection() {
                       {update.users?.metadata?.avatar_url ? (
                         <img src={update.users.metadata.avatar_url} className="w-full h-full object-cover" alt="User Avatar" />
                       ) : (
-                        <span className="text-xs font-black text-zinc-400 dark:text-zinc-500">{getInitials(update.users?.name, update.users?.surname)}</span>
+                        <img src={"/logo-light.png"} className="w-full h-full object-cover" alt="User Avatar" />
                       )}
                     </div>
                     <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-emerald-500 border-2 border-white dark:border-zinc-900 rounded-full shadow-sm shadow-emerald-500/50" />
@@ -235,7 +235,7 @@ export default function MailSection() {
 
                 <div className="flex items-center gap-4">
                   <div className="text-right hidden sm:block">
-                    <div className="text-[10px] font-black uppercase tracking-widest text-zinc-900 dark:text-zinc-300">{update.users?.name || "System"}</div>
+                    <div className="text-[10px] font-black uppercase tracking-widest text-zinc-900 dark:text-zinc-300">{update.users?.name || "KapryDev Team"}</div>
                     <div className="text-[9px] font-bold text-zinc-400 dark:text-zinc-500 uppercase tracking-tighter">{formatDate(update.created_at)}</div>
                   </div>
                   <div className="w-10 h-10 rounded-xl bg-zinc-50 dark:bg-zinc-800 flex items-center justify-center text-zinc-300 dark:text-zinc-600 group-hover:bg-purple-600 group-hover:text-white transition-all">

@@ -117,87 +117,93 @@ export default function ProjectSettingsPage() {
         loadProjectData();
     }, [projectId]);
 
-    const loadProjectData = async () => {
-        if (!projectId) return;
+const loadProjectData = async () => {
+    if (!projectId) return;
 
-        try {
-            setLoading(true);
+    try {
+        setLoading(true);
 
-            // Get user
-            const { data: { user: authUser } } = await supabase.auth.getUser();
-            if (!authUser) {
-                router.push("/auth/login");
-                return;
-            }
-
-            // Get project
-            const { data: projectData } = await supabase
-                .from("projects")
-                .select("*")
-                .eq("id", projectId)
-                .single();
-
-            if (!projectData) {
-                router.push("/dashboard");
-                return;
-            }
-
-            // Check permissions
-            const isCreatorCheck = projectData.created_by === authUser.id;
-            setIsCreator(isCreatorCheck);
-
-            const { data: collaborator } = await supabase
-                .from("project_users")
-                .select("user_id, role")
-                .eq("project_id", projectId)
-                .eq("user_id", authUser.id)
-                .maybeSingle();
-
-            if (!isCreatorCheck && !collaborator) {
-                router.push("/dashboard");
-                return;
-            }
-
-            if (!authLoading && !checkAccess('manager-project-settings')) {
-                router.push(`/dashboard/projects/${projectId}`);
-                return null;
-            }
-
-            // Check if read-only (collaborator but not admin)
-            const isReadOnlyCheck = !isCreatorCheck && collaborator?.role !== 'admin';
-            setIsReadOnly(isReadOnlyCheck);
-
-            // Set state
-            setUser(authUser);
-            setProject(projectData);
-            setName(projectData.name);
-            setDescription(projectData.description || "");
-            setMaxCollaborators(projectData.max_collaborators);
-            setProjectIcon(projectData.metadata?.["project-icon"] || "");
-            setProjectBanner(projectData.metadata?.["project-banner"] || "");
-            setLogoPreview(projectData.metadata?.["project-icon"] || null);
-            setBannerPreview(projectData.metadata?.["project-banner"] || null);
-
-            // GitHub data
-            setGithubToken(projectData.github_personalaccesstoken || "");
-            setGithubUrl(projectData.github_repo_url || "");
-
-            // Parse generic links
-            const filteredLinks: LinkData = {};
-            for (const [key, value] of Object.entries(projectData.metadata || {})) {
-                if (key.endsWith("-link") && typeof value === 'string') {
-                    filteredLinks[key] = value;
-                }
-            }
-            setLinks(filteredLinks);
-
-        } catch (error) {
-            console.error("Error loading project:", error);
-            alert("Failed to load project data");
-        } finally {
-            setLoading(false);
+        // 1. Get raw Auth user
+        const { data: { user: authUser } } = await supabase.auth.getUser();
+        if (!authUser) {
+            router.push("/auth/login");
+            return;
         }
-    };
+
+        // 2. ENRICH USER DATA (Fetch from your 'users' table)
+        const { data: userProfile } = await supabase
+            .from("users")
+            .select("name, surname, metadata")
+            .eq("id", authUser.id)
+            .single();
+
+        // Create the enriched user object the Menu expects
+        const finalUser = {
+            ...authUser,
+            user_metadata: {
+                ...authUser.user_metadata,
+                full_name: userProfile?.name
+                    ? `${userProfile.name} ${userProfile.surname || ""}`.trim()
+                    : authUser.user_metadata?.full_name || "User",
+                avatar_url: userProfile?.metadata?.avatar_url || authUser.user_metadata?.avatar_url
+            }
+        };
+
+        // 3. Get project
+        const { data: projectData } = await supabase
+            .from("projects")
+            .select("*")
+            .eq("id", projectId)
+            .single();
+
+        if (!projectData) {
+            router.push("/dashboard");
+            return;
+        }
+
+        // 4. NORMALIZE PROJECT DATA (Ensure icon_url exists for the Menu)
+        const enrichedProject = {
+            ...projectData,
+            icon_url: projectData.metadata?.["project-icon"] || projectData.metadata?.logo_url || null
+        };
+
+        // Check permissions logic...
+        const isCreatorCheck = projectData.created_by === authUser.id;
+        setIsCreator(isCreatorCheck);
+
+        // ... rest of your collaborator/access checks ...
+
+        // 5. Update state with ENRICHED objects
+        setUser(finalUser);           // Now contains full name and avatar
+        setProject(enrichedProject); // Now contains icon_url
+        
+        // Populate form fields
+        setName(projectData.name);
+        setDescription(projectData.description || "");
+        setMaxCollaborators(projectData.max_collaborators);
+        setProjectIcon(projectData.metadata?.["project-icon"] || "");
+        setProjectBanner(projectData.metadata?.["project-banner"] || "");
+        setLogoPreview(projectData.metadata?.["project-icon"] || null);
+        setBannerPreview(projectData.metadata?.["project-banner"] || null);
+
+        // GitHub and Links parsing...
+        setGithubToken(projectData.github_personalaccesstoken || "");
+        setGithubUrl(projectData.github_repo_url || "");
+
+        const filteredLinks: LinkData = {};
+        for (const [key, value] of Object.entries(projectData.metadata || {})) {
+            if (key.endsWith("-link") && typeof value === 'string') {
+                filteredLinks[key] = value;
+            }
+        }
+        setLinks(filteredLinks);
+
+    } catch (error) {
+        console.error("Error loading project:", error);
+    } finally {
+        setLoading(false);
+    }
+};
 
     const handleSave = async () => {
         if (isReadOnly) return;

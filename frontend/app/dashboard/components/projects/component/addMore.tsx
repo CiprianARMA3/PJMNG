@@ -8,7 +8,6 @@ import {
   ArrowRight,
   Loader2,
   AlertCircle,
-  ChevronDown,
   Terminal,
   Cpu
 } from "lucide-react";
@@ -17,6 +16,16 @@ import Link from "next/link";
 import { createClient } from "@/utils/supabase/client";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
+
+// [DIAGRAM OF VALIDATION FLOW]: 
+// User Input (UUID) -> Fetch Project -> Get Owner ID -> Fetch Owner Plan -> Count Project Members -> (Count < OwnerLimit ?) -> ALLOW : REJECT
+
+// define limits based on your pricing structure
+const PLAN_LIMITS: Record<string, number> = {
+    free: 2,
+    pro: 10,
+    enterprise: 999
+};
 
 export default function AddProjectButton() {
   const supabase = createClient();
@@ -54,10 +63,56 @@ export default function AddProjectButton() {
     return regex.test(uuid);
   };
 
+  const checkOwnerPlanLimits = async (projectId: string) => {
+    // 1. Get Project Owner ID
+    const { data: projectData, error: projectError } = await supabase
+        .from('projects')
+        .select('created_by')
+        .eq('id', projectId)
+        .single();
+
+    if (projectError || !projectData) {
+        // If we can't read the project, we assume it doesn't exist or RLS blocks us
+        // We let the RPC handle the final "Not Found" error
+        return; 
+    }
+
+    const ownerId = projectData.created_by;
+
+    // 2. Fetch Owner's Plan (Assuming it's in users table metadata or a subscriptions table)
+    // Adjust this query to match your exact schema for storing plans
+    const { data: ownerData, error: ownerError } = await supabase
+        .from('users')
+        .select('plan, billing_status') // Adjust columns as needed
+        .eq('id', ownerId)
+        .single();
+
+    if (ownerError) return; // Skip check if we can't read owner (fail open to RPC)
+
+    // Default to 'free' if no plan found
+    const ownerPlan = (ownerData?.plan || 'free').toLowerCase();
+    const limit = PLAN_LIMITS[ownerPlan] || PLAN_LIMITS['free'];
+
+    // 3. Count Current Collaborators
+    const { count, error: countError } = await supabase
+        .from('project_users')
+        .select('*', { count: 'exact', head: true })
+        .eq('project_id', projectId);
+
+    if (countError) return;
+
+    // 4. Validate
+    const currentCount = count || 0;
+    if (currentCount >= limit) {
+        throw new Error(`Owner's ${ownerPlan.toUpperCase()} plan limit reached (${currentCount}/${limit}). Cannot join.`);
+    }
+  };
+
   const handleJoinSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const cleanCode = inviteCode.trim();
     if (!cleanCode) return;
+    
     if (!isValidUUID(cleanCode)) {
       setError("Protocol Error: Input must be a valid UUID cluster.");
       return;
@@ -73,6 +128,12 @@ export default function AddProjectButton() {
         return;
       }
 
+      // --- NEW STEP: Pre-check Owner Limits ---
+      // We assume cleanCode IS the project_id. If it's a token, 
+      // you must resolve it to a project_id first.
+      await checkOwnerPlanLimits(cleanCode);
+
+      // --- EXECUTE JOIN ---
       const { data: projectId, error: rpcError } = await supabase.rpc('join_project_via_invite', {
         code_input: cleanCode
       });
@@ -152,7 +213,7 @@ export default function AddProjectButton() {
                   <FolderPlus size={18} className="text-purple-600" strokeWidth={2.5} />
                 </div>
                 <div>
-                  <div className="font-black text-[11px] uppercase tracking-widest text-zinc-900 dark:text-white">Create Cluster</div>
+                  <div className="font-black text-[11px] uppercase tracking-widest text-zinc-900 dark:text-white">Create Project</div>
                   <div className="text-[9px] font-bold text-zinc-400 uppercase mt-0.5 tracking-tight">Deploy new infrastructure</div>
                 </div>
               </Link>
@@ -205,7 +266,7 @@ export default function AddProjectButton() {
                 <div className="w-14 h-14 bg-purple-50 dark:bg-purple-900/20 border-2 border-purple-100 dark:border-purple-900/30 rounded-2xl flex items-center justify-center mb-6">
                   <Cpu size={28} className="text-purple-600" strokeWidth={2.5} />
                 </div>
-                <span className="text-[10px] font-black uppercase tracking-[0.3em] text-purple-600 dark:text-purple-400 block mb-2">Cluster Access Relay</span>
+                <span className="text-[10px] font-black uppercase tracking-[0.3em] text-purple-600 dark:text-purple-400 block mb-2">Project Access Relay</span>
                 <h2 className="text-3xl font-black text-zinc-900 dark:text-white uppercase tracking-tighter">Authorize Join</h2>
                 <p className="text-xs font-bold text-zinc-400 dark:text-zinc-500 mt-4 leading-relaxed uppercase tracking-tight">
                   Enter the cryptographic UUID token shared by the cluster administrator to synchronize.
