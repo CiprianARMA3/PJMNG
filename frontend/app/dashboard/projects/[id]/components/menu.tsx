@@ -223,8 +223,9 @@ export default function Menu({ project, user }: MenuProps) {
       </header>
 
       <aside className="w-64 bg-[#0a0a0a] light:bg-white border-r border-white/[0.08] light:border-gray-200 flex flex-col fixed inset-y-0 left-0 z-50">
+      <a href={`/dashboard/projects/${project.id}`}>
         <div className="h-14 flex items-center px-4 border-b border-white/[0.08] light:border-gray-200">
-          <a href={`/dashboard/projects/${project.id}`}>
+          
             <div className="flex items-center gap-3 w-full p-1.5 hover:bg-white/5 light:hover:bg-gray-100 rounded-lg cursor-pointer transition-colors group">
               {project.metadata?.["project-icon"] && (
                 <img src={project.metadata["project-icon"]} alt="Project logo" className="w-8 h-8 rounded-2xl border-2 border-white/20 light:border-gray-200 object-cover" />
@@ -233,9 +234,9 @@ export default function Menu({ project, user }: MenuProps) {
                 <h2 className="text-sm font-medium text-zinc-100 light:text-black truncate group-hover:text-white light:group-hover:text-black transition-colors">{project.name}</h2>
               </div>
             </div>
-          </a>
+         
         </div>
-
+       </a>
         <nav className="flex-1 overflow-y-auto py-6 px-3 space-y-6 custom-scrollbar">
           {loading ? (
             <div className="flex flex-col gap-4 px-3 opacity-50">
