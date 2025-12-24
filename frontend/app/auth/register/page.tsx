@@ -202,7 +202,10 @@ export default function RegisterPage() {
     <Github size={18} strokeWidth={2.5} /> 
     <span>{loading ? 'Loading...' : 'Sign up with Github'}</span>
   </button>
-</div>
+<p className="mt-2 flex justify-center text-[10px] font-semibold uppercase tracking-[1px] text-zinc-400">
+    Secure Authentication by Supabase
+  </p>
+  </div>
 
           <div className="relative py-2">
             <div className="absolute inset-0 flex items-center"><div className="w-full border-t-2 border-zinc-50"></div></div>

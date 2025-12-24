@@ -208,6 +208,9 @@ export default function LoginPage() {
     <Github size={18} strokeWidth={2.5} /> 
     <span>{loading ? 'Loading...' : 'Sign in with Github'}</span>
   </button>
+  <p className="mt-2 flex justify-center text-[10px] font-semibold uppercase tracking-[1px] text-zinc-400">
+    Secure Authentication by Supabase
+  </p>
 </div>
 
           <div className="relative py-2">
