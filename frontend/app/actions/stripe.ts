@@ -78,7 +78,7 @@ export async function getTokenPacks(modelKey: string, isEnterprise: boolean) {
 export async function createSubscriptionCheckout(
   targetPlanId: string,
   interval: 'month' | 'year',
-  autoRenew: boolean = true // New parameter: true to auto-renew (cancel_at_period_end=false)
+  autoRenew: boolean = true 
 ) {
   const supabase = createClient(cookies());
   const { data: { user } } = await supabase.auth.getUser();
@@ -96,7 +96,7 @@ export async function createSubscriptionCheckout(
 
   console.log(`✅ [STRIPE-ACTION] Plan found: ${targetPlanConfig.name}, Price ID: ${targetPriceId}`);
 
-  // 2. Get or Create Stripe Customer (KEEPING: Only customer_id stored)
+  // 2. Get or Create Stripe Customer
   const { data: userData } = await supabase
     .from('users')
     .select('stripe_customer_id')
@@ -113,15 +113,12 @@ export async function createSubscriptionCheckout(
     });
     customerId = customer.id;
     console.log(`✅ [STRIPE-ACTION] Created Stripe customer: ${customerId}`);
-
-    // Store the customer ID (This is the only subscription-related thing stored in the DB)
     await supabase.from('users').update({ stripe_customer_id: customerId }).eq('id', user.id);
-    console.log(`✅ [STRIPE-ACTION] Stored stripe_customer_id in DB`);
   } else {
     console.log(`✅ [STRIPE-ACTION] Using existing Stripe customer: ${customerId}`);
   }
 
-  // 3. Check for existing subscriptions in Stripe (Handling Upgrade/Downgrade/Renewal Toggle)
+  // 3. Check for existing subscriptions
   console.log(`\n🔍 [STRIPE-ACTION] Checking for existing subscriptions...`);
   const subscriptions = await stripe.subscriptions.list({
     customer: customerId,
@@ -129,15 +126,15 @@ export async function createSubscriptionCheckout(
     limit: 10
   });
 
-  console.log(`📊 [STRIPE-ACTION] Found ${subscriptions.data.length} subscription(s)`);
-
   const relevantSubs = subscriptions.data.filter(s => ['active', 'trialing', 'past_due', 'unpaid'].includes(s.status));
   
   if (relevantSubs.length > 0) {
-    console.log(`🔄 [STRIPE-ACTION] User has ${relevantSubs.length} relevant subscription(s). Attempting upgrade/downgrade/config update...`);
+    console.log(`🔄 [STRIPE-ACTION] User has ${relevantSubs.length} relevant subscription(s). Attempting update...`);
     
+    // Define a flag to track if we need to redirect successfully
+    let shouldRedirectSuccess = false;
+
     try {
-      // Prioritize the subscription that is not canceled for immediate updates
       const existingSub = relevantSubs.sort((a, b) => (b.cancel_at_period_end ? 0 : 1) - (a.cancel_at_period_end ? 0 : 1))[0]; 
 
       if (!existingSub || !existingSub.items.data.length) {
@@ -145,54 +142,51 @@ export async function createSubscriptionCheckout(
       }
 
       const currentPriceId = existingSub.items.data[0]?.price.id;
-      
-      console.log(`📌 [STRIPE-ACTION] Current price: ${currentPriceId}, Target price: ${targetPriceId}`);
-
-      // Set the desired renewal state
       const targetCancelAtPeriodEnd = !autoRenew;
 
+      // Check if no changes are needed
       if (currentPriceId === targetPriceId && existingSub.cancel_at_period_end === targetCancelAtPeriodEnd) {
-        console.log(`⚠️ [STRIPE-ACTION] Same plan and renewal setting selected. Redirecting to dashboard.`);
-        redirect(`${getBaseUrl()}/dashboard/settings?tab=billing`); // Redirect to billing if no effective change
+        console.log(`⚠️ [STRIPE-ACTION] No changes needed. Redirecting to billing.`);
+        // Special case: direct return here to avoid the catch block mess
+        return redirect(`${getBaseUrl()}/dashboard/settings?tab=billing`);
       }
 
-      // --- Update subscription (Stripe handles prorations) ---
       const updateParams: Stripe.SubscriptionUpdateParams = {
-          cancel_at_period_end: targetCancelAtPeriodEnd, // Set renewal preference
+          cancel_at_period_end: targetCancelAtPeriodEnd,
       };
       
       if (currentPriceId !== targetPriceId) {
-          updateParams.items = [
-              {
-                  id: existingSub.items.data[0].id,
-                  price: targetPriceId,
-              }
-          ];
-          // Prorate immediately for price changes
+          updateParams.items = [{
+              id: existingSub.items.data[0].id,
+              price: targetPriceId,
+          }];
           updateParams.proration_behavior = 'always_invoice'; 
-          console.log(`📝 [STRIPE-ACTION] Plan change detected. Setting proration behavior.`);
-      } else {
-           console.log(`📝 [STRIPE-ACTION] Only renewal preference or status update.`);
       }
 
       const updatedSub = await stripe.subscriptions.update(existingSub.id, updateParams);
-
       console.log(`✅ [STRIPE-ACTION] Subscription updated: ${updatedSub.id}`);
-      // Redirect to a specific confirmation page for updates
-      redirect(`${getBaseUrl()}/dashboard/checkout/payment-succeded?subscription_update_success=true&planId=${targetPlanId}&interval=${interval}`);
+      
+      // ✅ MARK SUCCESS (Do not redirect here yet!)
+      shouldRedirectSuccess = true;
+
     } catch (err: any) {
       console.error(`❌ [STRIPE-ACTION] Failed to update subscription:`, err.message);
-      // Redirect to a rejection page for updates
+      
+      // ❌ ERROR REDIRECT (This is safe here because we are already handling the error)
       redirect(`${getBaseUrl()}/dashboard/checkout/payment-succeded?error=true`);
+    }
+
+    // ✅ PERFORM SUCCESS REDIRECT (Outside the Try/Catch Block)
+    if (shouldRedirectSuccess) {
+       redirect(`${getBaseUrl()}/dashboard/checkout/payment-succeded?subscription_update_success=true&planId=${targetPlanId}&interval=${interval}`);
     }
   }
 
   // 4. NEW SUBSCRIPTION: Create Checkout Session
   console.log(`\n💳 [STRIPE-ACTION] Creating new subscription checkout session...`);
   
-  // Use clear success/cancel URLs to mirror token purchase flow
-    const successUrl = `${getBaseUrl()}/dashboard/checkout/payment-succeded?session_id={CHECKOUT_SESSION_ID}`;
-    const cancelUrl = `${getBaseUrl()}/dashboard/checkout/payment-rejected`;
+  const successUrl = `${getBaseUrl()}/dashboard/checkout/payment-succeded?session_id={CHECKOUT_SESSION_ID}`;
+  const cancelUrl = `${getBaseUrl()}/dashboard/checkout/payment-rejected`;
 
   const session = await stripe.checkout.sessions.create({
     customer: customerId,
@@ -200,7 +194,6 @@ export async function createSubscriptionCheckout(
     mode: 'subscription',
     success_url: successUrl,
     cancel_url: cancelUrl,
-    // Subscription will default to auto-renew (cancel_at_period_end: false).
     metadata: {
       userId: user.id,
       targetPlanId: targetPlanId,

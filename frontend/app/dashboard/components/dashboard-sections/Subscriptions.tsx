@@ -7,7 +7,6 @@ import { motion } from "framer-motion";
 export default function QuickActionsSection() {
   return (
     <div className="animate-in fade-in slide-in-from-bottom-4 duration-700">
-      
       {/* --- HEADER CLUSTER --- */}
       <header className="mb-16 relative">
         <div className="flex items-center gap-2 mb-4">

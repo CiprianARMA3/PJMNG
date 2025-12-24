@@ -138,25 +138,32 @@ export default function HomeSection({ user, userName }: HomeSectionProps) {
           <motion.div variants={itemVariants} whileHover={{ y: -8 }}>
             <AddProjectButton />
           </motion.div>
+{/* --- EMPTY STATE NODE (Spanning 2 columns) --- */}
+{!loading && projects.length === 0 && (
+  <motion.div 
+    variants={itemVariants}
+    className="md:col-span-2 flex flex-col items-center justify-center p-12 bg-zinc-50/50 dark:bg-zinc-900/30 border-2 border-dashed border-zinc-200 dark:border-zinc-800 rounded-[40px] text-center"
+  >
+      <FolderOpen size={32} className="text-zinc-300 dark:text-zinc-700 mb-4" strokeWidth={2} />
+      <h3 className="text-xs font-black text-zinc-900 dark:text-white uppercase tracking-tighter">
+        No Projects Detected
+      </h3>
+      <p className="text-[10px] text-zinc-400 dark:text-zinc-500 font-bold uppercase tracking-widest mt-1">
+        Initialize your first deployment node to begin.
+      </p>
+  </motion.div>
+)}
+
+{/* This will now sit next to the Empty State on the same line */}
+<motion.div variants={itemVariants} whileHover={{ y: -8 }}>
+  <AddProjectButton />
+</motion.div>
         </div>
+        
       </motion.section>
 
       {/* --- EMPTY STATE PROTOCOL --- */}
-      {!loading && projects.length === 0 && (
-        <motion.div 
-          initial={{ opacity: 0, scale: 0.95 }}
-          animate={{ opacity: 1, scale: 1 }}
-          className="flex flex-col items-center justify-center p-20 bg-zinc-50/50 dark:bg-zinc-900/30 border-2 border-zinc-100 dark:border-zinc-800 rounded-[40px] text-center"
-        >
-            <FolderOpen size={48} className="text-zinc-200 dark:text-zinc-700 mb-6" strokeWidth={1.5} />
-            <h3 className="text-lg font-black text-zinc-900 dark:text-white uppercase tracking-tighter">
-              No Projects Detected
-            </h3>
-            <p className="text-zinc-400 dark:text-zinc-500 font-bold text-xs uppercase tracking-widest mt-2">
-              Initialize your first deployment node to begin.
-            </p>
-        </motion.div>
-      )}
+
     </div>
   );
 }

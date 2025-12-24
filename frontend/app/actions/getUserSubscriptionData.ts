@@ -15,7 +15,6 @@ export interface UserSubscriptionData {
     subscription_id: string | null;
     planName: string | null;
     planConfig: any;
-    // These fields are crucial for fetching from Stripe (via getUserBillingInfo)
     interval: 'month' | 'year' | null; 
     cancelAtPeriodEnd: boolean | null; 
 }
