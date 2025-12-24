@@ -142,7 +142,7 @@ export default function CheckoutPage() {
                         {error || "Unable to load checkout details."}
                     </p>
                     <button
-                        onClick={() => router.push('/pricing')}
+                        onClick={() => router.push('/dashboard')}
                         className="w-full py-2.5 bg-white light:bg-black text-black light:text-white rounded-lg text-sm font-semibold hover:bg-neutral-200 light:hover:bg-neutral-800 transition-colors"
                     >
                         Return to Plans

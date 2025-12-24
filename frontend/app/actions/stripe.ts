@@ -179,12 +179,11 @@ export async function createSubscriptionCheckout(
 
       console.log(`✅ [STRIPE-ACTION] Subscription updated: ${updatedSub.id}`);
       // Redirect to a specific confirmation page for updates
-      redirect(`${getBaseUrl()}/dashboard/checkout?subscription_update_success=true&planId=${targetPlanId}&interval=${interval}`);
-
+      redirect(`${getBaseUrl()}/dashboard/checkout/payment-succeded?subscription_update_success=true&planId=${targetPlanId}&interval=${interval}`);
     } catch (err: any) {
       console.error(`❌ [STRIPE-ACTION] Failed to update subscription:`, err.message);
       // Redirect to a rejection page for updates
-      redirect(`${getBaseUrl()}/dashboard/checkout?subscription_update_success=false&error=true`);
+      redirect(`${getBaseUrl()}/dashboard/checkout/payment-succeded?error=true`);
     }
   }
 
@@ -192,8 +191,8 @@ export async function createSubscriptionCheckout(
   console.log(`\n💳 [STRIPE-ACTION] Creating new subscription checkout session...`);
   
   // Use clear success/cancel URLs to mirror token purchase flow
-  const successUrl = `${getBaseUrl()}/dashboard/checkout?subscription_success=true&session_id={CHECKOUT_SESSION_ID}&planId=${targetPlanId}&interval=${interval}`;
-  const cancelUrl = `${getBaseUrl()}/dashboard/checkout?subscription_success=false&canceled=true`;
+    const successUrl = `${getBaseUrl()}/dashboard/checkout/payment-succeded?session_id={CHECKOUT_SESSION_ID}`;
+    const cancelUrl = `${getBaseUrl()}/dashboard/checkout/payment-rejected`;
 
   const session = await stripe.checkout.sessions.create({
     customer: customerId,
