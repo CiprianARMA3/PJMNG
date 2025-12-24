@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useEffect, useState, useRef } from "react";
 import { createClient } from "@/utils/supabase/client";
 import { useRouter } from "next/navigation";
 import { getUserSubscriptionData } from "@/app/actions/getUserSubscriptionData";
@@ -14,12 +14,54 @@ import {
   Globe,
   CheckCircle2,
   LayoutTemplate,
-  MoreHorizontal,
-  PieChart // Added for the usage visual
+  Terminal,
+  Cpu,
+  Zap,
+  PieChart,
+  Plus,
+  Loader2,
+  AlertCircle
 } from "lucide-react";
 import Link from 'next/link';
+import { motion, Variants } from "framer-motion";
 
 const supabase = createClient();
+
+// --- MOTION PROTOCOL ---
+const containerVariants: Variants = {
+  hidden: { opacity: 0 },
+  visible: {
+    opacity: 1,
+    transition: { staggerChildren: 0.1, delayChildren: 0.2 }
+  }
+};
+
+const itemVariants: Variants = {
+  hidden: { opacity: 0, y: 20 },
+  visible: { 
+    opacity: 1, 
+    y: 0, 
+    transition: { type: "spring", stiffness: 260, damping: 20 } 
+  }
+};
+
+// --- INDUSTRIAL COMPONENT: DEPLOYMENT NODE ---
+const DeploymentNode = ({ title, icon: Icon, children }: any) => (
+  <div className="relative w-full bg-white dark:bg-[#0A0A0A] border-2 border-zinc-100 dark:border-zinc-800 rounded-[40px] flex flex-col overflow-hidden shadow-2xl shadow-zinc-200/50 dark:shadow-black/50 mb-8">
+    <div className="absolute inset-0 bg-[url('/grainy.png')] opacity-[0.02] dark:opacity-[0.03] pointer-events-none z-0" />
+    <div className="relative z-10 px-8 py-6 border-b-2 border-zinc-50 dark:border-zinc-800 flex items-center justify-between bg-zinc-50/30 dark:bg-zinc-900/30">
+      <div className="flex items-center gap-4">
+        <div className="p-2.5 bg-white dark:bg-zinc-900 rounded-2xl border-2 border-zinc-100 dark:border-zinc-800 text-purple-600 shadow-sm">
+          <Icon size={18} strokeWidth={3} />
+        </div>
+        <h3 className="text-[10px] font-black uppercase tracking-[0.3em] text-zinc-900 dark:text-white uppercase">{title}</h3>
+      </div>
+    </div>
+    <div className="relative z-10 p-8 bg-white dark:bg-transparent flex flex-col">
+      {children}
+    </div>
+  </div>
+);
 
 // --- Types ---
 interface Plan {
@@ -52,37 +94,6 @@ const getPlanLimits = (planName: string) => {
   // Default to Individual/Standard: 1 User, 5 Projects
   return { max_users: 1, max_projects: 5, label: 'Individual' };
 };
-
-// --- MATTE BACKGROUND COMPONENT ---
-const NoiseBackground = () => (
-  <div className="fixed inset-0 z-0 w-full h-full bg-[#0a0a0a] light:bg-gray-50">
-    <div className="absolute inset-0 bg-gradient-to-tr from-[#050505] to-[#111111] light:from-white light:to-gray-100" />
-    <div
-      className="absolute inset-0 opacity-[0.03] pointer-events-none"
-      style={{
-        backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E")`
-      }}
-    />
-  </div>
-);
-
-// --- Page Widget ---
-const PageWidget = ({ title, icon: Icon, children }: any) => (
-  <div className="relative z-10 w-full bg-[#111111] light:bg-white border border-[#222] light:border-gray-200 rounded-xl flex flex-col overflow-visible shadow-[0_15px_30px_-10px_rgba(0,0,0,0.5)] light:shadow-lg hover:border-[#333] light:hover:border-gray-300 transition-colors">
-    <div className="px-5 py-4 border-b border-[#222] light:border-gray-200 flex items-center justify-between bg-[#141414] light:bg-gray-50 rounded-t-xl">
-      <div className="flex items-center gap-3">
-        <div className="p-1.5 bg-[#1a1a1a] light:bg-white rounded-md border border-[#2a2a2a] light:border-gray-200">
-          <Icon size={14} className="text-neutral-400 light:text-neutral-500" />
-        </div>
-        <h3 className="text-sm font-medium text-neutral-300 light:text-neutral-700 tracking-wide">{title}</h3>
-      </div>
-      <MoreHorizontal size={16} className="text-neutral-600 light:text-neutral-400" />
-    </div>
-    <div className="flex-1 p-6 bg-[#111111] light:bg-white min-h-0 relative flex flex-col rounded-b-xl">
-      {children}
-    </div>
-  </div>
-);
 
 export default function CreateProjectPage() {
   const router = useRouter();
@@ -326,24 +337,8 @@ export default function CreateProjectPage() {
   // --- Loading State ---
   if (userLoading) {
     return (
-      <div role="status" className="flex justify-center items-center h-screen bg-[#0a0a0a] light:bg-white">
-        <svg
-          aria-hidden="true"
-          className="inline w-8 h-8 text-neutral-400 animate-spin fill-white"
-          viewBox="0 0 100 101"
-          fill="none"
-          xmlns="http://www.w3.org/2000/svg"
-        >
-          <path
-            d="M100 50.5908C100 78.2051 77.6142 100.591 50 100.591C22.3858 100.591 0 78.2051 0 50.5908C0 22.9766 22.3858 0.59082 50 0.59082C77.6142 0.59082 100 22.9766 100 50.5908ZM9.08144 50.5908C9.08144 73.1895 27.4013 91.5094 50 91.5094C72.5987 91.5094 90.9186 73.1895 90.9186 50.5908C90.9186 27.9921 72.5987 9.67226 50 9.67226C27.4013 9.67226 9.08144 27.9921 9.08144 50.5908Z"
-            fill="currentColor"
-          />
-          <path
-            d="M93.9676 39.0409C96.393 38.4038 97.8624 35.9116 97.0079 33.5539C95.2932 28.8227 92.871 24.3692 89.8167 20.348C85.8452 15.1192 80.8826 10.7238 75.2124 7.41289C69.5422 4.10194 63.2754 1.94025 56.7698 1.05124C51.7666 0.367541 46.6976 0.446843 41.7345 1.27873C39.2613 1.69328 37.813 4.19778 38.4501 6.62326C39.0873 9.04874 41.5694 10.4717 44.0505 10.1071C47.8511 9.54855 51.7191 9.52689 55.5402 10.0491C60.8642 10.7766 65.9928 12.5457 70.6331 15.2552C75.2735 17.9648 79.3347 21.5619 82.5849 25.841C84.9175 28.9121 86.7997 32.2913 88.1811 35.8758C89.083 38.2158 91.5421 39.6781 93.9676 39.0409Z"
-            fill="currentFill"
-          />
-        </svg>
-        <span className="sr-only">Loading...</span>
+      <div className="flex h-screen items-center justify-center bg-white dark:bg-[#0A0A0A]">
+        <Loader2 className="w-12 h-12 animate-spin text-purple-600" strokeWidth={3} />
       </div>
     );
   }
@@ -351,15 +346,15 @@ export default function CreateProjectPage() {
   // --- No Plan State ---
   if (!user?.active || !selectedPlan) {
     return (
-      <div className="min-h-screen relative flex items-center justify-center p-4">
-        <NoiseBackground />
-        <div className="relative z-10 max-w-md w-full p-8 bg-[#111111] light:bg-white border border-[#222] light:border-gray-200 rounded-xl text-center shadow-2xl light:shadow-lg">
-          <Crown className="w-12 h-12 text-yellow-500 mx-auto mb-4" />
-          <h2 className="text-xl font-medium mb-2 text-white/90 light:text-black/90">Subscription Required</h2>
-          <p className="text-neutral-500 light:text-neutral-600 mb-6 text-sm">You need an active plan to create projects.</p>
-          <div className="flex gap-3 justify-center">
-            <button onClick={() => router.back()} className="px-4 py-2 text-sm text-neutral-400 hover:text-white light:text-neutral-600 light:hover:text-black rounded-lg bg-[#1a1a1a] light:bg-gray-100 border border-[#2a2a2a] light:border-gray-200">Cancel</button>
-            <Link href="/dashboard/subscriptions" className="px-4 py-2 text-sm bg-white light:bg-black text-black light:text-white rounded-lg font-medium">View Plans</Link>
+      <div className="min-h-screen relative flex items-center justify-center p-4 bg-white dark:bg-[#0A0A0A]">
+        <div className="absolute inset-0 bg-[url('/grainy.png')] opacity-[0.03] pointer-events-none" />
+        <div className="relative z-10 max-w-md w-full p-10 bg-white dark:bg-[#0A0A0A] border-2 border-zinc-100 dark:border-zinc-800 rounded-[40px] text-center shadow-2xl dark:shadow-none">
+          <Crown className="w-12 h-12 text-purple-600 mx-auto mb-6" strokeWidth={2.5} />
+          <h2 className="text-2xl font-black uppercase tracking-tighter mb-4 text-zinc-900 dark:text-white">Protocol Halted</h2>
+          <p className="text-zinc-500 dark:text-zinc-400 mb-8 text-xs font-bold uppercase tracking-widest">Active subscription nodes required to initialize projects.</p>
+          <div className="flex gap-4 justify-center">
+            <button onClick={() => router.back()} className="px-6 py-3 text-[10px] font-black uppercase tracking-widest text-zinc-400 hover:text-zinc-900 dark:hover:text-white rounded-xl bg-zinc-50 dark:bg-zinc-900 border-2 border-zinc-100 dark:border-zinc-800">Abort</button>
+            <Link href="/dashboard/subscriptions" className="px-6 py-3 text-[10px] bg-zinc-900 dark:bg-white text-white dark:text-black rounded-xl font-black uppercase tracking-widest">View Matrix</Link>
           </div>
         </div>
       </div>
@@ -367,266 +362,206 @@ export default function CreateProjectPage() {
   }
 
   return (
-    <div className="min-h-screen relative font-sans">
-      <NoiseBackground />
-
-      {/* Navbar */}
-      <nav className="border-b border-[#222] light:border-gray-200 bg-[#111111] light:bg-white sticky top-0 z-50 shadow-md">
-        <div className="max-w-5xl mx-auto px-6 h-16 flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <button onClick={() => router.back()} className="p-2 -ml-2 text-neutral-400 light:text-neutral-500 hover:text-white light:hover:text-black hover:bg-[#1a1a1a] light:hover:bg-gray-100 rounded-full transition-all">
-              <ArrowLeft size={18} />
+    <div className="min-h-screen bg-white dark:bg-[#0A0A0A] text-zinc-900 dark:text-zinc-100 font-sans selection:bg-purple-100 pb-20 overflow-x-hidden">
+      
+      {/* --- NAVIGATION INTERFACE --- */}
+      <nav className="border-b-2 border-zinc-100 dark:border-zinc-800 bg-white/80 dark:bg-[#0A0A0A]/80 backdrop-blur-xl sticky top-0 z-[100]">
+        <div className="max-w-6xl mx-auto px-8 h-20 flex items-center justify-between">
+          <div className="flex items-center gap-6">
+            <button onClick={() => router.back()} className="p-3 bg-zinc-50 dark:bg-zinc-900 border-2 border-zinc-100 dark:border-zinc-800 rounded-2xl hover:border-purple-600 transition-all active:scale-95 text-zinc-400">
+              <ArrowLeft size={18} strokeWidth={3} />
             </button>
-            <div className="h-4 w-[1px] bg-[#222] light:bg-gray-200"></div>
-            <span className="font-semibold tracking-tight text-lg text-white/90 light:text-black/90">Create Project</span>
+            <div className="h-8 w-px bg-zinc-200 dark:bg-zinc-800" />
+            <h1 className="text-xl font-black uppercase tracking-tighter">Project Creation</h1>
           </div>
-          <div className="flex items-center gap-3">
-            <span className="text-xs text-neutral-600 light:text-neutral-500 uppercase tracking-wider font-medium">
-              {selectedPlan?.name} Plan Active
-            </span>
+          <div className="hidden md:flex items-center gap-4">
+             <div className="flex flex-col items-end leading-none">
+                <span className="text-[9px] font-black text-zinc-400 dark:text-zinc-500 uppercase tracking-widest mb-1">AUTH</span>
+                <span className="text-[10px] font-black uppercase tracking-tight text-purple-600 bg-purple-50 dark:bg-purple-900/20 px-3 py-1 rounded-lg border border-purple-100 dark:border-purple-900/30">
+                  {selectedPlan?.name} Plan Active
+                </span>
+             </div>
           </div>
         </div>
       </nav>
 
-      <main className="max-w-5xl mx-auto px-6 py-10 relative z-10">
-        <form onSubmit={handleSubmit} className="grid grid-cols-1 lg:grid-cols-12 gap-10">
+      <motion.main 
+        variants={containerVariants}
+        initial="hidden"
+        animate="visible"
+        className="max-w-6xl mx-auto px-8 py-16"
+      >
+        <form onSubmit={handleSubmit} className="grid grid-cols-1 lg:grid-cols-12 gap-12">
 
-          {/* LEFT COLUMN */}
-          <div className="lg:col-span-8">
-            <div className="max-w-xl mx-auto space-y-10">
-              {/* 1. Identity */}
-              <section>
-                <div className="flex items-center gap-2 mb-6 text-white/90 light:text-black/90">
-                  <LayoutTemplate className="text-neutral-400 light:text-neutral-500" size={20} />
-                  <h2 className="text-lg font-medium text-neutral-300 light:text-neutral-800">Project Identity</h2>
+          {/* --- LEFT: CONFIGURATION MATRIX --- */}
+          <div className="lg:col-span-8 space-y-12">
+            
+            {/* 1. Identity Module */}
+            <motion.section variants={itemVariants}>
+              <div className="flex items-center gap-2 mb-8">
+                <Terminal size={14} className="text-purple-600" strokeWidth={3} />
+                <span className="text-[10px] font-black uppercase tracking-[0.3em] text-zinc-400">Section 01 / Identity Node</span>
+              </div>
+
+              <div className="bg-white dark:bg-zinc-900/30 border-2 border-zinc-100 dark:border-zinc-800 rounded-[40px] overflow-hidden relative group shadow-2xl shadow-zinc-200/50">
+                <div 
+                  className="h-52 w-full bg-zinc-100 dark:bg-zinc-800 relative cursor-pointer overflow-hidden group/banner"
+                  onClick={() => bannerInputRef.current?.click()}
+                >
+                  {projectMedia.bannerPreview ? (
+                    <img src={projectMedia.bannerPreview} alt="Banner" className="w-full h-full object-cover opacity-80" />
+                  ) : (
+                    <div className="absolute inset-0 flex flex-col items-center justify-center text-zinc-400 gap-2 uppercase tracking-widest font-black text-[10px]">
+                      <Upload size={24} strokeWidth={3} className="group-hover/banner:scale-110 transition-transform" />
+                      {uploadingBanner ? "Uploading Protocol..." : "Initialize Banner Relay"}
+                    </div>
+                  )}
                 </div>
-
-                <div className="bg-[#111111] light:bg-white border border-[#2a2a2a] light:border-gray-200 rounded-xl overflow-hidden relative group shadow-lg light:shadow-md">
-                  {/* Banner */}
-                  <div
-                    className="h-40 w-full bg-[#1A1A1A] light:bg-gray-100 relative cursor-pointer hover:bg-[#1f1f1f] light:hover:bg-gray-200 transition-colors"
-                    onClick={() => bannerInputRef.current?.click()}
+                <div className="px-10 pb-10 -mt-14 flex items-end relative z-10">
+                  <div 
+                    className="w-28 h-28 rounded-[32px] bg-white dark:bg-zinc-900 border-4 border-white dark:border-[#0A0A0A] relative cursor-pointer overflow-hidden shadow-2xl group/logo hover:border-purple-600 transition-colors"
+                    onClick={() => logoInputRef.current?.click()}
                   >
-                    {projectMedia.bannerPreview ? (
-                      <img src={projectMedia.bannerPreview} alt="Banner" className="w-full h-full object-cover opacity-80" />
+                    {projectMedia.logoPreview ? (
+                      <img src={projectMedia.logoPreview} alt="Logo" className="w-full h-full object-cover" />
                     ) : (
-                      <div className="absolute inset-0 flex flex-col items-center justify-center text-neutral-600 light:text-neutral-400 gap-2">
-                        {uploadingBanner ? <div className="animate-spin h-6 w-6 border-2 border-neutral-700 light:border-neutral-300 border-t-white light:border-t-black rounded-full"></div> : <Upload size={20} />}
-                        <span className="text-xs font-medium">{uploadingBanner ? "Uploading..." : "Upload Banner Image"}</span>
+                      <div className="w-full h-full flex items-center justify-center bg-zinc-50 dark:bg-zinc-800 text-zinc-300">
+                        {uploadingLogo ? <Loader2 className="animate-spin" /> : <Plus size={32} strokeWidth={3} />}
                       </div>
                     )}
                   </div>
-                  {/* Logo */}
-                  <div className="px-6 pb-6 -mt-10 flex items-end justify-between relative z-10">
-                    <div
-                      className="w-24 h-24 rounded-xl bg-[#111111] light:bg-white border-4 border-[#111111] light:border-white relative cursor-pointer overflow-hidden group/logo shadow-xl"
-                      onClick={() => logoInputRef.current?.click()}
-                    >
-                      {projectMedia.logoPreview ? (
-                        <img src={projectMedia.logoPreview} alt="Logo" className="w-full h-full object-cover" />
-                      ) : (
-                        <div className="w-full h-full bg-[#1A1A1A] light:bg-gray-100 flex items-center justify-center text-neutral-600 light:text-neutral-400 hover:bg-[#222] light:hover:bg-gray-200 transition-colors">
-                          {uploadingLogo ? <div className="animate-spin h-4 w-4 border-2 border-neutral-700 light:border-neutral-300 border-t-white light:border-t-black rounded-full"></div> : <Upload size={18} />}
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                  <input ref={bannerInputRef} type="file" accept="image/*" onChange={handleBannerUpload} className="hidden" />
-                  <input ref={logoInputRef} type="file" accept="image/*" onChange={handleLogoUpload} className="hidden" />
                 </div>
-              </section>
-              <div className="h-[1px] bg-[#222] light:bg-gray-200 w-full"></div>
-              {/* 2. General Info */}
-              <section>
-                <div className="flex items-center gap-2 mb-6 text-neutral-300 light:text-neutral-800">
-                  <Settings className="text-neutral-400 light:text-neutral-500" size={20} />
-                  <h2 className="text-lg font-medium">General Information</h2>
+                <input ref={bannerInputRef} type="file" accept="image/*" onChange={handleBannerUpload} className="hidden" />
+                <input ref={logoInputRef} type="file" accept="image/*" onChange={handleLogoUpload} className="hidden" />
+              </div>
+            </motion.section>
+
+            {/* 2. Metadata Cluster */}
+            <motion.section variants={itemVariants} className="space-y-10">
+              <div className="flex items-center gap-2 mb-2">
+                <Settings size={14} className="text-purple-600" strokeWidth={3} />
+                <span className="text-[10px] font-black uppercase tracking-[0.3em] text-zinc-400">Section 02 / Metadata Logic</span>
+              </div>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                <div className="space-y-3">
+                  <label className="text-[10px] font-black uppercase tracking-widest text-zinc-400">Project Call-sign <span className="text-purple-600">*</span></label>
+                  <input type="text" name="name" value={formData.name} onChange={handleInputChange} placeholder="E.G. PROJECT-AURORA" required className="w-full bg-zinc-50 dark:bg-zinc-900 border-2 border-zinc-100 dark:border-zinc-800 rounded-2xl px-6 py-4 text-xs font-black uppercase tracking-widest focus:outline-none focus:border-purple-600 transition-all" />
                 </div>
-
-                <div className="space-y-6">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div className="space-y-1.5">
-                      <label className="text-xs font-medium text-neutral-500 light:text-neutral-600 uppercase tracking-wide">Project Name <span className="text-red-900 light:text-red-600">*</span></label>
-                      <input
-                        type="text"
-                        name="name"
-                        value={formData.name}
-                        onChange={handleInputChange}
-                        placeholder="e.g. Game Dev Studio"
-                        required
-                        className="w-full bg-[#161616] light:bg-white border border-[#2a2a2a] light:border-gray-300 rounded-lg px-4 py-2.5 text-sm text-neutral-200 light:text-black focus:outline-none focus:border-neutral-600 light:focus:border-neutral-400 h-12 placeholder-neutral-600 light:placeholder-neutral-400"
-                      />
-                    </div>
-                    <div className="space-y-1.5">
-                      <label className="text-xs font-medium text-neutral-500 light:text-neutral-600 uppercase tracking-wide">Website URL</label>
-                      <div className="relative">
-                        <Globe size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-neutral-600 light:text-neutral-400" />
-                        <input
-                          type="url"
-                          name="website_url"
-                          value={formData.website_url}
-                          onChange={handleInputChange}
-                          placeholder="https://site.com"
-                          className="w-full bg-[#161616] light:bg-white border border-[#2a2a2a] light:border-gray-300 rounded-lg pl-10 pr-4 py-2.5 text-sm text-neutral-200 light:text-black focus:outline-none focus:border-neutral-600 light:focus:border-neutral-400 h-12 placeholder-neutral-600 light:placeholder-neutral-400"
-                        />
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="space-y-1.5">
-                    <label className="text-xs font-medium text-neutral-500 light:text-neutral-600 uppercase tracking-wide">Description</label>
-                    <textarea
-                      name="description"
-                      value={formData.description}
-                      onChange={handleInputChange}
-                      rows={4}
-                      placeholder="What is this project about?"
-                      className="w-full bg-[#161616] light:bg-white border border-[#2a2a2a] light:border-gray-300 rounded-lg px-4 py-2.5 text-sm text-neutral-200 light:text-black focus:outline-none focus:border-neutral-600 light:focus:border-neutral-400 resize-none placeholder-neutral-600 light:placeholder-neutral-400"
-                    />
+                <div className="space-y-3">
+                  <label className="text-[10px] font-black uppercase tracking-widest text-zinc-400">Primary Domain</label>
+                  <div className="relative">
+                    <Globe size={16} className="absolute left-6 top-1/2 -translate-y-1/2 text-zinc-400" />
+                    <input type="url" name="website_url" value={formData.website_url} onChange={handleInputChange} placeholder="HTTPS://KAPRY.DEV" className="w-full bg-zinc-50 dark:bg-zinc-900 border-2 border-zinc-100 dark:border-zinc-800 rounded-2xl pl-14 pr-6 py-4 text-xs font-black uppercase tracking-widest focus:outline-none focus:border-purple-600 transition-all" />
                   </div>
                 </div>
-              </section>
+              </div>
 
-              <div className="h-[1px] bg-[#222] light:bg-gray-200 w-full"></div>
+              <div className="space-y-3">
+                <label className="text-[10px] font-black uppercase tracking-widest text-zinc-400">Transmission Summary</label>
+                <textarea name="description" value={formData.description} onChange={handleInputChange} rows={4} placeholder="ENTER DEPLOYMENT DESCRIPTION..." className="w-full bg-zinc-50 dark:bg-zinc-900 border-2 border-zinc-100 dark:border-zinc-800 rounded-2xl px-6 py-4 text-xs font-black uppercase tracking-widest focus:outline-none focus:border-purple-600 resize-none transition-all" />
+              </div>
+            </motion.section>
 
-              {/* 3. Connections */}
-              <section>
-                <div className="flex items-center gap-2 mb-6 text-neutral-300 light:text-neutral-800">
-                  <Link2 className="text-neutral-400 light:text-neutral-500" size={20} />
-                  <h2 className="text-lg font-medium">Connections</h2>
-                </div>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div className="md:col-span-2 space-y-1.5">
-                    <label className="text-xs font-medium text-neutral-500 light:text-neutral-600 uppercase tracking-wide">GitHub Repository</label>
-                    <div className="relative">
-                      <Github size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-neutral-600 light:text-neutral-400" />
-                      <input
-                        type="url"
-                        name="github_repo_url"
-                        value={formData.github_repo_url}
-                        onChange={handleInputChange}
-                        placeholder="https://github.com/org/repo"
-                        className="w-full bg-[#161616] light:bg-white border border-[#2a2a2a] light:border-gray-300 rounded-lg pl-10 pr-4 py-2.5 text-sm text-neutral-200 light:text-black focus:outline-none focus:border-neutral-600 light:focus:border-neutral-400 h-12 placeholder-neutral-600 light:placeholder-neutral-400"
-                      />
-                    </div>
+            {/* 3. Asset Relays */}
+            <motion.section variants={itemVariants} className="space-y-8">
+              <div className="flex items-center gap-2 mb-2">
+                <Link2 size={14} className="text-purple-600" strokeWidth={3} />
+                <span className="text-[10px] font-black uppercase tracking-[0.3em] text-zinc-400">Section 03 / Asset Relays</span>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                <div className="md:col-span-2 space-y-3">
+                  <label className="text-[10px] font-black uppercase tracking-widest text-zinc-400">Source Control (GitHub)</label>
+                  <div className="relative">
+                    <Github size={16} className="absolute left-6 top-1/2 -translate-y-1/2 text-zinc-400" />
+                    <input type="url" name="github_repo_url" value={formData.github_repo_url} onChange={handleInputChange} placeholder="HTTPS://GITHUB.COM/ORG/REPO" className="w-full bg-zinc-50 dark:bg-zinc-900 border-2 border-zinc-100 dark:border-zinc-800 rounded-2xl pl-14 pr-6 py-4 text-xs font-black uppercase tracking-widest focus:outline-none focus:border-purple-600 transition-all" />
                   </div>
-                  {['discord', 'twitter', 'linkedin', 'youtube'].map((platform) => (
-                    <div key={platform} className="space-y-1.5">
-                      <label className="text-xs font-medium text-neutral-500 light:text-neutral-600 uppercase tracking-wide">{platform}</label>
-                      <input
-                        type="url"
-                        value={(socialLinks as any)[platform]}
-                        onChange={(e) => handleSocialLinkChange(platform, e.target.value)}
-                        placeholder={`https://${platform}.com/...`}
-                        className="w-full bg-[#161616] light:bg-white border border-[#2a2a2a] light:border-gray-300 rounded-lg px-4 py-2.5 text-sm text-neutral-200 light:text-black focus:outline-none focus:border-neutral-600 light:focus:border-neutral-400 h-12 placeholder-neutral-600 light:placeholder-neutral-400"
-                      />
-                    </div>
-                  ))}
                 </div>
-              </section>
-            </div>
+                {['discord', 'twitter', 'linkedin', 'youtube'].map((platform) => (
+                  <div key={platform} className="space-y-3">
+                    <label className="text-[10px] font-black uppercase tracking-widest text-zinc-400">{platform} Relay</label>
+                    <input type="url" value={(socialLinks as any)[platform]} onChange={(e) => handleSocialLinkChange(platform, e.target.value)} placeholder={`HTTPS://${platform.toUpperCase()}.COM/...`} className="w-full bg-zinc-50 dark:bg-zinc-900 border-2 border-zinc-100 dark:border-zinc-800 rounded-2xl px-6 py-4 text-xs font-black uppercase tracking-widest focus:outline-none focus:border-purple-600 transition-all" />
+                  </div>
+                ))}
+              </div>
+            </motion.section>
           </div>
 
-          {/* RIGHT COLUMN */}
-          <div className="lg:col-span-4 space-y-6">
-            <div className="sticky top-24">
-              <PageWidget title="Plan & Limitations" icon={Crown}>
-                <div className="space-y-5">
-                  <div className="flex items-center justify-between pb-5 border-b border-[#222] light:border-gray-200">
-                    <h3 className="font-medium text-sm text-neutral-300 light:text-neutral-700">{selectedPlan?.name} Plan</h3>
-                    <Link href="/dashboard" className="text-xs text-neutral-400 hover:text-white light:text-neutral-500 light:hover:text-black font-medium">Upgrade</Link>
-                  </div>
-
-                  {/* Project Usage Visualization */}
-                  <div className="bg-[#161616] light:bg-gray-50 p-4 rounded-lg border border-[#222] light:border-gray-200">
-                    <div className="flex justify-between items-center mb-3">
+          {/* --- RIGHT: RESOURCE ALLOCATION --- */}
+          <div className="lg:col-span-4">
+            <motion.div variants={itemVariants} className="sticky top-32">
+              <DeploymentNode title="Resource Allocation" icon={Crown}>
+                <div className="space-y-10">
+                  
+                  {/* Usage Monitor */}
+                  <div className="bg-zinc-50 dark:bg-zinc-900/50 p-6 rounded-3xl border-2 border-zinc-100 dark:border-zinc-800">
+                    <div className="flex justify-between items-center mb-4">
                       <div className="flex items-center gap-2">
-                        <PieChart size={14} className="text-neutral-400 light:text-neutral-500" />
-                        <span className="text-xs font-medium text-neutral-300 light:text-neutral-700">Project Usage</span>
+                        <PieChart size={14} className="text-purple-600" strokeWidth={3} />
+                        <span className="text-[10px] font-black uppercase tracking-widest text-zinc-400">Projects</span>
                       </div>
-                      <span className="text-[10px] text-neutral-500 light:text-neutral-500 font-mono">
+                      <span className="text-[10px] font-mono text-zinc-900 dark:text-zinc-400">
                         {projectCount} / {isUnlimitedProjects ? "∞" : selectedPlan?.max_projects}
                       </span>
                     </div>
 
-                    {/* Progress Bar */}
-                    <div className="w-full h-1.5 bg-[#222] light:bg-gray-200 rounded-full overflow-hidden mb-3">
-                      <div
-                        className={`h-full rounded-full transition-all duration-500 ${isUnlimitedProjects ? "bg-blue-500 w-full opacity-20"
-                            : projectPercentage >= 100 ? "bg-red-500"
-                              : projectPercentage >= 80 ? "bg-yellow-500"
-                                : "bg-green-500"
-                          }`}
-                        style={{ width: isUnlimitedProjects ? '100%' : `${projectPercentage}%` }}
+                    <div className="w-full h-2 bg-zinc-200 dark:bg-zinc-800 rounded-full overflow-hidden mb-6">
+                      <motion.div 
+                        initial={{ width: 0 }} 
+                        animate={{ width: isUnlimitedProjects ? '100%' : `${projectPercentage}%` }} 
+                        className={`h-full rounded-full transition-all duration-500 ${projectPercentage >= 100 ? "bg-red-500" : "bg-purple-600"}`}
                       />
                     </div>
 
-                    <div className="flex justify-between text-[10px] text-neutral-500 light:text-neutral-500">
+                    <div className="flex justify-between">
                       <div className="flex flex-col">
-                        <span>Current</span>
-                        <span className="text-white light:text-black font-medium text-xs mt-0.5">{projectCount}</span>
+                        <span className="text-[8px] font-black text-zinc-400 uppercase tracking-widest">Utilized</span>
+                        <span className="text-lg font-black">{projectCount}</span>
                       </div>
                       <div className="flex flex-col text-right">
-                        <span>Remaining</span>
-                        <span className="text-white light:text-black font-medium text-xs mt-0.5">{remainingProjects}</span>
+                        <span className="text-[8px] font-black text-zinc-400 uppercase tracking-widest">Available</span>
+                        <span className="text-lg font-black text-purple-600">{remainingProjects}</span>
                       </div>
                     </div>
                   </div>
 
-                  {/* Team Size */}
-                  <div className="pt-2">
-                    <div className="flex justify-between text-xs mb-1.5">
-                      <span className="text-neutral-500 light:text-neutral-600">Max Team Size</span>
-                      <span className="text-neutral-300 light:text-neutral-800 font-medium">
-                        {isUnlimitedUsers ? "Unlimited" : `${formData.max_collaborators} / ${selectedPlan?.max_users}`}
-                      </span>
+                  {/* Node Scalability (Team Size) */}
+                  <div className="space-y-4">
+                    <div className="flex justify-between items-center">
+                      <span className="text-[10px] font-black uppercase tracking-widest text-zinc-400">Collaborators Limit</span>
+                      <span className="text-xs font-black">{formData.max_collaborators} Collaborators</span>
                     </div>
-                    {!isUnlimitedUsers && (
-                      <input
-                        type="range"
-                        min="1"
-                        max={selectedPlan?.max_users || 1}
-                        value={formData.max_collaborators}
-                        onChange={(e) => setFormData(prev => ({ ...prev, max_collaborators: parseInt(e.target.value) }))}
-                        className="w-full h-1 bg-neutral-800 light:bg-neutral-300 rounded-lg appearance-none cursor-pointer accent-neutral-400 light:accent-neutral-600 focus:accent-white light:focus:accent-black"
-                      />
+                    {!isUnlimitedUsers ? (
+                       <input
+                         type="range"
+                         min="1"
+                         max={selectedPlan?.max_users || 1}
+                         value={formData.max_collaborators}
+                         onChange={(e) => setFormData(prev => ({ ...prev, max_collaborators: parseInt(e.target.value) }))}
+                         className="w-full h-1.5 bg-zinc-100 dark:bg-zinc-800 rounded-full appearance-none cursor-pointer accent-purple-600 focus:accent-purple-500"
+                       />
+                    ) : (
+                      <div className="py-2 px-4 bg-emerald-50 dark:bg-emerald-900/10 border border-emerald-100 dark:border-emerald-900/20 rounded-xl text-[10px] font-black text-emerald-600 uppercase tracking-widest text-center">
+                        Unrestricted amount of collaborators
+                      </div>
                     )}
-                    <p className="text-[10px] text-neutral-600 light:text-neutral-500 mt-2">
-                      {isUnlimitedUsers
-                        ? "You can invite as many collaborators as you need."
-                        : `You can invite up to ${selectedPlan?.max_users} collaborators.`}
-                    </p>
                   </div>
 
-                  {/* Quick List */}
-                  <div className="space-y-3 pt-2">
-                    <div className="flex items-center gap-2 text-xs text-neutral-400 light:text-neutral-500">
-                      <CheckCircle2 size={14} className="text-green-500" />
-                      <span>
-                        Max Projects: {isUnlimitedProjects ? "Unlimited" : selectedPlan?.max_projects}
-                      </span>
-                    </div>
-                    <div className="flex items-center gap-2 text-xs text-neutral-400 light:text-neutral-500">
-                      <CheckCircle2 size={14} className="text-green-500" />
-                      <span>Full Analytics Dashboard</span>
-                    </div>
-                  </div>
-
+                  {/* Final Execution */}
                   <button
                     type="submit"
                     disabled={loading || !formData.name.trim() || (!isUnlimitedProjects && projectCount >= (selectedPlan?.max_projects || 0))}
-                    className="w-full py-3 bg-neutral-200 light:bg-black hover:bg-white light:hover:bg-neutral-800 disabled:opacity-50 disabled:cursor-not-allowed text-black light:text-white text-sm font-semibold rounded-lg transition-colors shadow-lg"
+                    className="w-full py-5 bg-zinc-900 dark:bg-white text-white dark:text-black rounded-2xl font-black uppercase text-[11px] tracking-[0.2em] shadow-2xl active:scale-95 transition-all flex items-center justify-center gap-3 disabled:opacity-30 disabled:grayscale"
                   >
-                    {loading ? "Creating..." :
-                      (!isUnlimitedProjects && projectCount >= (selectedPlan?.max_projects || 0)) ? "Limit Reached" : "Create Project"
-                    }
+                    {loading ? <Loader2 className="animate-spin" /> : <Zap size={16} strokeWidth={3} />}
+                    {(!isUnlimitedProjects && projectCount >= (selectedPlan?.max_projects || 0)) ? "Quota Exhausted" : "Create Project"}
                   </button>
                 </div>
-              </PageWidget>
-            </div>
+              </DeploymentNode>
+            </motion.div>
           </div>
         </form>
-      </main>
+      </motion.main>
     </div>
   );
 }
