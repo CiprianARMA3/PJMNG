@@ -227,10 +227,12 @@ function ConfirmationModal({
 
 // --- SUB COMPONENTS ---
 
-const CheckIcon = () => (
-  <svg xmlns="http://www.w3.org/2000/svg" width="18" className="mr-3 bg-purple-600/20 fill-purple-400 rounded-full p-[3px] flex-shrink-0 mt-0.5" viewBox="0 0 24 24">
-    <path d="M9.707 19.121a.997.997 0 0 1-1.414 0l-5.646-5.647a1.5 1.5 0 0 1 0-2.121l.707-.707a1.5 1.5 0 0 1 2.121 0L9 14.171l9.525-9.525a1.5 1.5 0 0 1 2.121 0l.707.707a1.5 1.5 0 0 1 0 2.121z" />
-  </svg>
+const CheckIcon = ({ highlight = false }: { highlight?: boolean }) => (
+  <div className={`mt-0.5 flex-shrink-0 w-5 h-5 rounded-lg flex items-center justify-center ${highlight ? 'bg-purple-600 text-white' : 'bg-green-100 text-green-600'}`}>
+    <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round">
+      <polyline points="20 6 9 17 4 12" />
+    </svg>
+  </div>
 );
 
 const LoadingSpinner = () => (
@@ -241,13 +243,22 @@ const LoadingSpinner = () => (
 );
 
 const ToggleButton = ({ active, onClick, children }: { active: boolean; onClick: () => void; children: React.ReactNode; }) => (
-  <button onClick={onClick} className={`w-full text-[14px] font-medium py-2 px-4 rounded-full cursor-pointer transition-all duration-300 ${active ? "bg-purple-600 text-white shadow-md shadow-purple-900/20" : "bg-transparent text-white/60 light:text-black/60 hover:text-white light:hover:text-black"}`}>
+  <button
+    onClick={onClick}
+    className={`relative z-10 px-10 py-3 text-xs font-black uppercase tracking-widest transition-colors duration-300 cursor-pointer ${active
+      ? "text-white"
+      : "text-zinc-500 hover:text-[#202124]"
+      }`}
+  >
     {children}
   </button>
 );
 
-const FeatureItem = ({ feature }: { feature: string }) => (
-  <li className="flex items-start text-[14px] text-zinc-300 light:text-zinc-700 font-medium leading-relaxed"><CheckIcon /><span>{feature}</span></li>
+const FeatureItem = ({ feature, highlight = false }: { feature: string; highlight?: boolean }) => (
+  <li className="flex items-start gap-4">
+    <CheckIcon highlight={highlight} />
+    <span className="text-[14px] font-bold text-zinc-600 leading-tight">{feature}</span>
+  </li>
 );
 
 // --- Pricing Card (UPDATED) ---
@@ -285,86 +296,94 @@ const PricingCard = ({
 
   // Determine Button State
   let buttonText = "Get Started";
-  let buttonStyle = "bg-purple-600 hover:bg-purple-700 text-white cursor-pointer shadow-lg shadow-purple-900/20 border border-purple-500";
+  let buttonStyle = plan.recommended
+    ? "bg-[#202124] text-white hover:bg-black shadow-xl shadow-zinc-900/20"
+    : "bg-zinc-50 text-[#202124] hover:bg-zinc-100 border-2 border-transparent hover:border-zinc-200";
   let isDisabled = false;
 
   if (isExactCurrentPlan) {
     // Case 1: Exact Match (Same Plan + Same Interval)
     buttonText = "Current Plan";
-    buttonStyle = "bg-green-500/10 text-green-400 cursor-default border border-green-500/20";
+    buttonStyle = "bg-green-50 text-green-600 cursor-default border-2 border-green-200";
     isDisabled = true;
   } else if (isPlanNameMatch) {
     // Case 2: Same Plan, Different Interval (Switching)
     buttonText = "Switch to " + (isMonthly ? "Monthly" : "Yearly");
-    buttonStyle = "bg-white light:bg-black text-black light:text-white hover:bg-zinc-200 light:hover:bg-zinc-800 cursor-pointer border border-white light:border-black";
+    buttonStyle = "bg-[#202124] text-white hover:bg-black cursor-pointer shadow-xl shadow-zinc-900/20";
   } else if (currentRank !== -1) {
     // Case 3: Different Plan (Upgrade/Downgrade)
     if (planRank > currentRank) {
       buttonText = "Upgrade";
-      buttonStyle = "bg-white light:bg-black text-black light:text-white hover:bg-zinc-200 light:hover:bg-zinc-800 cursor-pointer border border-white light:border-black";
+      buttonStyle = "bg-[#202124] text-white hover:bg-black cursor-pointer shadow-xl shadow-zinc-900/20";
     } else {
       buttonText = "Downgrade";
-      buttonStyle = "bg-transparent text-white light:text-black border border-white/20 light:border-black/20 hover:bg-white/10 light:hover:bg-black/5 cursor-pointer";
+      buttonStyle = "bg-zinc-100 text-zinc-600 border-2 border-zinc-200 hover:bg-zinc-200 cursor-pointer";
     }
   }
 
   return (
     <div
-      className={`relative bg-[#0A0A0A] light:bg-white border rounded-3xl p-6 hover:scale-[1.02] transition-all duration-300 flex flex-col h-full ${plan.recommended && !isExactCurrentPlan
-        ? "border-purple-500/50 shadow-[0_0_30px_-5px_rgba(168,85,247,0.15)]"
+      className={`relative p-10 rounded-[40px] bg-white border-2 transition-all duration-500 overflow-visible group flex flex-col h-full ${plan.recommended && !isExactCurrentPlan && plan.name !== 'Enterprise'
+        ? "border-purple-600 shadow-2xl shadow-purple-900/10 scale-105 z-10"
         : isExactCurrentPlan
-          ? "border-green-500/30 bg-green-900/5"
-          : "border-white/10 light:border-gray-200 hover:border-white/20 light:hover:border-gray-300 hover:bg-white/5 light:hover:bg-gray-50"
+          ? "border-green-500 shadow-2xl shadow-green-900/10"
+          : "border-zinc-100 shadow-xl shadow-zinc-200/50 hover:border-purple-200 hover:shadow-2xl z-0"
         }`}
     >
-      <div className="flex flex-col h-full">
+      {/* Active Badge - Centered on top border */}
+      {isExactCurrentPlan && (
+        <div className="absolute -top-4 left-1/2 -translate-x-1/2 bg-green-500 text-white text-[10px] font-black uppercase tracking-[0.2em] px-5 py-2 rounded-full flex items-center gap-1.5 shadow-lg shadow-green-500/30 z-20 whitespace-nowrap">
+          <CheckCircle2 size={12} /> Active
+        </div>
+      )}
 
-        {/* Active Badge - Only for Exact Match */}
-        {isExactCurrentPlan && (
-          <div className="absolute -top-3 right-6 bg-green-500 text-black text-[11px] font-bold px-3 py-1 rounded-full flex items-center gap-1 shadow-lg shadow-green-500/20 z-10">
-            <CheckCircle2 size={12} /> ACTIVE
+      {/* Most Popular Badge - Centered on top border */}
+      {plan.recommended && !isExactCurrentPlan && plan.name !== 'Enterprise' && (
+        <div className="absolute -top-4 left-1/2 -translate-x-1/2 bg-purple-600 text-white px-6 py-2 rounded-full text-[10px] font-black uppercase tracking-[0.2em] shadow-lg shadow-purple-500/30 whitespace-nowrap z-20">
+          Most Popular
+        </div>
+      )}
+
+      {/* GRAIN TEXTURE */}
+      <div className="absolute inset-0 bg-[url('/grainy.png')] opacity-[0.03] mix-blend-multiply pointer-events-none rounded-[40px]" />
+
+      <div className="flex flex-col h-full relative z-10">
+
+        <div className="mb-10">
+          <h3 className="text-2xl font-black tracking-tight text-[#202124] mb-2">{plan.name}</h3>
+          <p className="text-sm text-zinc-500 font-bold mb-8">
+            {plan.name === 'Individual' ? 'For individual developers' :
+              plan.name === 'Developers' ? 'For growing teams & startups' :
+                'For large organizations'}
+          </p>
+          <div className="flex items-baseline gap-1">
+            <span className="text-5xl font-black text-[#202124] tracking-tighter">
+              €{isMonthly ? plan.monthly_price : plan.yearly_price}
+            </span>
+            <span className="text-zinc-400 font-black uppercase tracking-widest text-xs">
+              {isMonthly ? "/mo" : "/year"}
+            </span>
           </div>
-        )}
+        </div>
 
-        {/* Recommended Badge */}
-        {plan.recommended && !isExactCurrentPlan && (
-          <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-purple-600 text-white text-[11px] font-bold px-3 py-1 rounded-full shadow-lg shadow-purple-600/30 z-10">
-            RECOMMENDED
-          </div>
-        )}
-
-        <h4 className="text-zinc-400 light:text-zinc-600 text-sm font-semibold mb-2 uppercase tracking-wider">{plan.name}</h4>
-
-        <div className="flex items-baseline mb-6">
-          <h3 className="text-4xl font-bold text-white light:text-black">
-            €{isMonthly ? plan.monthly_price : plan.yearly_price}
-          </h3>
-          <span className="text-zinc-500 light:text-zinc-600 font-medium ml-1.5">
-            / {isMonthly ? "month" : "year"}
-          </span>
+        <div className="space-y-5 mb-12 flex-grow">
+          {plan.features.map((feature, index) => (
+            <FeatureItem key={`${plan.id}-${index}`} feature={feature} highlight={plan.recommended} />
+          ))}
         </div>
 
         <button
           type="button"
           onClick={onSelect}
           disabled={isDisabled}
-          className={`w-full py-2.5 rounded-xl text-sm font-semibold transition-all flex items-center justify-center gap-2 mb-8 ${buttonStyle} ${isDisabled ? 'opacity-100' : ''}`}
+          className={`w-full py-5 rounded-2xl font-black text-xs uppercase tracking-[0.2em] transition-all duration-300 flex items-center justify-center gap-2 active:scale-95 ${buttonStyle} ${isDisabled ? 'cursor-default' : 'cursor-pointer'}`}
         >
-          <>
-            {buttonText.startsWith("Switch") && <ArrowUpCircle size={16} />}
-            {buttonText === "Upgrade" && <ArrowUpCircle size={16} />}
-            {buttonText === "Downgrade" && <ArrowDownCircle size={16} />}
-            {buttonText}
-          </>
+          {buttonText.startsWith("Switch") && <ArrowUpCircle size={14} strokeWidth={3} />}
+          {buttonText === "Upgrade" && <ArrowUpCircle size={14} strokeWidth={3} />}
+          {buttonText === "Downgrade" && <ArrowDownCircle size={14} strokeWidth={3} />}
+          {buttonText}
+          {!isDisabled && buttonText === "Get Started" && <ChevronRight size={14} strokeWidth={3} className="group-hover:translate-x-1 transition-transform" />}
         </button>
-
-        <div className="border-t border-white/5 light:border-black/5 pt-6 flex-grow">
-          <ul className="space-y-4">
-            {plan.features.map((feature, index) => (
-              <FeatureItem key={`${plan.id}-${index}`} feature={feature} />
-            ))}
-          </ul>
-        </div>
       </div>
     </div>
   );
@@ -494,7 +513,7 @@ export default function PricingInterface() {
 
   if (loading)
     return (
-      <div role="status" className="flex justify-center items-center h-screen bg-[#0a0a0a] light:bg-white">
+      <div role="status" className="flex justify-center items-center h-screen">
         <svg
           aria-hidden="true"
           className="inline w-8 h-8 text-neutral-400 animate-spin fill-white"
@@ -516,7 +535,7 @@ export default function PricingInterface() {
     );
 
   return (
-    <div className="max-w-7xl mx-auto p-4 md:p-8 animate-in fade-in duration-700">
+    <div className="max-w-[1200px] mx-auto p-4 md:p-8 animate-in fade-in duration-700">
 
       {/* Confirmation Modal (Inserted back) */}
       <ConfirmationModal
@@ -530,17 +549,19 @@ export default function PricingInterface() {
         isUpgrade={isUpgrade}
       />
 
-      {/* Toggle */}
+      {/* Supercharged Toggle */}
       <div className="flex justify-center mb-12">
-        <div className="bg-white/5 light:bg-black/5 backdrop-blur-md border border-white/10 light:border-black/10 rounded-full p-1 flex">
+        <div className="inline-grid grid-cols-2 bg-white p-1.5 rounded-full border-2 border-zinc-100 shadow-xl shadow-zinc-200/50 relative">
+          <div
+            className={`absolute top-1.5 bottom-1.5 left-1.5 w-[calc(50%-6px)] bg-[#202124] rounded-full transition-transform duration-300 ease-[cubic-bezier(0.25,0.1,0.25,1)] ${!isMonthly ? 'translate-x-full' : 'translate-x-0'}`}
+          />
           <ToggleButton active={isMonthly} onClick={() => setIsMonthly(true)}>
             Monthly
           </ToggleButton>
           <ToggleButton active={!isMonthly} onClick={() => setIsMonthly(false)}>
-            <span className="flex items-center gap-2">
+            <span className="flex items-center justify-center gap-2">
               Yearly
-              <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full transition-colors ${!isMonthly ? "bg-white light:bg-black text-purple-600 light:text-white" : "bg-purple-500/20 text-purple-200 light:text-purple-700"
-                }`}>
+              <span className={`text-[10px] font-black px-2 py-0.5 rounded ${!isMonthly ? 'bg-white/20 text-white' : 'bg-green-100 text-green-700'}`}>
                 -17%
               </span>
             </span>
@@ -549,7 +570,7 @@ export default function PricingInterface() {
       </div>
 
       {/* Cards Grid */}
-      <div className="grid lg:grid-cols-3 md:grid-cols-2 gap-8 max-w-5xl mx-auto">
+      <div className="grid lg:grid-cols-3 gap-8 items-start">
         {plans.map((plan) => (
           <PricingCard
             key={plan.id}
@@ -564,11 +585,11 @@ export default function PricingInterface() {
 
       {/* Divider */}
       <div className="flex flex-col justify-center items-center mt-20 mb-10 gap-4">
-        <div className="h-px w-full max-w-xs bg-gradient-to-r from-transparent via-white/20 light:via-black/20 to-transparent"></div>
-        <p className="text-zinc-500 text-sm font-medium uppercase tracking-widest flex items-center gap-2">
-          <ChevronRight className="w-4 h-4 text-zinc-600" />
+        <div className="h-1 w-12 bg-zinc-100 rounded-full" />
+        <p className="text-zinc-400 text-[10px] font-black uppercase tracking-[0.2em] flex items-center gap-2">
+          <ChevronRight className="w-3 h-3 text-zinc-400" strokeWidth={3} />
           Detailed Comparison
-          <ChevronRight className="w-4 h-4 text-zinc-600 rotate-180" />
+          <ChevronRight className="w-3 h-3 text-zinc-400 rotate-180" strokeWidth={3} />
         </p>
       </div>
 
