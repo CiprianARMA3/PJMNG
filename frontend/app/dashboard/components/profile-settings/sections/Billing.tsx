@@ -530,9 +530,9 @@ export default function BillingPage() {
             {/* Invoice History Widget */}
             <motion.div variants={itemVariants}>
                 <PageWidget title="Invoice History" icon={Download}>
-                    <div className="overflow-x-auto -mx-6">
+                    <div className="overflow-x-auto -mx-6 -mt-6 -mb-6">
                         <table className="w-full text-left border-collapse">
-                            <thead className="bg-[#141414] light:bg-gray-50 text-neutral-500 light:text-neutral-600 font-medium uppercase text-[10px] tracking-wider border-y border-[#222] light:border-gray-200">
+                            <thead className="bg-[#141414] light:bg-gray-50 text-neutral-500 light:text-neutral-600 font-medium uppercase text-[10px] tracking-wider border-b border-[#222] light:border-gray-200">
                                 <tr>
                                     <th className="px-6 py-3 font-medium">Date</th>
                                     <th className="px-6 py-3 font-medium">Amount</th>
