@@ -100,6 +100,11 @@ export default function CheckoutPage() {
                 console.log(`📝 [CHECKOUT] Initiating subscription for ${planConfig.name} (${interval})...`);
                 await createSubscriptionCheckout(urlPlanId, interval, true);
             } catch (err: any) {
+                // Next.js redirect() throws a special error with digest 'NEXT_REDIRECT'
+                // We must re-throw it so the redirect can complete
+                if (err?.digest?.startsWith('NEXT_REDIRECT')) {
+                    throw err;
+                }
                 console.error("Checkout error:", err);
                 setError(err.message || "Failed to initiate secure checkout session.");
             }

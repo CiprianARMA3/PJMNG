@@ -78,7 +78,7 @@ export async function getTokenPacks(modelKey: string, isEnterprise: boolean) {
 export async function createSubscriptionCheckout(
   targetPlanId: string,
   interval: 'month' | 'year',
-  autoRenew: boolean = true 
+  autoRenew: boolean = true
 ) {
   const supabase = createClient(cookies());
   const { data: { user } } = await supabase.auth.getUser();
@@ -122,69 +122,63 @@ export async function createSubscriptionCheckout(
   console.log(`\n🔍 [STRIPE-ACTION] Checking for existing subscriptions...`);
   const subscriptions = await stripe.subscriptions.list({
     customer: customerId,
-    status: 'all', 
+    status: 'all',
     limit: 10
   });
 
   const relevantSubs = subscriptions.data.filter(s => ['active', 'trialing', 'past_due', 'unpaid'].includes(s.status));
-  
+
   if (relevantSubs.length > 0) {
     console.log(`🔄 [STRIPE-ACTION] User has ${relevantSubs.length} relevant subscription(s). Attempting update...`);
-    
-    // Define a flag to track if we need to redirect successfully
-    let shouldRedirectSuccess = false;
 
-    try {
-      const existingSub = relevantSubs.sort((a, b) => (b.cancel_at_period_end ? 0 : 1) - (a.cancel_at_period_end ? 0 : 1))[0]; 
+    // Define variables to track redirect state (redirects must happen OUTSIDE try-catch)
+    let redirectUrl: string | null = null;
 
-      if (!existingSub || !existingSub.items.data.length) {
-         throw new Error("No valid subscription item found for update.");
-      }
+    const existingSub = relevantSubs.sort((a, b) => (b.cancel_at_period_end ? 0 : 1) - (a.cancel_at_period_end ? 0 : 1))[0];
 
-      const currentPriceId = existingSub.items.data[0]?.price.id;
-      const targetCancelAtPeriodEnd = !autoRenew;
-
-      // Check if no changes are needed
-      if (currentPriceId === targetPriceId && existingSub.cancel_at_period_end === targetCancelAtPeriodEnd) {
-        console.log(`⚠️ [STRIPE-ACTION] No changes needed. Redirecting to billing.`);
-        // Special case: direct return here to avoid the catch block mess
-        return redirect(`${getBaseUrl()}/dashboard/settings?tab=billing`);
-      }
-
-      const updateParams: Stripe.SubscriptionUpdateParams = {
-          cancel_at_period_end: targetCancelAtPeriodEnd,
-      };
-      
-      if (currentPriceId !== targetPriceId) {
-          updateParams.items = [{
-              id: existingSub.items.data[0].id,
-              price: targetPriceId,
-          }];
-          updateParams.proration_behavior = 'always_invoice'; 
-      }
-
-      const updatedSub = await stripe.subscriptions.update(existingSub.id, updateParams);
-      console.log(`✅ [STRIPE-ACTION] Subscription updated: ${updatedSub.id}`);
-      
-      // ✅ MARK SUCCESS (Do not redirect here yet!)
-      shouldRedirectSuccess = true;
-
-    } catch (err: any) {
-      console.error(`❌ [STRIPE-ACTION] Failed to update subscription:`, err.message);
-      
-      // ❌ ERROR REDIRECT (This is safe here because we are already handling the error)
-      redirect(`${getBaseUrl()}/dashboard/checkout/payment-succeded?error=true`);
+    if (!existingSub || !existingSub.items.data.length) {
+      throw new Error("No valid subscription item found for update.");
     }
 
-    // ✅ PERFORM SUCCESS REDIRECT (Outside the Try/Catch Block)
-    if (shouldRedirectSuccess) {
-       redirect(`${getBaseUrl()}/dashboard/checkout/payment-succeded?subscription_update_success=true&planId=${targetPlanId}&interval=${interval}`);
+    const currentPriceId = existingSub.items.data[0]?.price.id;
+    const targetCancelAtPeriodEnd = !autoRenew;
+
+    // Check if no changes are needed
+    if (currentPriceId === targetPriceId && existingSub.cancel_at_period_end === targetCancelAtPeriodEnd) {
+      console.log(`⚠️ [STRIPE-ACTION] No changes needed. Redirecting to billing.`);
+      redirect(`${getBaseUrl()}/dashboard/settings?tab=billing`);
+    }
+
+    const updateParams: Stripe.SubscriptionUpdateParams = {
+      cancel_at_period_end: targetCancelAtPeriodEnd,
+    };
+
+    if (currentPriceId !== targetPriceId) {
+      updateParams.items = [{
+        id: existingSub.items.data[0].id,
+        price: targetPriceId,
+      }];
+      updateParams.proration_behavior = 'always_invoice';
+    }
+
+    try {
+      const updatedSub = await stripe.subscriptions.update(existingSub.id, updateParams);
+      console.log(`✅ [STRIPE-ACTION] Subscription updated: ${updatedSub.id}`);
+      redirectUrl = `${getBaseUrl()}/dashboard/checkout/payment-succeded?subscription_update_success=true&planId=${targetPlanId}&interval=${interval}&subscription_id=${updatedSub.id}`;
+    } catch (err: any) {
+      console.error(`❌ [STRIPE-ACTION] Failed to update subscription:`, err.message);
+      redirectUrl = `${getBaseUrl()}/dashboard/checkout/payment-succeded?error=true`;
+    }
+
+    // ✅ PERFORM REDIRECT (Outside the Try/Catch Block - Next.js redirect throws a special error)
+    if (redirectUrl) {
+      redirect(redirectUrl);
     }
   }
 
   // 4. NEW SUBSCRIPTION: Create Checkout Session
   console.log(`\n💳 [STRIPE-ACTION] Creating new subscription checkout session...`);
-  
+
   const successUrl = `${getBaseUrl()}/dashboard/checkout/payment-succeded?session_id={CHECKOUT_SESSION_ID}`;
   const cancelUrl = `${getBaseUrl()}/dashboard/checkout/payment-rejected`;
 
@@ -197,7 +191,7 @@ export async function createSubscriptionCheckout(
     metadata: {
       userId: user.id,
       targetPlanId: targetPlanId,
-      interval: interval, 
+      interval: interval,
       autoRenew: String(autoRenew),
     }
   });
@@ -423,19 +417,19 @@ export async function getUserBillingInfo() {
   });
 
   const latestInvoice = invoices.data[0];
-  const invoicePeriodEndFallback = 
-    latestInvoice?.lines?.data?.[0]?.period?.end || null; 
-    
+  const invoicePeriodEndFallback =
+    latestInvoice?.lines?.data?.[0]?.period?.end || null;
+
   console.log(`  [DEBUG] Latest Invoice Period End Fallback Timestamp: ${invoicePeriodEndFallback}`);
 
   const formattedInvoices = invoices.data.map(inv => {
     // FIX INTEGRATED: Read period end from the line item for the table display
-    const periodEnd = inv.lines?.data?.[0]?.period?.end || null; 
+    const periodEnd = inv.lines?.data?.[0]?.period?.end || null;
 
     return {
       id: inv.id,
       date: periodEnd
-        ? new Date(periodEnd * 1000).toLocaleDateString() 
+        ? new Date(periodEnd * 1000).toLocaleDateString()
         : null,
       amount: (inv.amount_paid / 100).toFixed(2),
       currency: inv.currency.toUpperCase(),
@@ -449,7 +443,7 @@ export async function getUserBillingInfo() {
   let planDetails = null;
   const subscriptions = await stripe.subscriptions.list({
     customer: userData.stripe_customer_id,
-    status: 'all', 
+    status: 'all',
     limit: 1,
   });
 
@@ -463,9 +457,9 @@ export async function getUserBillingInfo() {
     let productName = 'Unknown Plan';
     let amount = '0';
     let interval: 'month' | 'year' = 'month';
-    
+
     if (priceId) {
-        planId = getPlanIdFromPrice(priceId);
+      planId = getPlanIdFromPrice(priceId);
     }
 
     if (item && price) {
@@ -473,67 +467,67 @@ export async function getUserBillingInfo() {
       interval = price.recurring?.interval === 'year' ? 'year' : 'month';
       console.log(`  [DEBUG] Extracted Price Interval: ${interval}`);
     }
-    
+
     if (planId) {
-        planDetails = SUBSCRIPTION_PLANS[planId];
-        productName = planDetails.name;
+      planDetails = SUBSCRIPTION_PLANS[planId];
+      productName = planDetails.name;
     }
 
     // SAFE DATE PARSING (Subscription Renewal Date)
     // Primary Source: Subscription Item
-    const rawItemPeriodEndTimestamp = item?.current_period_end; 
+    const rawItemPeriodEndTimestamp = item?.current_period_end;
     // Secondary Sources: Main Subscription
     const rawSubPeriodEndTimestamp = sub.current_period_end;
-    const rawTrialEndTimestamp = sub.trial_end; 
+    const rawTrialEndTimestamp = sub.trial_end;
 
     let periodEndIso: string | null = null;
-    
+
     // Determine the primary timestamp source
     let relevantTimestamp: number | null = null;
 
     if (rawItemPeriodEndTimestamp) {
-        // *** PRIMARY FIX: Use the Item's period end, which is present ***
-        relevantTimestamp = rawItemPeriodEndTimestamp;
-        console.log(`  [DEBUG-DATE] Primary source (Item) used: ${relevantTimestamp}`);
+      // *** PRIMARY FIX: Use the Item's period end, which is present ***
+      relevantTimestamp = rawItemPeriodEndTimestamp;
+      console.log(`  [DEBUG-DATE] Primary source (Item) used: ${relevantTimestamp}`);
 
     } else if (sub.status === 'trialing' && rawTrialEndTimestamp) {
-        relevantTimestamp = rawTrialEndTimestamp;
-        console.log(`  [DEBUG-DATE] Secondary source (Trial End) used: ${relevantTimestamp}`);
+      relevantTimestamp = rawTrialEndTimestamp;
+      console.log(`  [DEBUG-DATE] Secondary source (Trial End) used: ${relevantTimestamp}`);
 
     } else if (rawSubPeriodEndTimestamp) {
-        relevantTimestamp = rawSubPeriodEndTimestamp;
-        console.log(`  [DEBUG-DATE] Secondary source (Sub Period End) used: ${relevantTimestamp}`);
+      relevantTimestamp = rawSubPeriodEndTimestamp;
+      console.log(`  [DEBUG-DATE] Secondary source (Sub Period End) used: ${relevantTimestamp}`);
 
     } else if (sub.status === 'active' && invoicePeriodEndFallback) {
-        // Fallback for active subs missing all fields
-        relevantTimestamp = invoicePeriodEndFallback;
-        console.log(`  [DEBUG-DATE] Fallback source (Invoice Period End) used: ${relevantTimestamp}`);
+      // Fallback for active subs missing all fields
+      relevantTimestamp = invoicePeriodEndFallback;
+      console.log(`  [DEBUG-DATE] Fallback source (Invoice Period End) used: ${relevantTimestamp}`);
     }
 
 
     // Check if the relevant timestamp is a number and greater than 0 before conversion
     if (typeof relevantTimestamp === 'number' && relevantTimestamp > 0) {
-        const periodEnd = new Date(relevantTimestamp * 1000); 
-        
-        if (!isNaN(periodEnd.getTime())) {
-             periodEndIso = periodEnd.toISOString();
-             console.log(`  [DEBUG-DATE] Final ISO Date: ${periodEndIso}`);
-        } else {
-             console.error(`❌ [STRIPE-DATE-ERR] Invalid date created from timestamp: ${relevantTimestamp}`);
-        }
+      const periodEnd = new Date(relevantTimestamp * 1000);
+
+      if (!isNaN(periodEnd.getTime())) {
+        periodEndIso = periodEnd.toISOString();
+        console.log(`  [DEBUG-DATE] Final ISO Date: ${periodEndIso}`);
+      } else {
+        console.error(`❌ [STRIPE-DATE-ERR] Invalid date created from timestamp: ${relevantTimestamp}`);
+      }
     } else {
-        console.log(`  [DEBUG-DATE] No valid date timestamp found. Sending null.`);
+      console.log(`  [DEBUG-DATE] No valid date timestamp found. Sending null.`);
     }
-    
+
     subscriptionDetails = {
       id: sub.id,
-      planId: planId, 
-      priceId: priceId, 
+      planId: planId,
+      priceId: priceId,
       planName: productName,
       amount: amount,
-      interval: interval, 
+      interval: interval,
       currentPeriodEnd: periodEndIso, // ISO string or null
-      cancelAtPeriodEnd: sub.cancel_at_period_end, 
+      cancelAtPeriodEnd: sub.cancel_at_period_end,
       status: sub.status,
     };
   }
@@ -543,7 +537,7 @@ export async function getUserBillingInfo() {
   return {
     invoices: formattedInvoices,
     subscription: subscriptionDetails,
-    planDetails: planDetails 
+    planDetails: planDetails
   };
 }
 
@@ -588,87 +582,87 @@ export async function getCheckoutPreview(planId: string, interval: 'month' | 'ye
   // SCENARIO A: Upgrade/Downgrade (Proration Calculation)
   if (activeSub && customerId) {
     const currentItem = activeSub.items.data[0];
-    
+
     // If they are already on this price
     if (currentItem?.price.id === targetPriceId) {
-        return {
-            amount: 0,
-            currency: currentItem.price.currency,
-            mode: 'no_change',
-            message: 'You are already subscribed to this plan.'
-        };
+      return {
+        amount: 0,
+        currency: currentItem.price.currency,
+        mode: 'no_change',
+        message: 'You are already subscribed to this plan.'
+      };
     }
 
     if (!currentItem) {
-        // Edge case: Sub exists but has no items. Fallback to new sub logic (Scenario B).
+      // Edge case: Sub exists but has no items. Fallback to new sub logic (Scenario B).
     } else {
-        try {
-          // UPDATE: Using the new 'create_preview' endpoint via POST
-          const params = new URLSearchParams();
-          params.append('customer', customerId);
-          params.append('subscription', activeSub.id);
-          
-          // New API structure: Nested under 'subscription_details'
-          params.append('subscription_details[items][0][id]', currentItem.id);
-          params.append('subscription_details[items][0][price]', targetPriceId);
-          params.append('subscription_details[proration_behavior]', 'always_invoice');
+      try {
+        // UPDATE: Using the new 'create_preview' endpoint via POST
+        const params = new URLSearchParams();
+        params.append('customer', customerId);
+        params.append('subscription', activeSub.id);
 
-          const response = await fetch(`https://api.stripe.com/v1/invoices/create_preview`, {
-            method: 'POST',
-            headers: {
-              'Authorization': `Bearer ${process.env.STRIPE_SECRET_KEY}`,
-              'Content-Type': 'application/x-www-form-urlencoded',
-            },
-            body: params.toString(), // Parameters must be in the body for POST
-            cache: 'no-store'
-          });
+        // New API structure: Nested under 'subscription_details'
+        params.append('subscription_details[items][0][id]', currentItem.id);
+        params.append('subscription_details[items][0][price]', targetPriceId);
+        params.append('subscription_details[proration_behavior]', 'always_invoice');
 
-          if (!response.ok) {
-             const errorBody = await response.text();
-             console.error(`Stripe Preview Error (${response.status}):`, errorBody);
-             throw new Error(`Stripe API error: ${response.status}`);
-          }
+        const response = await fetch(`https://api.stripe.com/v1/invoices/create_preview`, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${process.env.STRIPE_SECRET_KEY}`,
+            'Content-Type': 'application/x-www-form-urlencoded',
+          },
+          body: params.toString(), // Parameters must be in the body for POST
+          cache: 'no-store'
+        });
 
-          const preview = await response.json();
-
-          return {
-            amount: preview.amount_due / 100, // Stripe returns cents
-            currency: preview.currency,
-            mode: 'update',
-            details: 'Prorated amount due today (New Plan Cost - Unused Current Plan)'
-          };
-        } catch (err: any) {
-          console.error("Proration preview failed:", err);
-          return {
-            amount: 0,
-            currency: 'eur',
-            mode: 'error',
-            message: 'Unable to calculate upgrade cost. Please try again.'
-          };
+        if (!response.ok) {
+          const errorBody = await response.text();
+          console.error(`Stripe Preview Error (${response.status}):`, errorBody);
+          throw new Error(`Stripe API error: ${response.status}`);
         }
+
+        const preview = await response.json();
+
+        return {
+          amount: preview.amount_due / 100, // Stripe returns cents
+          currency: preview.currency,
+          mode: 'update',
+          details: 'Prorated amount due today (New Plan Cost - Unused Current Plan)'
+        };
+      } catch (err: any) {
+        console.error("Proration preview failed:", err);
+        return {
+          amount: 0,
+          currency: 'eur',
+          mode: 'error',
+          message: 'Unable to calculate upgrade cost. Please try again.'
+        };
+      }
     }
   }
 
   // SCENARIO B: New Subscription OR Fallback
   try {
     const res = await fetch(`https://api.stripe.com/v1/prices/${targetPriceId}`, {
-        headers: { 
-            'Authorization': `Bearer ${process.env.STRIPE_SECRET_KEY}` 
-        },
-        cache: 'no-store' 
+      headers: {
+        'Authorization': `Bearer ${process.env.STRIPE_SECRET_KEY}`
+      },
+      cache: 'no-store'
     });
-    
+
     if (res.ok) {
-        const price = await res.json();
-        return {
-            amount: (price.unit_amount || 0) / 100,
-            currency: price.currency,
-            mode: 'new',
-            details: 'Standard subscription rate'
-        };
+      const price = await res.json();
+      return {
+        amount: (price.unit_amount || 0) / 100,
+        currency: price.currency,
+        mode: 'new',
+        details: 'Standard subscription rate'
+      };
     }
   } catch (e) {
-      console.error("Price fetch failed:", e);
+    console.error("Price fetch failed:", e);
   }
 
   return {
