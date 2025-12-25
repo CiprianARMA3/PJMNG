@@ -15,8 +15,33 @@ import {
     MoreHorizontal
 } from "lucide-react";
 import Link from "next/link";
-import { getUserBillingInfo, cancelUserSubscription } from "@/app/actions/stripe";
+import { getUserBillingInfo, cancelUserSubscription, getPaymentMethods, createBillingPortalSession } from "@/app/actions/stripe";
 import { motion, Variants } from "framer-motion";
+import { PaymentIcon } from 'react-svg-credit-card-payment-icons';
+
+// Card type for PaymentIcon
+type CardType = 'Visa' | 'Mastercard' | 'Amex' | 'Discover' | 'Diners' | 'Jcb' | 'Unionpay' | 'Generic';
+
+// Map Stripe card brand names to library card types
+const getCardType = (brand: string): CardType => {
+    const brandMap: Record<string, CardType> = {
+        'visa': 'Visa',
+        'mastercard': 'Mastercard',
+        'amex': 'Amex',
+        'american_express': 'Amex',
+        'discover': 'Discover',
+        'diners': 'Diners',
+        'diners_club': 'Diners',
+        'jcb': 'Jcb',
+        'unionpay': 'Unionpay',
+    };
+    return brandMap[brand.toLowerCase()] || 'Generic';
+};
+
+// --- Card Icon Component ---
+const CardIcon = ({ brand }: { brand: string }) => (
+    <PaymentIcon type={getCardType(brand)} format="flatRounded" width={55} />
+);
 
 // --- Types ---
 interface SubscriptionDetail {
@@ -40,6 +65,15 @@ interface InvoiceDetail {
     status: string;
 }
 
+interface PaymentMethod {
+    id: string;
+    brand: string;
+    last4: string;
+    expMonth: number;
+    expYear: number;
+    isDefault: boolean;
+}
+
 // --- Animation Variants ---
 const containerVariants: Variants = {
     hidden: { opacity: 0 },
@@ -51,10 +85,10 @@ const containerVariants: Variants = {
 
 const itemVariants: Variants = {
     hidden: { opacity: 0, y: 20 },
-    visible: { 
-        opacity: 1, 
-        y: 0, 
-        transition: { type: "spring", stiffness: 260, damping: 20 } 
+    visible: {
+        opacity: 1,
+        y: 0,
+        transition: { type: "spring", stiffness: 260, damping: 20 }
     }
 };
 
@@ -94,12 +128,18 @@ export default function BillingPage() {
     const [loading, setLoading] = useState(true);
     const [subscriptionData, setSubscriptionData] = useState<SubscriptionDetail | null>(null);
     const [invoices, setInvoices] = useState<InvoiceDetail[]>([]);
+    const [paymentMethods, setPaymentMethods] = useState<PaymentMethod[]>([]);
     const [cancelling, setCancelling] = useState(false);
+    const [updatingPayment, setUpdatingPayment] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
     const loadData = async () => {
         try {
-            const billingInfo = await getUserBillingInfo();
+            const [billingInfo, paymentMethodsData] = await Promise.all([
+                getUserBillingInfo(),
+                getPaymentMethods()
+            ]);
+
             const sub = billingInfo.subscription as SubscriptionDetail | null;
 
             if (sub) {
@@ -108,6 +148,7 @@ export default function BillingPage() {
                 setSubscriptionData(null);
             }
             setInvoices(billingInfo.invoices as InvoiceDetail[] || []);
+            setPaymentMethods(paymentMethodsData.paymentMethods as PaymentMethod[] || []);
         } catch (error) {
             console.error("Failed to load billing data:", error);
             setError("Failed to load billing information.");
@@ -161,6 +202,22 @@ export default function BillingPage() {
         }
     }
 
+    const handleUpdatePaymentMethod = async () => {
+        setUpdatingPayment(true);
+        setError(null);
+        try {
+            await createBillingPortalSession();
+        } catch (err: any) {
+            // Handle redirect error (same as checkout)
+            if (err?.digest?.startsWith('NEXT_REDIRECT')) {
+                throw err;
+            }
+            setError(err.message || "Failed to open billing portal.");
+        } finally {
+            setUpdatingPayment(false);
+        }
+    };
+
     const getDaysUntilExpiration = () => {
         if (!subscriptionData?.currentPeriodEnd) return null;
         const endDate = new Date(subscriptionData.currentPeriodEnd);
@@ -211,7 +268,7 @@ export default function BillingPage() {
     const isSubscriptionActive = subscriptionData && subscriptionData.status === 'active';
 
     return (
-        <motion.div 
+        <motion.div
             variants={containerVariants}
             initial="hidden"
             animate="visible"
@@ -222,7 +279,7 @@ export default function BillingPage() {
             <motion.div variants={itemVariants} className="mb-12">
                 <div className="flex items-center gap-2 mb-3">
                     <span className="text-[10px] font-black uppercase tracking-[0.3em] text-zinc-400">
-                        Infrastructure / Billing 
+                        Infrastructure / Billing
                     </span>
                 </div>
 
@@ -287,8 +344,8 @@ export default function BillingPage() {
                                     <div className="flex items-center gap-3 mb-1">
                                         <h3 className="text-lg font-medium text-white/90 light:text-black/90">{subscriptionData.planName}</h3>
                                         <span className={`px-2 py-0.5 rounded text-[10px] font-medium uppercase border tracking-wide ${isCancelled ? 'bg-yellow-500/10 text-yellow-500 border-yellow-500/20' :
-                                                isPastDueOrUnpaid ? 'bg-red-500/10 text-red-500 border-red-500/20' :
-                                                    'bg-green-500/10 text-green-500 border-green-500/20'
+                                            isPastDueOrUnpaid ? 'bg-red-500/10 text-red-500 border-red-500/20' :
+                                                'bg-green-500/10 text-green-500 border-green-500/20'
                                             }`}>
                                             {subscriptionData.status.replace('_', ' ')}
                                         </span>
@@ -368,6 +425,108 @@ export default function BillingPage() {
                 </PageWidget>
             </motion.div>
 
+            {/* Payment Methods Widget */}
+            <motion.div variants={itemVariants}>
+                <PageWidget title="Payment Methods" icon={CreditCard}>
+                    <div className="space-y-6">
+                        {paymentMethods.length > 0 ? (
+                            <>
+                                {/* Payment Methods List */}
+                                <div className="space-y-4">
+                                    {paymentMethods.map((pm) => (
+                                        <div
+                                            key={pm.id}
+                                            className={`flex items-center justify-between p-6 rounded-xl border transition-all duration-200 ${pm.isDefault
+                                                ? 'bg-[#161616] light:bg-gray-50 border-green-500/30 shadow-lg shadow-green-500/5'
+                                                : 'bg-[#111111] light:bg-white border-[#222] light:border-gray-200 hover:border-[#333] light:hover:border-gray-300 hover:shadow-lg'
+                                                }`}
+                                        >
+                                            <div className="flex items-center gap-5">
+                                                {/* Card Brand Icon */}
+                                                <div className="w-16 h-12 bg-white rounded-lg flex items-center justify-center border border-[#2a2a2a] light:border-gray-200 shadow-sm overflow-hidden">
+                                                    <CardIcon brand={pm.brand} />
+                                                </div>
+                                                <div className="space-y-1">
+                                                    <div className="flex items-center gap-3">
+                                                        <span className="text-base font-semibold text-white light:text-black tracking-wide">
+                                                            •••• •••• •••• {pm.last4}
+                                                        </span>
+                                                        {pm.isDefault && (
+                                                            <span className="px-2.5 py-1 text-[10px] font-bold uppercase bg-green-500/10 text-green-500 border border-green-500/20 rounded-full">
+                                                                Default
+                                                            </span>
+                                                        )}
+                                                    </div>
+                                                    <div className="flex items-center gap-3">
+                                                        <span className="text-sm text-neutral-400 light:text-neutral-500 capitalize font-medium">
+                                                            {pm.brand}
+                                                        </span>
+                                                        <span className="text-neutral-600">•</span>
+                                                        <span className="text-sm text-neutral-500 light:text-neutral-600">
+                                                            Expires {pm.expMonth.toString().padStart(2, '0')}/{pm.expYear}
+                                                        </span>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+
+                                {/* Update Button */}
+                                <div className="pt-4 border-t border-[#222] light:border-gray-200">
+                                    <button
+                                        onClick={handleUpdatePaymentMethod}
+                                        disabled={updatingPayment}
+                                        className="px-4 py-2.5 text-xs font-semibold bg-neutral-200 light:bg-black hover:bg-white light:hover:bg-neutral-800 text-black light:text-white rounded-lg transition-colors shadow-lg flex items-center gap-2 disabled:opacity-50"
+                                    >
+                                        {updatingPayment ? (
+                                            <>
+                                                <Loader2 size={14} className="animate-spin" />
+                                                Opening Portal...
+                                            </>
+                                        ) : (
+                                            <>
+                                                <CreditCard size={14} />
+                                                Manage Payment Methods
+                                            </>
+                                        )}
+                                    </button>
+                                    <p className="text-xs text-neutral-500 light:text-neutral-600 mt-3">
+                                        Add, remove, or set a default payment method via Stripe's secure portal.
+                                    </p>
+                                </div>
+                            </>
+                        ) : (
+                            <div className="py-12 flex flex-col items-center text-center">
+                                <div className="w-12 h-12 bg-[#161616] light:bg-gray-50 rounded-full flex items-center justify-center mb-4 border border-[#222] light:border-gray-200">
+                                    <CreditCard className="w-5 h-5 text-neutral-500" />
+                                </div>
+                                <h3 className="text-neutral-300 light:text-neutral-700 font-medium mb-1">No Payment Methods</h3>
+                                <p className="text-neutral-500 light:text-neutral-600 text-sm max-w-xs mx-auto mb-6">
+                                    You haven't added any payment methods yet. Subscribe to a plan to add one.
+                                </p>
+                                {subscriptionData && (
+                                    <button
+                                        onClick={handleUpdatePaymentMethod}
+                                        disabled={updatingPayment}
+                                        className="px-5 py-2 text-sm font-semibold bg-white light:bg-black text-black light:text-white rounded-lg hover:bg-neutral-200 light:hover:bg-neutral-800 transition-colors flex items-center gap-2 disabled:opacity-50"
+                                    >
+                                        {updatingPayment ? (
+                                            <>
+                                                <Loader2 size={14} className="animate-spin" />
+                                                Opening...
+                                            </>
+                                        ) : (
+                                            'Add Payment Method'
+                                        )}
+                                    </button>
+                                )}
+                            </div>
+                        )}
+                    </div>
+                </PageWidget>
+            </motion.div>
+
             {/* Invoice History Widget */}
             <motion.div variants={itemVariants}>
                 <PageWidget title="Invoice History" icon={Download}>
@@ -390,8 +549,8 @@ export default function BillingPage() {
                                         </td>
                                         <td className="px-6 py-4">
                                             <div className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-[10px] font-medium uppercase border ${inv.status === 'paid'
-                                                    ? 'bg-green-500/5 text-green-500 border-green-500/10'
-                                                    : 'bg-red-500/5 text-red-500 border-red-500/10'
+                                                ? 'bg-green-500/5 text-green-500 border-green-500/10'
+                                                : 'bg-red-500/5 text-red-500 border-red-500/10'
                                                 }`}>
                                                 {inv.status === 'paid' ? <CheckCircle2 size={10} /> : <XCircle size={10} />}
                                                 <span>{inv.status}</span>

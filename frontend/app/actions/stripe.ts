@@ -146,7 +146,7 @@ export async function createSubscriptionCheckout(
     // Check if no changes are needed
     if (currentPriceId === targetPriceId && existingSub.cancel_at_period_end === targetCancelAtPeriodEnd) {
       console.log(`⚠️ [STRIPE-ACTION] No changes needed. Redirecting to billing.`);
-      redirect(`${getBaseUrl()}/dashboard/settings?tab=billing`);
+      redirect(`${getBaseUrl()}/dashboard`);
     }
 
     const updateParams: Stripe.SubscriptionUpdateParams = {
@@ -727,3 +727,84 @@ export async function getUserInvoices() {
   });
 }
 
+// --- Get User Payment Methods ---
+export async function getPaymentMethods() {
+  const supabase = createClient(cookies());
+  const { data: { user } } = await supabase.auth.getUser();
+
+  if (!user) throw new Error('Not authenticated');
+
+  const { data: userData } = await supabase
+    .from('users')
+    .select('stripe_customer_id')
+    .eq('id', user.id)
+    .single();
+
+  if (!userData?.stripe_customer_id) {
+    return { paymentMethods: [], defaultPaymentMethodId: null };
+  }
+
+  try {
+    // Fetch the customer to get default payment method
+    const customer = await stripe.customers.retrieve(userData.stripe_customer_id);
+
+    if (customer.deleted) {
+      return { paymentMethods: [], defaultPaymentMethodId: null };
+    }
+
+    const defaultPaymentMethodId =
+      typeof customer.invoice_settings?.default_payment_method === 'string'
+        ? customer.invoice_settings.default_payment_method
+        : customer.invoice_settings?.default_payment_method?.id || null;
+
+    // Fetch all payment methods
+    const paymentMethods = await stripe.paymentMethods.list({
+      customer: userData.stripe_customer_id,
+      type: 'card',
+    });
+
+    return {
+      paymentMethods: paymentMethods.data.map(pm => ({
+        id: pm.id,
+        brand: pm.card?.brand || 'unknown',
+        last4: pm.card?.last4 || '****',
+        expMonth: pm.card?.exp_month || 0,
+        expYear: pm.card?.exp_year || 0,
+        isDefault: pm.id === defaultPaymentMethodId,
+      })),
+      defaultPaymentMethodId,
+    };
+  } catch (error: any) {
+    console.error('Failed to fetch payment methods:', error);
+    return { paymentMethods: [], defaultPaymentMethodId: null };
+  }
+}
+
+// --- Create Billing Portal Session (for updating payment methods) ---
+export async function createBillingPortalSession() {
+  const supabase = createClient(cookies());
+  const { data: { user } } = await supabase.auth.getUser();
+
+  if (!user) throw new Error('Not authenticated');
+
+  const { data: userData } = await supabase
+    .from('users')
+    .select('stripe_customer_id')
+    .eq('id', user.id)
+    .single();
+
+  if (!userData?.stripe_customer_id) {
+    throw new Error('No Stripe customer found. Please subscribe to a plan first.');
+  }
+
+  const session = await stripe.billingPortal.sessions.create({
+    customer: userData.stripe_customer_id,
+    return_url: `${getBaseUrl()}/dashboard`,
+  });
+
+  if (session.url) {
+    redirect(session.url);
+  }
+
+  throw new Error('Failed to create billing portal session');
+}
