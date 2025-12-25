@@ -443,7 +443,7 @@ export default function BillingPage() {
                                         >
                                             <div className="flex items-center gap-5">
                                                 {/* Card Brand Icon */}
-                                                <div className="w-16 h-12 bg-white rounded-lg flex items-center justify-center border border-[#2a2a2a] light:border-gray-200 shadow-sm overflow-hidden">
+                                                <div className="w-auto h-auto bg-white rounded-lg flex items-center justify-center border border-[#2a2a2a] light:border-gray-200 shadow-sm overflow-hidden">
                                                     <CardIcon brand={pm.brand} />
                                                 </div>
                                                 <div className="space-y-1">
