@@ -234,7 +234,7 @@ export default function Projects() {
                                     <Users size={14} className="text-zinc-400" strokeWidth={2.5} />
                                     <div className="flex flex-col">
                                         <span className="text-[8px] font-black uppercase text-zinc-300 dark:text-zinc-600 tracking-widest">Team Size</span>
-                                        <span className="text-xs font-bold text-zinc-600 dark:text-zinc-400 uppercase tracking-tight">{project.memberCount} Nodes</span>
+                                        <span className="text-xs font-bold text-zinc-600 dark:text-zinc-400 uppercase tracking-tight">{project.memberCount} Members</span>
                                     </div>
                                 </div>
 
