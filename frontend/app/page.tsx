@@ -1,8 +1,9 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { useSearchParams } from 'next/navigation';
 import LandingBoxes from './components/landingPage/boxesLanding';
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import {
   ChevronDown,
   GitBranch,
@@ -20,7 +21,9 @@ import {
   Zap,
   Cpu,
   Layers,
-  Sparkles
+  Sparkles,
+  X,
+  CheckCircle2
 } from 'lucide-react';
 import Navbar from './components/Navbar';
 import Footer from './components/Footer';
@@ -57,31 +60,31 @@ const Hero = () => (
 
       {/* Primary Buttons */}
       <div className="flex flex-col sm:flex-row items-center justify-center gap-4 pt-4 animate-in fade-in slide-in-from-bottom-10 duration-700 delay-150">
-{/* PRIMARY: LIVE DEMO */}
-  <button className="group relative w-full sm:w-auto px-10 py-5 bg-[#202124] text-white rounded-2xl font-black uppercase tracking-[0.3em] text-[11px] hover:bg-black transition-all duration-300 flex items-center justify-center gap-3 shadow-2xl shadow-zinc-900/20 active:scale-95 cursor-pointer overflow-hidden">
-    {/* Subtle Inner Glow */}
-    <div className="absolute inset-0 bg-gradient-to-tr from-purple-500/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
-    
-    <Play size={14} fill="currentColor" className="transition-transform group-hover:scale-110 group-hover:text-purple-400" /> 
-    <span>Initialize Demo</span>
-  </button>
-  
-  {/* SECONDARY: ARCHITECTURE */}
-  <a href="#architecture" className="w-full sm:w-auto">
-    <button className="w-full px-10 py-5 bg-white border-2 border-zinc-100 text-zinc-900 rounded-2xl font-black uppercase tracking-[0.3em] text-[11px] hover:border-purple-200 hover:bg-zinc-50 transition-all duration-300 flex items-center justify-center gap-3 active:scale-95 shadow-lg shadow-zinc-200/50 group">
-      <Layers size={14} strokeWidth={3} className="text-zinc-400 group-hover:text-purple-600 transition-colors" />
-      <span>System Core</span>
-    </button>
-  </a>
+        {/* PRIMARY: LIVE DEMO */}
+        <button className="group relative w-full sm:w-auto px-10 py-5 bg-[#202124] text-white rounded-2xl font-black uppercase tracking-[0.3em] text-[11px] hover:bg-black transition-all duration-300 flex items-center justify-center gap-3 shadow-2xl shadow-zinc-900/20 active:scale-95 cursor-pointer overflow-hidden">
+          {/* Subtle Inner Glow */}
+          <div className="absolute inset-0 bg-gradient-to-tr from-purple-500/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+
+          <Play size={14} fill="currentColor" className="transition-transform group-hover:scale-110 group-hover:text-purple-400" />
+          <span>Initialize Demo</span>
+        </button>
+
+        {/* SECONDARY: ARCHITECTURE */}
+        <a href="#architecture" className="w-full sm:w-auto">
+          <button className="w-full px-10 py-5 bg-white border-2 border-zinc-100 text-zinc-900 rounded-2xl font-black uppercase tracking-[0.3em] text-[11px] hover:border-purple-200 hover:bg-zinc-50 transition-all duration-300 flex items-center justify-center gap-3 active:scale-95 shadow-lg shadow-zinc-200/50 group">
+            <Layers size={14} strokeWidth={3} className="text-zinc-400 group-hover:text-purple-600 transition-colors" />
+            <span>System Core</span>
+          </button>
+        </a>
       </div>
 
       {/* Gemini Attribution Badge (Safe Version) */}
       <div className="pt-8 animate-in fade-in duration-1000 delay-300">
         <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-gray-50 border border-gray-100">
-<Sparkles size={12} className="text-purple-600" strokeWidth={3} />
-  <span className="text-[9px] font-black uppercase tracking-[0.4em] text-zinc-500">
-    Utilizing Gemini AI
-  </span>        </div>
+          <Sparkles size={12} className="text-purple-600" strokeWidth={3} />
+          <span className="text-[9px] font-black uppercase tracking-[0.4em] text-zinc-500">
+            Utilizing Gemini AI
+          </span>        </div>
       </div>
     </div>
 
@@ -119,7 +122,7 @@ const FeatureCard = ({ icon: Icon, title, text, delay }: { icon: any, title: str
   >
     {/* Subtle Grainy Texture Overlay */}
     <div className="absolute inset-0 bg-[url('/grainy.png')] opacity-[0.03] mix-blend-multiply pointer-events-none" />
-    
+
     {/* Dynamic Accent Glow */}
     {/* <div className="absolute -right-16 -top-16 w-44 h-44 bg-purple-50 rounded-full blur-3xl opacity-0 group-hover:opacity-100 transition-opacity duration-700" /> */}
 
@@ -143,60 +146,60 @@ const Features = () => (
     {/* Background Grain for the entire section */}
     <div className="absolute inset-0 bg-[url('/grainy.png')] opacity-[0.02] pointer-events-none" />
 
-<div className="max-w-[1200px] mx-auto w-full relative z-10">
-  {/* Section Header - Now fully centered */}
-  <div className="mb-20 text-center"> 
-    {/* The badge row */}
-    <div className="flex items-center justify-center gap-2 text-sm font-black text-purple-600 uppercase tracking-[0.2em] mb-4">
-       <Activity size={16} strokeWidth={3} /> Core Capabilities
-    </div>
-          <p id='architecture-explaining'></p>
+    <div className="max-w-[1200px] mx-auto w-full relative z-10">
+      {/* Section Header - Now fully centered */}
+      <div className="mb-20 text-center">
+        {/* The badge row */}
+        <div className="flex items-center justify-center gap-2 text-sm font-black text-purple-600 uppercase tracking-[0.2em] mb-4">
+          <Activity size={16} strokeWidth={3} /> Core Capabilities
+        </div>
+        <p id='architecture-explaining'></p>
 
-    {/* The Heading - Added mx-auto to center the max-width block */}
-    <h2 className="text-4xl md:text-6xl font-black tracking-tighter text-[#202124] max-w-3xl mx-auto leading-[0.95]">
-      Everything you need to <br className="hidden md:block" />
-      <span className="text-transparent bg-clip-text bg-gradient-to-r from-purple-600 to-indigo-600">
-        build faster.
-      </span>
-    </h2>
-  </div>
+        {/* The Heading - Added mx-auto to center the max-width block */}
+        <h2 className="text-4xl md:text-6xl font-black tracking-tighter text-[#202124] max-w-3xl mx-auto leading-[0.95]">
+          Everything you need to <br className="hidden md:block" />
+          <span className="text-transparent bg-clip-text bg-gradient-to-r from-purple-600 to-indigo-600">
+            build faster.
+          </span>
+        </h2>
+      </div>
 
       {/* Features Grid */}
       <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
-        <FeatureCard 
-          icon={GitBranch} 
-          title="AI Repo Review" 
-          text="Connect GitHub. Let AI analyze commits, suggest refactors, and spot security issues instantly." 
+        <FeatureCard
+          icon={GitBranch}
+          title="AI Repo Review"
+          text="Connect GitHub. Let AI analyze commits, suggest refactors, and spot security issues instantly."
           delay={0.1}
         />
-        <FeatureCard 
-          icon={Database} 
-          title="AI SQL Helper" 
-          text="Write complex queries in plain English. Our assistant optimizes logic for maximum performance." 
+        <FeatureCard
+          icon={Database}
+          title="AI SQL Helper"
+          text="Write complex queries in plain English. Our assistant optimizes logic for maximum performance."
           delay={0.2}
         />
-        <FeatureCard 
-          icon={KanbanSquare} 
-          title="Boards & Tasks" 
-          text="Full project management suite. Drag-and-drop Kanban boards and sprint planning built-in." 
+        <FeatureCard
+          icon={KanbanSquare}
+          title="Boards & Tasks"
+          text="Full project management suite. Drag-and-drop Kanban boards and sprint planning built-in."
           delay={0.3}
         />
-        <FeatureCard 
-          icon={Activity} 
-          title="Activity Overview" 
-          text="Real-time visibility into team velocity. Track events and repo logs in one unified view." 
+        <FeatureCard
+          icon={Activity}
+          title="Activity Overview"
+          text="Real-time visibility into team velocity. Track events and repo logs in one unified view."
           delay={0.4}
         />
-        <FeatureCard 
-          icon={LayoutList} 
-          title="AI Roadmap" 
-          text="Visualize your product journey. AI helps you plan milestones and track progress automatically." 
+        <FeatureCard
+          icon={LayoutList}
+          title="AI Roadmap"
+          text="Visualize your product journey. AI helps you plan milestones and track progress automatically."
           delay={0.5}
         />
-        <FeatureCard 
-          icon={UserCog} 
-          title="Granular Roles" 
-          text="Monitor collaborator activity and choose exactly what they can see and do within your repo." 
+        <FeatureCard
+          icon={UserCog}
+          title="Granular Roles"
+          text="Monitor collaborator activity and choose exactly what they can see and do within your repo."
           delay={0.6}
         />
       </div>
@@ -263,11 +266,11 @@ const PricingSection = () => {
   return (
     <section className="py-32 px-6 relative z-10 bg-transparent" id="pricing">
       <div className="max-w-[1200px] mx-auto w-full relative">
-        
+
         {/* Section Header */}
         <div className="text-center mb-20">
           <div className="flex items-center justify-center gap-2 text-[10px] font-black text-purple-600 uppercase tracking-[0.3em] mb-4">
-            <Zap size={14} fill="currentColor" className="animate-pulse" /> 
+            <Zap size={14} fill="currentColor" className="animate-pulse" />
             Flexible Options
           </div>
           <h2 className="text-4xl md:text-7xl font-black tracking-tighter text-[#202124] mb-6">
@@ -319,7 +322,7 @@ const PricingSection = () => {
             >
               {/* Premium Grain Texture */}
               <div className="absolute inset-0 bg-[url('/grainy.png')] opacity-[0.04] mix-blend-multiply pointer-events-none" />
-              
+
               {plan.highlight && (
                 <div className="absolute top-2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-purple-600 text-white px-6 py-2 rounded-full text-[10px] font-black uppercase tracking-[0.2em] shadow-lg shadow-purple-500/30 whitespace-nowrap">
                   Most Popular
@@ -386,25 +389,84 @@ const PricingSection = () => {
 
 // --- Main Page Component ---
 export default function Page() {
+  const searchParams = useSearchParams();
+  const [notification, setNotification] = useState<string | null>(null);
+
+  useEffect(() => {
+    // Check for message in URL params (both query string and hash)
+    const messageFromQuery = searchParams.get('message');
+    const hashParams = typeof window !== 'undefined' ? window.location.hash : '';
+    const hashMessage = hashParams.includes('message=')
+      ? decodeURIComponent(hashParams.split('message=')[1]?.split('&')[0] || '')
+      : null;
+
+    const message = messageFromQuery || hashMessage;
+
+    if (message) {
+      setNotification(message);
+      // Auto-dismiss after 8 seconds
+      const timer = setTimeout(() => {
+        setNotification(null);
+      }, 8000);
+
+      // Clean up the URL
+      if (typeof window !== 'undefined') {
+        window.history.replaceState({}, '', '/');
+      }
+
+      return () => clearTimeout(timer);
+    }
+  }, [searchParams]);
+
   return (
     <main className="bg-white min-h-screen font-sans selection:bg-purple-100 selection:text-purple-900 scroll-smooth antialiased">
+      {/* Notification Popup */}
+      <AnimatePresence>
+        {notification && (
+          <motion.div
+            initial={{ opacity: 0, y: -50, x: '-50%' }}
+            animate={{ opacity: 1, y: 0, x: '-50%' }}
+            exit={{ opacity: 0, y: -50, x: '-50%' }}
+            transition={{ type: "spring", stiffness: 300, damping: 25 }}
+            className="fixed top-25 left-1/2 z-[100] max-w-lg w-[90%]"
+          >
+            <div className="bg-white border-2 border-green-200 rounded-2xl shadow-2xl shadow-green-500/10 p-5 flex items-start gap-4">
+              <div className="flex-shrink-0 w-10 h-10 bg-green-100 rounded-xl flex items-center justify-center">
+                <CheckCircle2 size={20} className="text-green-600" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-bold text-zinc-800 leading-relaxed">
+                  {notification}
+                </p>
+              </div>
+              <button
+                onClick={() => setNotification(null)}
+                className="flex-shrink-0 p-1.5 hover:bg-zinc-100 rounded-lg transition-colors"
+              >
+                <X size={18} className="text-zinc-400" />
+              </button>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       <Navbar />
       <Hero />
       <div id='architecture' className="relative z-20 ">
         <div className="text-center mb-16 pt-32 max-w-3xl mx-auto px-6">
-    <h2 className="text-4xl md:text-6xl font-black tracking-tighter text-[#202124] max-w-3xl mx-auto leading-[0.95]">
-      Your entire workflow <br className="hidden md:block" />
-      <span className="text-transparent bg-clip-text bg-gradient-to-r from-purple-600 to-indigo-600">
-        in one Dashboard.
-      </span>
-    </h2>
+          <h2 className="text-4xl md:text-6xl font-black tracking-tighter text-[#202124] max-w-3xl mx-auto leading-[0.95]">
+            Your entire workflow <br className="hidden md:block" />
+            <span className="text-transparent bg-clip-text bg-gradient-to-r from-purple-600 to-indigo-600">
+              in one Dashboard.
+            </span>
+          </h2>
           <p className="text-[#5f6368] text-lg mt-3 font-bold">Centralize your code, tasks, and AI assistance in a single high-performance view.</p>
         </div>
         <LandingBoxes />
         <BuiltWith />
       </div>
-      
-      
+
+
       <Features />
       <PricingSection />
       <Footer />

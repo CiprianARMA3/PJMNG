@@ -62,6 +62,10 @@ export default function AccountPage({ user }: AccountPageProps) {
   const [isEditingName, setIsEditingName] = useState(false);
   const [tempFirstName, setTempFirstName] = useState("");
   const [tempLastName, setTempLastName] = useState("");
+  const [isEditingEmail, setIsEditingEmail] = useState(false);
+  const [tempEmail, setTempEmail] = useState("");
+  const [emailPassword, setEmailPassword] = useState("");
+  const [showEmailPassword, setShowEmailPassword] = useState(false);
   const [isUploadingImage, setIsUploadingImage] = useState(false);
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
@@ -315,24 +319,83 @@ export default function AccountPage({ user }: AccountPageProps) {
     }
   };
 
+  const startEditingEmail = () => {
+    setTempEmail(email);
+    setEmailPassword("");
+    setIsEditingEmail(true);
+  };
+
+  const cancelEditingEmail = () => {
+    setIsEditingEmail(false);
+    setTempEmail(email);
+    setEmailPassword("");
+  };
+
+  const handleUpdateEmail = async () => {
+    if (!emailPassword || !user?.email) {
+      showMessage('error', "Please enter your current password to confirm changes");
+      return;
+    }
+
+    if (!tempEmail || tempEmail === email) {
+      showMessage('error', "Please enter a new email address");
+      return;
+    }
+
+    // Basic email validation
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(tempEmail)) {
+      showMessage('error', "Please enter a valid email address");
+      return;
+    }
+
+    setLoading(true);
+
+    try {
+      // First verify current password
+      const { error: signInError } = await supabase.auth.signInWithPassword({
+        email: user.email,
+        password: emailPassword,
+      });
+
+      if (signInError) throw new Error("Current password is incorrect");
+
+      // Update email using Supabase Auth
+      const { error: updateError } = await supabase.auth.updateUser({
+        email: tempEmail
+      });
+
+      if (updateError) throw updateError;
+
+      setIsEditingEmail(false);
+      setEmailPassword("");
+      showMessage('success', "A confirmation email has been sent to your new email address. Please check your inbox and click the confirmation link to complete the change.");
+    } catch (error) {
+      console.error('Error updating email:', error);
+      showMessage('error', error instanceof Error ? error.message : "Failed to update email");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <div className="max-w-4xl mx-auto space-y-8 font-sans">
-<div className="mb-8">
-  {/* Technical Module Tag */}
-  <div className="flex items-center gap-2 mb-2">
-    <span className="text-[10px] font-black uppercase tracking-[0.3em] text-zinc-400">
-      KAPRYDEV Secured informations
-    </span>
-  </div>
-  
-  {/* Main Title */}
-  <h1 className="text-4xl font-black tracking-tighter text-zinc-900 uppercase leading-none dark:text-white">
-    Account Settings<span className="text-purple-600">.</span>
-  </h1>
-  
-  {/* Subtle Divider Line */}
-  <div className="h-1 w-12 bg-zinc-100 mt-4 rounded-full dark:bg-zinc-400" />
-</div>
+      <div className="mb-8">
+        {/* Technical Module Tag */}
+        <div className="flex items-center gap-2 mb-2">
+          <span className="text-[10px] font-black uppercase tracking-[0.3em] text-zinc-400">
+            KAPRYDEV Secured informations
+          </span>
+        </div>
+
+        {/* Main Title */}
+        <h1 className="text-4xl font-black tracking-tighter text-zinc-900 uppercase leading-none dark:text-white">
+          Account Settings<span className="text-purple-600">.</span>
+        </h1>
+
+        {/* Subtle Divider Line */}
+        <div className="h-1 w-12 bg-zinc-100 mt-4 rounded-full dark:bg-zinc-400" />
+      </div>
 
       {/* Message Alert */}
       {message && (
@@ -522,19 +585,93 @@ export default function AccountPage({ user }: AccountPageProps) {
       </PageWidget>
 
       {/* Contact Email Section */}
-      <PageWidget title="Contact Information" icon={Mail}>
-        <div>
+      <PageWidget
+        title="Contact Information"
+        icon={Mail}
+        action={
+          !isEditingEmail ? (
+            <button
+              onClick={startEditingEmail}
+              className="flex items-center gap-1.5 px-3 py-1.5 text-neutral-400 light:text-neutral-600 hover:text-white light:hover:text-black text-xs font-medium transition-colors bg-[#1a1a1a] light:bg-white hover:bg-[#222] light:hover:bg-gray-50 border border-[#2a2a2a] light:border-gray-200 rounded-lg"
+            >
+              <Edit2 size={12} />
+              Change Email
+            </button>
+          ) : null
+        }
+      >
+        <div className="space-y-4">
           <p className="text-xs text-neutral-500 mb-4">
             This email address is used for invoices, login, and important notifications.
           </p>
-          <div className="space-y-3">
-            {emails.map((emailValue, index) => (
-              <div key={index} className="flex items-center justify-between px-4 py-3 bg-[#161616] light:bg-gray-50 border border-[#222] light:border-gray-200 rounded-lg group hover:border-[#333] light:hover:border-gray-300 transition-colors">
-                <span className="text-sm text-neutral-300 light:text-neutral-700 font-mono">{emailValue}</span>
-                <span className="px-2 py-0.5 rounded text-[10px] font-medium uppercase bg-green-500/10 text-green-500 border border-green-500/20 tracking-wide">Verified</span>
+
+          {isEditingEmail ? (
+            <div className="space-y-4">
+              <div>
+                <label className="block text-xs font-medium text-neutral-500 light:text-neutral-600 uppercase tracking-wide mb-2">New Email Address</label>
+                <input
+                  type="email"
+                  value={tempEmail}
+                  onChange={(e) => setTempEmail(e.target.value)}
+                  className="w-full px-4 py-2.5 bg-[#161616] light:bg-white border border-[#333] light:border-gray-200 rounded-lg text-neutral-200 light:text-black placeholder-neutral-600 light:placeholder-neutral-400 focus:outline-none focus:border-neutral-500 focus:bg-[#1a1a1a] light:focus:bg-gray-50 transition-all text-sm font-mono"
+                  placeholder="Enter new email address"
+                />
               </div>
-            ))}
-          </div>
+
+              <div className="bg-[#161616] light:bg-gray-50 border border-[#222] light:border-gray-200 rounded-lg p-5 animate-in fade-in slide-in-from-top-2 duration-200">
+                <div className="flex items-start gap-3 mb-4">
+                  <AlertCircle className="w-4 h-4 text-neutral-500 mt-0.5" />
+                  <p className="text-xs text-neutral-400 light:text-neutral-600 leading-relaxed">
+                    To confirm this change, please enter your current password. A confirmation email will be sent to your new email address.
+                  </p>
+                </div>
+
+                <div className="relative max-w-md">
+                  <input
+                    type={showEmailPassword ? "text" : "password"}
+                    value={emailPassword}
+                    onChange={(e) => setEmailPassword(e.target.value)}
+                    className="w-full px-4 py-2.5 bg-[#111] light:bg-white border border-[#333] light:border-gray-200 rounded-lg text-neutral-200 light:text-black placeholder-neutral-600 light:placeholder-neutral-400 focus:outline-none focus:border-neutral-500 transition-colors pr-10 text-sm"
+                    placeholder="Current password"
+                  />
+                  <button
+                    onClick={() => setShowEmailPassword(!showEmailPassword)}
+                    className="absolute right-3 top-1/2 transform -translate-y-1/2 text-neutral-500 hover:text-neutral-300 transition-colors"
+                  >
+                    {showEmailPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                  </button>
+                </div>
+
+                <div className="flex items-center gap-3 mt-6 border-t border-[#222] light:border-gray-200 pt-4">
+                  <button
+                    onClick={handleUpdateEmail}
+                    disabled={loading}
+                    className="flex items-center gap-2 px-4 py-2 bg-white light:bg-black hover:bg-neutral-200 light:hover:bg-neutral-800 text-black light:text-white text-xs font-semibold rounded-lg transition-colors disabled:opacity-50 shadow-lg shadow-black/20"
+                  >
+                    {loading ? <Loader2 size={14} className="animate-spin" /> : <Check size={14} />}
+                    {loading ? 'Saving...' : 'Update Email'}
+                  </button>
+                  <button
+                    onClick={cancelEditingEmail}
+                    disabled={loading}
+                    className="flex items-center gap-2 px-4 py-2 bg-transparent hover:bg-[#222] light:hover:bg-gray-200 text-neutral-400 light:text-neutral-600 text-xs font-medium rounded-lg transition-colors disabled:opacity-50"
+                  >
+                    <X size={14} />
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {emails.map((emailValue, index) => (
+                <div key={index} className="flex items-center justify-between px-4 py-3 bg-[#161616] light:bg-gray-50 border border-[#222] light:border-gray-200 rounded-lg group hover:border-[#333] light:hover:border-gray-300 transition-colors">
+                  <span className="text-sm text-neutral-300 light:text-neutral-700 font-mono">{emailValue}</span>
+                  <span className="px-2 py-0.5 rounded text-[10px] font-medium uppercase bg-green-500/10 text-green-500 border border-green-500/20 tracking-wide">Verified</span>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       </PageWidget>
 
