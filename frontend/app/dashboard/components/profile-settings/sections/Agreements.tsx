@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import {
     FileText,
     Download,
@@ -11,9 +11,14 @@ import {
     Lock,
     Server,
     History,
-    Calendar
+    Calendar,
+    Loader2,
+    PenTool
 } from "lucide-react";
-import { motion, Variants } from "framer-motion";
+import { motion, Variants, AnimatePresence } from "framer-motion";
+import { createClient } from "@/utils/supabase/client";
+import { exportUserData } from "@/app/actions/exportUserData";
+import { getLegalAgreements, signLegalAgreement, AgreementStatus } from "@/app/actions/importLegalAgreements";
 
 // --- MOTION PROTOCOL ---
 const containerVariants: Variants = {
@@ -64,58 +69,232 @@ const GovernanceNode = ({ title, icon: Icon, children, action }: any) => (
     </div>
 );
 
-// --- Mock Data ---
-const signedAgreements = [
-    {
-        id: "tos_v2_1",
-        name: "Terms of Service",
-        description: "General usage terms for the Kapry.DEV platform.",
-        version: "2.1",
-        signedDate: "Oct 24, 2024",
-        region: "Global",
-        status: "active",
-        type: "Standard",
-        adheredDate: "01/01/2025"
-    },
-    {
-        id: "pp_v3_0",
-        name: "Privacy Policy",
-        description: "How we collect, store, and process your data.",
-        version: "3.0",
-        signedDate: "Oct 24, 2024",
-        region: "Global",
-        status: "active",
-        type: "Standard"
-    },
-    {
-        id: "dpa_eu_1_4",
-        name: "Data Processing Agreement",
-        description: "Required for entities processing EU citizen data.",
-        version: "1.4",
-        signedDate: "Nov 02, 2024",
-        region: "EU Only",
-        status: "active",
-        type: "Compliance"
-    }
-];
+// --- MODAL: FORCED SIGNATURE ---
+const SignatureModal = ({ 
+    isOpen, 
+    agreement, 
+    onSign, 
+    isSigning 
+}: { 
+    isOpen: boolean; 
+    agreement: AgreementStatus | null; 
+    onSign: () => void;
+    isSigning: boolean;
+}) => {
+    if (!isOpen || !agreement) return null;
+
+    return (
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4">
+            <motion.div 
+                initial={{ opacity: 0 }} 
+                animate={{ opacity: 1 }} 
+                className="absolute" 
+            />
+            <motion.div 
+                initial={{ scale: 0.95, opacity: 0, y: 20 }}
+                animate={{ scale: 1, opacity: 1, y: 0 }}
+                className="relative w-full max-w-lg bg-white dark:bg-[#0A0A0A] border-2 border-red-500/30 rounded-[30px] shadow-2xl overflow-hidden flex flex-col"
+            >
+                <div className="absolute inset-0 bg-[url('/grainy.png')] opacity-[0.03] pointer-events-none z-0" />
+                
+                <div className="relative z-10 p-8 flex flex-col items-center text-center">
+                    <div className="w-16 h-16 bg-red-50 dark:bg-red-900/20 rounded-full flex items-center justify-center mb-6 animate-pulse">
+                        <AlertCircle className="w-8 h-8 text-red-500" />
+                    </div>
+                    
+                    <h2 className="text-2xl font-black uppercase tracking-tight text-zinc-900 dark:text-white mb-2">
+                        Action Required
+                    </h2>
+                    <p className="text-sm font-bold text-zinc-500 dark:text-zinc-400 mb-8 max-w-sm">
+                        You must review and sign the <span className="text-zinc-900 dark:text-white underline">{agreement.document}</span> to continue using the Kapry.DEV platform.
+                    </p>
+
+                    <div className="w-full bg-zinc-50 dark:bg-zinc-900/50 rounded-xl border-2 border-zinc-100 dark:border-zinc-800 p-4 mb-8">
+                        <div className="flex items-center justify-between mb-3 pb-3 border-b border-zinc-200 dark:border-zinc-800">
+                            <span className="text-[10px] font-black uppercase tracking-widest text-zinc-400">Document ID</span>
+                            <span className="text-[10px] font-mono font-bold">{agreement.id}</span>
+                        </div>
+                        <div className="flex items-center justify-between">
+                            <span className="text-[10px] font-black uppercase tracking-widest text-zinc-400">Region</span>
+                            <span className="text-[10px] font-bold text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20 px-2 py-1 rounded">
+                                {agreement.region}
+                            </span>
+                        </div>
+                        <div className="mt-4 pt-3 border-t border-zinc-200 dark:border-zinc-800 flex justify-center">
+                            <a 
+                                href={agreement.data.url} 
+                                target="_blank" 
+                                rel="noopener noreferrer"
+                                className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-purple-600 hover:underline"
+                            >
+                                <FileText size={12} /> View PDF Document
+                            </a>
+                        </div>
+                    </div>
+
+                    <button
+                        onClick={onSign}
+                        disabled={isSigning}
+                        className="w-full py-4 bg-red-600 hover:bg-red-700 text-white rounded-xl font-black uppercase text-[10px] tracking-widest shadow-lg shadow-red-600/20 active:scale-95 transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                        {isSigning ? (
+                            <>
+                                <Loader2 className="w-3 h-3 animate-spin" />
+                                <span>Cryptographic Signing...</span>
+                            </>
+                        ) : (
+                            <>
+                                <PenTool className="w-3 h-3" />
+                                <span>I Accept & Sign Agreement</span>
+                            </>
+                        )}
+                    </button>
+                </div>
+            </motion.div>
+        </div>
+    );
+};
 
 export default function AgreementsPage() {
-    const [downloading, setDownloading] = useState<string | null>(null);
+    const supabase = createClient();
+    const [downloading, setDownloading] = useState<number | null>(null);
     const [requestingExport, setRequestingExport] = useState(false);
+    const [exportStatus, setExportStatus] = useState<{ type: 'success' | 'error', text: string } | null>(null);
+    const [countdown, setCountdown] = useState<string | null>(null);
+    
+    // Data States
+    const [agreements, setAgreements] = useState<AgreementStatus[]>([]);
+    const [isLoading, setIsLoading] = useState(true);
+    
+    // Signature Logic
+    const [unsignedMandatoryDoc, setUnsignedMandatoryDoc] = useState<AgreementStatus | null>(null);
+    const [isSigning, setIsSigning] = useState<number | null>(null);
 
-    const handleDownload = (docId: string) => {
+    // --- Derived State for EU Box ---
+    // Finds the latest "Data Processing Agreement" by sorting descending IDs (assuming higher ID is newer)
+    const latestDPA = useMemo(() => {
+        return agreements
+            .filter(doc => doc.document === "Data Processing Agreement")
+            .sort((a, b) => b.id - a.id)[0] || null;
+    }, [agreements]);
+
+    const loadAgreements = useCallback(async () => {
+        setIsLoading(true);
+        try {
+            const data = await getLegalAgreements();
+            setAgreements(data);
+
+            // Re-calculate local check for mandatory doc immediately after fetch
+            // We use the same logic: Find latest DPA
+            const dpaDocs = data.filter(doc => doc.document === "Data Processing Agreement");
+            const latest = dpaDocs.sort((a, b) => b.id - a.id)[0];
+            
+            if (latest && !latest.isSigned) {
+                setUnsignedMandatoryDoc(latest);
+            } else {
+                setUnsignedMandatoryDoc(null);
+            }
+        } catch (error) {
+            console.error("Failed to load agreements", error);
+        } finally {
+            setIsLoading(false);
+        }
+    }, []);
+
+    const handleSignAgreement = async (docId: number) => {
+        setIsSigning(docId);
+        try {
+            const result = await signLegalAgreement(docId);
+            if (result.success) {
+                await loadAgreements(); 
+            }
+        } catch (error) {
+            console.error("Sign Error:", error);
+            alert("Failed to sign agreement. Please try again.");
+        } finally {
+            setIsSigning(null);
+        }
+    };
+
+    const fetchMetadata = useCallback(async () => {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user) {
+            const { data } = await supabase
+                .from("users")
+                .select("metadata")
+                .eq("id", user.id)
+                .single();
+            if (data?.metadata) {
+                checkCooldown(data.metadata.last_data_export);
+            }
+        }
+    }, [supabase]);
+
+    useEffect(() => {
+        fetchMetadata();
+        loadAgreements();
+    }, [fetchMetadata, loadAgreements]);
+
+    const checkCooldown = (lastExport: string | undefined) => {
+        if (!lastExport) {
+            setCountdown(null);
+            return;
+        }
+
+        const thirtyDaysInMs = 30 * 24 * 60 * 60 * 1000;
+        const nextAvailableDate = new Date(lastExport).getTime() + thirtyDaysInMs;
+        const now = new Date().getTime();
+
+        if (now < nextAvailableDate) {
+            const diffInMs = nextAvailableDate - now;
+            const days = Math.floor(diffInMs / (1000 * 60 * 60 * 24));
+            const hours = Math.floor((diffInMs % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+            setCountdown(`${days}d ${hours}h remaining`);
+        } else {
+            setCountdown(null);
+        }
+    };
+
+    const handleDownload = (docId: number, url: string) => {
         setDownloading(docId);
+        window.open(url, '_blank');
         setTimeout(() => setDownloading(null), 1500);
     };
 
-    const handleDataExport = () => {
-        if (!confirm("Request a full export of your personal data? This may take up to 48 hours.")) return;
+    const handleDataExport = async () => {
+        if (countdown) return;
+        if (!confirm("Request a full export of your personal data payload? This protocol generates a PDF of all system registry entries associated with your UID.")) return;
+        
         setRequestingExport(true);
-        setTimeout(() => setRequestingExport(false), 2000);
+        setExportStatus(null);
+
+        try {
+            const pdfDataUri = await exportUserData();
+            const link = document.createElement("a");
+            link.href = pdfDataUri;
+            link.download = `KAPRY_DATA_EXPORT_${new Date().getTime()}.pdf`;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+
+            setExportStatus({ type: 'success', text: "Payload extracted successfully. 30-day cooldown initiated." });
+            await fetchMetadata();
+        } catch (error: any) {
+            setExportStatus({ type: 'error', text: error.message || "Protocol Failure: Extraction Interrupted" });
+        } finally {
+            setRequestingExport(false);
+        }
     };
 
     return (
         <div className="max-w-5xl mx-auto space-y-6 pb-20 font-sans">
+            <SignatureModal 
+                isOpen={!!unsignedMandatoryDoc}
+                agreement={unsignedMandatoryDoc}
+                onSign={() => unsignedMandatoryDoc && handleSignAgreement(unsignedMandatoryDoc.id)}
+                isSigning={isSigning === unsignedMandatoryDoc?.id}
+            />
+
             {/* --- PAGE HEADER --- */}
             <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-8 animate-in fade-in slide-in-from-top-4 duration-700">
                 <div className="space-y-1">
@@ -140,7 +319,7 @@ export default function AgreementsPage() {
                 animate="visible"
                 className="grid grid-cols-1 lg:grid-cols-2 gap-6"
             >
-                {/* EU NODE - Increased Height via min-h-[360px] */}
+                {/* EU NODE */}
                 <motion.div variants={itemVariants} className="bg-white dark:bg-zinc-900/30 border-2 border-zinc-100 dark:border-zinc-800 rounded-[30px] p-8 min-h-[360px] flex flex-col relative overflow-hidden group hover:border-blue-600/50 transition-all shadow-2xl shadow-zinc-200/50 dark:shadow-black/50">
                     {/* EU Flag SVG Background */}
                     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" className="absolute -top-8 -right-8 w-56 h-56 grayscale opacity-10 dark:opacity-20 group-hover:grayscale-0 group-hover:opacity-30 transition-all duration-500 pointer-events-none rounded-bl-3xl">
@@ -162,7 +341,7 @@ export default function AgreementsPage() {
                         </div>
 
                         <p className="text-sm font-black text-zinc-500 dark:text-zinc-400 leading-relaxed mb-8 h-12">
-                            Processed via GDPR proto cols. Execute rights to rectify or erase personal telemetry from our Frankfurt nodes.
+                            Processed via GDPR protocols. Execute rights to rectify or erase personal telemetry from our Frankfurt nodes.
                         </p>
 
                         <div className="space-y-4 mb-8">
@@ -170,29 +349,67 @@ export default function AgreementsPage() {
                                 <span className="text-[10px] font-black uppercase text-zinc-400 tracking-widest flex items-center gap-2">
                                     <Server size={12} strokeWidth={3} /> Residency
                                 </span>
-                                <span className="font-bold text-zinc-900 dark:text-zinc-200">Frankfurt (eu-1)</span>
+                                <span className="font-bold text-zinc-900 dark:text-zinc-200">Frankfurt (eu-central-1)</span>
                             </div>
                             <div className="flex items-center justify-between text-xs py-2 border-b-2 border-zinc-50 dark:border-zinc-800/50">
                                 <span className="text-[10px] font-black uppercase text-zinc-400 tracking-widest flex items-center gap-2">
                                     <FileCheck size={12} strokeWidth={3} /> DPA Status
                                 </span>
-                                <span className="text-emerald-500 font-black flex items-center gap-1 uppercase tracking-tight">
-                                    <CheckCircle2 size={12} strokeWidth={3} /> Signed
-                                </span>
+                                {latestDPA?.isSigned ? (
+                                    <span className="text-emerald-500 font-black flex items-center gap-1 uppercase tracking-tight">
+                                        <CheckCircle2 size={12} strokeWidth={3} /> Signed
+                                    </span>
+                                ) : (
+                                    <span className="text-red-500 font-black flex items-center gap-1 uppercase tracking-tight">
+                                        <AlertCircle size={12} strokeWidth={3} /> Pending
+                                    </span>
+                                )}
                             </div>
                         </div>
 
-                        <button
-                            onClick={handleDataExport}
-                            disabled={requestingExport}
-                            className="mt-auto w-full py-4 bg-zinc-900 dark:bg-white text-white dark:text-black hover:bg-zinc-800 dark:hover:bg-zinc-200 rounded-xl font-black uppercase text-[10px] tracking-widest shadow-lg active:scale-95 transition-all flex items-center justify-center gap-2"
-                        >
-                            {requestingExport ? "Extracting..." : "Export Data Payload"}
-                        </button>
+                        <div className="mt-auto space-y-3">
+                            <button
+                                onClick={handleDataExport}
+                                disabled={requestingExport || !!countdown}
+                                className={`w-full py-4 rounded-xl font-black uppercase text-[10px] tracking-widest shadow-lg active:scale-95 transition-all flex items-center justify-center gap-2 ${
+                                    countdown 
+                                    ? "bg-zinc-200 dark:bg-zinc-800 text-zinc-400 dark:text-zinc-600 cursor-not-allowed border-2 border-zinc-300 dark:border-zinc-700 shadow-none" 
+                                    : "bg-zinc-900 dark:bg-white text-white dark:text-black hover:bg-zinc-800 dark:hover:bg-zinc-200"
+                                }`}
+                            >
+                                {requestingExport ? (
+                                    <>
+                                        <Loader2 className="w-3 h-3 animate-spin" />
+                                        <span>Extracting Payload...</span>
+                                    </>
+                                ) : countdown ? (
+                                    <>
+                                        <Lock size={12} strokeWidth={3} />
+                                        <span>Cooldown: {countdown}</span>
+                                    </>
+                                ) : (
+                                    <>
+                                        <Download size={12} strokeWidth={3} />
+                                        <span>Export Data Payload</span>
+                                    </>
+                                )}
+                            </button>
+
+                            {exportStatus && (
+                                <div className={`flex items-center gap-2 px-3 py-2 rounded-lg text-[9px] font-black uppercase tracking-tight border ${
+                                    exportStatus.type === 'success' 
+                                    ? 'bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 border-emerald-100 dark:border-emerald-900/30' 
+                                    : 'bg-red-50 dark:bg-red-900/20 text-red-600 border-red-100 dark:border-red-900/30'
+                                }`}>
+                                    {exportStatus.type === 'success' ? <CheckCircle2 size={10} /> : <AlertCircle size={10} />}
+                                    {exportStatus.text}
+                                </div>
+                            )}
+                        </div>
                     </div>
                 </motion.div>
 
-                {/* US NODE - Increased Height via min-h-[360px] */}
+                {/* US NODE */}
                 <motion.div variants={itemVariants} className="bg-white dark:bg-zinc-900/30 border-2 border-zinc-100 dark:border-zinc-800 rounded-[30px] p-8 min-h-[360px] flex flex-col relative overflow-hidden group hover:border-emerald-600/50 transition-all shadow-2xl shadow-zinc-200/50 dark:shadow-black/50">
                     {/* US Flag SVG Background */}
                     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" className="absolute -top-8 -right-8 w-56 h-56 grayscale opacity-10 dark:opacity-20 group-hover:grayscale-0 group-hover:opacity-30 transition-all duration-500 pointer-events-none rounded-bl-3xl">
@@ -246,87 +463,110 @@ export default function AgreementsPage() {
             {/* --- GOVERNANCE LEDGER --- */}
             <GovernanceNode title="Signed Agreement Ledger" icon={FileText}>
                 <div className="overflow-x-auto">
-                    <table className="w-full text-left">
-                        <thead>
-                            <tr className="border-b-2 border-zinc-50 dark:border-zinc-800">
-                                <th className="px-5 py-3 text-[9px] font-black uppercase tracking-widest text-zinc-400">Protocol Name</th>
-                                <th className="px-5 py-3 text-[9px] font-black uppercase tracking-widest text-zinc-400">Timestamp</th>
-                                <th className="px-5 py-3 text-[9px] font-black uppercase tracking-widest text-zinc-400">Logic Ver.</th>
-                                <th className="px-5 py-3 text-[9px] font-black uppercase tracking-widest text-zinc-400">Status</th>
-                                <th className="px-5 py-3 text-[9px] font-black uppercase tracking-widest text-zinc-400">Adhered</th>
-                                <th className="px-5 py-3 text-right text-[9px] font-black uppercase tracking-widest text-zinc-400">Reference Copy</th>
-                            </tr>
-                        </thead>
-                        <tbody className="divide-y-2 divide-zinc-50 dark:divide-zinc-900">
-                            {signedAgreements.map((doc) => (
-                                <tr key={doc.id} className="group hover:bg-zinc-50/50 dark:hover:bg-zinc-900/50 transition-colors">
-                                    <td className="px-5 py-4">
-                                        <div className="flex flex-col gap-0.5">
-                                            <div className="flex items-center gap-2">
-                                                <span className="text-sm font-black text-zinc-900 dark:text-white uppercase tracking-tight group-hover:text-purple-600 transition-colors">
-                                                    {doc.name}
-                                                </span>
-                                                {doc.type === 'Compliance' && (
-                                                    <span className="px-1 py-0.5 rounded text-[7px] font-black uppercase border bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 border-blue-100 dark:border-blue-900/30">
-                                                        EU Legal
-                                                    </span>
-                                                )}
-                                            </div>
-                                            <span className="text-[10px] font-bold text-zinc-400 line-clamp-1">{doc.description}</span>
-                                        </div>
-                                    </td>
-
-                                    <td className="px-5 py-4">
-                                        <div className="flex items-center gap-2 text-zinc-500 font-bold text-[10px] uppercase tracking-tight">
-                                            <History size={12} />
-                                            <span>{doc.signedDate}</span>
-                                        </div>
-                                    </td>
-
-                                    <td className="px-5 py-4">
-                                        <span className="text-[9px] font-black font-mono bg-zinc-100 dark:bg-zinc-800 px-1.5 py-0.5 rounded border border-zinc-200 dark:border-zinc-700 text-zinc-600 dark:text-zinc-300">
-                                            v{doc.version}
-                                        </span>
-                                    </td>
-
-                                    <td className="px-5 py-4">
-                                        <div className="flex items-center gap-2">
-                                            <div className={`w-1.5 h-1.5 rounded-full ${doc.adheredDate ? 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.4)]' : 'bg-orange-400/50'}`} />
-                                            <span className={`text-[9px] font-black uppercase tracking-widest ${doc.adheredDate ? 'text-emerald-600 dark:text-emerald-400' : 'text-orange-400'}`}>
-                                                {doc.adheredDate ? 'Adhered' : 'Pending'}
-                                            </span>
-                                        </div>
-                                    </td>
-
-                                    <td className="px-5 py-4">
-                                        <div className="flex items-center gap-2 group/date">
-                                            <Calendar size={12} className={`stroke-[2.5px] ${doc.adheredDate ? 'text-zinc-400' : 'text-orange-400/50'}`} />
-                                            <span
-                                                className={`text-[9px] font-black uppercase tracking-widest ${!doc.adheredDate ? 'text-orange-500 bg-orange-50 dark:bg-orange-900/20 px-1.5 py-0 rounded border border-orange-100 dark:border-orange-900/30' : 'text-zinc-600 dark:text-zinc-400'}`}
-                                            >
-                                                {doc.adheredDate || <span>NAT<sup className="ml-0.5">1</sup></span>}
-                                            </span>
-                                        </div>
-                                    </td>
-
-                                    <td className="px-5 py-4 text-right">
-                                        <button
-                                            onClick={() => handleDownload(doc.id)}
-                                            disabled={downloading === doc.id}
-                                            className="inline-flex items-center gap-2 px-3 py-1.5 bg-white dark:bg-zinc-800 border-2 border-zinc-100 dark:border-zinc-700 hover:border-zinc-900 dark:hover:border-white rounded-lg text-[9px] font-black uppercase tracking-widest text-zinc-900 dark:text-white transition-all active:scale-95"
-                                        >
-                                            {downloading === doc.id ? (
-                                                <div className="w-3 h-3 border-2 border-zinc-400 border-t-zinc-900 rounded-full animate-spin" />
-                                            ) : (
-                                                <Download size={10} strokeWidth={3} />
-                                            )}
-                                            <span>Download</span>
-                                        </button>
-                                    </td>
+                    {isLoading ? (
+                         <div className="w-full h-40 flex flex-col items-center justify-center gap-3 text-zinc-400">
+                             <Loader2 className="w-6 h-6 animate-spin" />
+                             <span className="text-[10px] font-black uppercase tracking-widest">Auditing Registry...</span>
+                         </div>
+                    ) : (
+                        <table className="w-full text-left">
+                            <thead>
+                                <tr className="border-b-2 border-zinc-50 dark:border-zinc-800">
+                                    <th className="px-5 py-3 text-[9px] font-black uppercase tracking-widest text-zinc-400">Protocol Name</th>
+                                    <th className="px-5 py-3 text-[9px] font-black uppercase tracking-widest text-zinc-400">Timestamp</th>
+                                    <th className="px-5 py-3 text-[9px] font-black uppercase tracking-widest text-zinc-400">Region</th>
+                                    <th className="px-5 py-3 text-[9px] font-black uppercase tracking-widest text-zinc-400">Status</th>
+                                    <th className="px-5 py-3 text-[9px] font-black uppercase tracking-widest text-zinc-400">Adhered</th>
+                                    <th className="px-5 py-3 text-right text-[9px] font-black uppercase tracking-widest text-zinc-400">Reference Copy</th>
                                 </tr>
-                            ))}
-                        </tbody>
-                    </table>
+                            </thead>
+                            <tbody className="divide-y-2 divide-zinc-50 dark:divide-zinc-900">
+                                {agreements.map((doc) => (
+                                    <tr key={doc.id} className="group hover:bg-zinc-50/50 dark:hover:bg-zinc-900/50 transition-colors">
+                                        <td className="px-5 py-4">
+                                            <div className="flex flex-col gap-0.5">
+                                                <div className="flex items-center gap-2">
+                                                    <span className="text-sm font-black text-zinc-900 dark:text-white uppercase tracking-tight group-hover:text-purple-600 transition-colors">
+                                                        {doc.document}
+                                                    </span>
+                                                    {doc.region === 'European Union' && (
+                                                        <span className="px-1 py-0.5 rounded text-[7px] font-black uppercase border bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 border-blue-100 dark:border-blue-900/30">
+                                                            EU Legal
+                                                        </span>
+                                                    )}
+                                                </div>
+                                                <span className="text-[10px] font-bold text-zinc-400 line-clamp-1">{doc.region} Compliance</span>
+                                            </div>
+                                        </td>
+
+                                        <td className="px-5 py-4">
+                                            <div className="flex items-center gap-2 text-zinc-500 font-bold text-[10px] uppercase tracking-tight">
+                                                <History size={12} />
+                                                <span>{doc.signedDate ? new Date(doc.signedDate).toLocaleDateString() : 'N/A'}</span>
+                                            </div>
+                                        </td>
+
+                                        <td className="px-5 py-4">
+                                            <span className="text-[9px] font-black font-mono bg-zinc-100 dark:bg-zinc-800 px-1.5 py-0.5 rounded border border-zinc-200 dark:border-zinc-700 text-zinc-600 dark:text-zinc-300">
+                                                {doc.region}
+                                            </span>
+                                        </td>
+
+                                        <td className="px-5 py-4">
+                                            <div className="flex items-center gap-2">
+                                                <div className={`w-1.5 h-1.5 rounded-full ${doc.isSigned ? 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.4)]' : 'bg-red-400/50'}`} />
+                                                <span className={`text-[9px] font-black uppercase tracking-widest ${doc.isSigned ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-400'}`}>
+                                                    {doc.isSigned ? 'Active' : 'Missing'}
+                                                </span>
+                                            </div>
+                                        </td>
+
+                                        <td className="px-5 py-4">
+                                            <div className="flex items-center gap-2 group/date">
+                                                <Calendar size={12} className={`stroke-[2.5px] ${doc.isSigned ? 'text-zinc-400' : 'text-orange-400/50'}`} />
+                                                <span
+                                                    className={`text-[9px] font-black uppercase tracking-widest ${!doc.isSigned ? 'text-orange-500 bg-orange-50 dark:bg-orange-900/20 px-1.5 py-0 rounded border border-orange-100 dark:border-orange-900/30' : 'text-zinc-600 dark:text-zinc-400'}`}
+                                                >
+                                                    {doc.isSigned ? 'Adhered' : <span>NAT<sup className="ml-0.5">1</sup></span>}
+                                                </span>
+                                            </div>
+                                        </td>
+
+                                        <td className="px-5 py-4 text-right">
+                                            <div className="flex items-center justify-end gap-2">
+                                                {!doc.isSigned && (
+                                                    <button
+                                                        onClick={() => handleSignAgreement(doc.id)}
+                                                        disabled={isSigning === doc.id}
+                                                        className="inline-flex items-center gap-2 px-3 py-1.5 bg-purple-600 hover:bg-purple-700 rounded-lg text-[9px] font-black uppercase tracking-widest text-white transition-all active:scale-95 shadow-lg shadow-purple-600/20"
+                                                    >
+                                                        {isSigning === doc.id ? (
+                                                            <Loader2 size={10} className="animate-spin" />
+                                                        ) : (
+                                                            <PenTool size={10} strokeWidth={3} />
+                                                        )}
+                                                        <span>Sign Now</span>
+                                                    </button>
+                                                )}
+                                                <button
+                                                    onClick={() => handleDownload(doc.id, doc.data.url)}
+                                                    disabled={downloading === doc.id}
+                                                    className="inline-flex items-center gap-2 px-3 py-1.5 bg-white dark:bg-zinc-800 border-2 border-zinc-100 dark:border-zinc-700 hover:border-zinc-900 dark:hover:border-white rounded-lg text-[9px] font-black uppercase tracking-widest text-zinc-900 dark:text-white transition-all active:scale-95"
+                                                >
+                                                    {downloading === doc.id ? (
+                                                        <div className="w-3 h-3 border-2 border-zinc-400 border-t-zinc-900 rounded-full animate-spin" />
+                                                    ) : (
+                                                        <Download size={10} strokeWidth={3} />
+                                                    )}
+                                                    <span>Download</span>
+                                                </button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    )}
                 </div>
 
                 <div className="px-6 py-4 border-t-2 border-zinc-50 dark:border-zinc-800 flex items-center justify-between">
