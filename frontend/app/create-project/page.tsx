@@ -351,10 +351,10 @@ export default function CreateProjectPage() {
         <div className="relative z-10 max-w-md w-full p-10 bg-white dark:bg-[#0A0A0A] border-2 border-zinc-100 dark:border-zinc-800 rounded-[40px] text-center shadow-2xl dark:shadow-none">
           <Crown className="w-12 h-12 text-purple-600 mx-auto mb-6" strokeWidth={2.5} />
           <h2 className="text-2xl font-black uppercase tracking-tighter mb-4 text-zinc-900 dark:text-white">Protocol Halted</h2>
-          <p className="text-zinc-500 dark:text-zinc-400 mb-8 text-xs font-bold uppercase tracking-widest">Active subscription nodes required to initialize projects.</p>
+          <p className="text-zinc-500 dark:text-zinc-400 mb-8 text-xs font-bold uppercase tracking-widest">Active subscription required to initialize projects.</p>
           <div className="flex gap-4 justify-center">
             <button onClick={() => router.back()} className="px-6 py-3 text-[10px] font-black uppercase tracking-widest text-zinc-400 hover:text-zinc-900 dark:hover:text-white rounded-xl bg-zinc-50 dark:bg-zinc-900 border-2 border-zinc-100 dark:border-zinc-800">Abort</button>
-            <Link href="/dashboard/subscriptions" className="px-6 py-3 text-[10px] bg-zinc-900 dark:bg-white text-white dark:text-black rounded-xl font-black uppercase tracking-widest">View Matrix</Link>
+            <Link href="/dashboard" className="px-6 py-3 text-[10px] bg-zinc-900 dark:bg-white text-white dark:text-black rounded-xl font-black uppercase tracking-widest">Redirect to Dashboard</Link>
           </div>
         </div>
       </div>
