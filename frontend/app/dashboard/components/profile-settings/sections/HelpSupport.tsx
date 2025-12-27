@@ -1,235 +1,245 @@
-// frontend/app/dashboard/components/profile-settings/sections/Support.tsx
-
 "use client";
 
-import { useState } from "react";
-import {
-    Search,
-    HelpCircle,
-    MessageSquare,
-    Mail,
-    FileText,
-    ExternalLink,
-    Zap,
-    Book,
-    Code2,
-    Layout,
-    ChevronRight,
-    Loader2,
-    Terminal
+import { 
+    Zap, 
+    Terminal, 
+    FileText, 
+    Globe, 
+    ShieldCheck, 
+    ArrowRight,
+    Clock,
+    Video,
+    MapPin,
+    ChevronRight
 } from "lucide-react";
+import { motion } from "framer-motion";
 
-// --- Shared Component: Page Widget ---
-const PageWidget = ({ title, icon: Icon, children, action }: any) => (
-    <div className="relative z-10 w-full bg-[#111111] light:bg-white border border-[#222] light:border-gray-200 rounded-xl flex flex-col overflow-visible shadow-[0_15px_30px_-10px_rgba(0,0,0,0.5)] light:shadow-lg hover:border-[#333] light:hover:border-gray-300 transition-colors mb-6">
-        <div className="px-5 py-4 border-b border-[#222] light:border-gray-200 flex items-center justify-between bg-[#141414] light:bg-gray-50 rounded-t-xl">
-            <div className="flex items-center gap-3">
-                <div className="p-1.5 bg-[#1a1a1a] light:bg-white rounded-md border border-[#2a2a2a] light:border-gray-200">
-                    <Icon size={14} className="text-neutral-400 light:text-neutral-500" />
-                </div>
-                <h3 className="text-sm font-medium text-neutral-300 light:text-neutral-700 tracking-wide">{title}</h3>
-            </div>
-            {action}
+// --- COMPONENT: COMPACT ROW (Clickable Mailto) ---
+const ContactRow = ({ 
+  icon: Icon, 
+  title, 
+  detail, 
+  description, 
+  linkText, 
+  className = "", 
+  isPrimary = false,
+  delay = 0
+}: any) => (
+  <motion.a
+    href={`mailto:${detail}`}
+    initial={{ opacity: 0, x: -20 }}
+    whileInView={{ opacity: 1, x: 0 }}
+    viewport={{ once: true }}
+    transition={{ delay, duration: 0.5 }}
+    whileHover={{ scale: 1.01 }}
+    className={`
+      group relative p-6 rounded-[24px] bg-white border-2 transition-all duration-300 overflow-hidden flex items-center justify-between gap-6 cursor-pointer
+      ${isPrimary 
+        ? "border-purple-600 shadow-xl shadow-purple-900/10" 
+        : "border-zinc-100 shadow-lg shadow-zinc-200/50 hover:border-purple-200"
+      }
+      ${className}
+    `}
+  >
+    {/* Texture */}
+    <div className="absolute inset-0 bg-[url('/grainy.png')] opacity-[0.03] mix-blend-multiply pointer-events-none" />
+    
+    <div className="relative z-10 flex items-center gap-6 flex-1">
+      {/* Icon */}
+      <div className={`
+          w-12 h-12 rounded-xl flex items-center justify-center shrink-0 transition-all duration-500
+          ${isPrimary 
+            ? "bg-purple-600 text-white shadow-md" 
+            : "bg-purple-50 text-purple-600 group-hover:bg-purple-600 group-hover:text-white"
+          }
+      `}>
+        <Icon size={20} strokeWidth={2.5} />
+      </div>
+
+      {/* Text Content */}
+      <div className="flex flex-col">
+        <div className="flex items-center gap-3 mb-1">
+            <h3 className="text-lg font-black tracking-tight text-[#202124]">{title}</h3>
+            {isPrimary && <span className="px-2 py-0.5 bg-purple-100 text-purple-700 border border-purple-200 text-[9px] font-black uppercase rounded-md tracking-wider">Priority</span>}
         </div>
-        <div className="flex-1 p-6 bg-[#111111] light:bg-white min-h-0 relative flex flex-col rounded-b-xl text-neutral-300 light:text-neutral-600">
-            {children}
+        
+        <div className="flex flex-col md:flex-row md:items-center gap-1 md:gap-3">
+             <span className="text-purple-600 font-black text-[10px] uppercase tracking-widest group-hover:underline decoration-purple-300 underline-offset-4 decoration-2 transition-all">
+                {detail}
+             </span>
+             <span className="hidden md:block w-1 h-1 rounded-full bg-zinc-300"></span>
+             <p className="text-zinc-500 text-xs font-bold line-clamp-1 md:line-clamp-none">
+                {description}
+             </p>
+        </div>
+      </div>
+    </div>
+
+    {/* Action Arrow (Right Side) */}
+    <div className="relative z-10 shrink-0 pl-4 border-l-2 border-zinc-50 hidden sm:flex">
+        <div className="w-10 h-10 rounded-full bg-white border-2 border-zinc-100 flex items-center justify-center text-zinc-400 group-hover:border-purple-600 group-hover:text-purple-600 transition-all">
+            <ChevronRight size={18} strokeWidth={3} />
         </div>
     </div>
+  </motion.a>
 );
 
-// --- Mock Data: Help Articles ---
-const commonArticles = [
-    { id: 1, title: "Getting started with Projects", category: "Basics", readTime: "3 min" },
-    { id: 2, title: "Managing team roles & permissions", category: "Team", readTime: "5 min" },
-    { id: 3, title: "Understanding your billing invoice", category: "Billing", readTime: "2 min" },
-    { id: 4, title: "API Authentication guide", category: "Developers", readTime: "8 min" },
-];
-
 export default function SupportPage() {
-    const [searchQuery, setSearchQuery] = useState("");
-    const [isSubmitting, setIsSubmitting] = useState(false);
-
-    const handleTicketSubmit = (e: React.FormEvent) => {
-        e.preventDefault();
-        setIsSubmitting(true);
-        // Simulate API call
-        setTimeout(() => {
-            setIsSubmitting(false);
-            alert("Ticket submitted successfully! We'll be in touch shortly.");
-        }, 1500);
-    };
-
     return (
-        <div className="max-w-5xl mx-auto space-y-8 font-sans">
+        <div className="max-w-5xl mx-auto space-y-8 font-sans pb-20">
 
-            {/* Header & System Status */}
-<div className="flex flex-col md:flex-row md:items-end justify-between gap-8 mb-12 animate-in fade-in slide-in-from-top-4 duration-700">
-    
-    {/* LEFT: SUPPORT TITLES */}
-    <div className="space-y-1">
-        {/* Support Tag */}
-        <div className="flex items-center gap-2 mb-3">
-            <Terminal size={14} className="text-purple-600" strokeWidth={3} />
-            <span className="text-[10px] font-black uppercase tracking-[0.3em] text-zinc-400">
-                Assistance / Developer Support Relay
-            </span>
-        </div>
-
-        {/* Main Title */}
-<h1 className="text-4xl md:text-5xl font-black tracking-tighter text-zinc-900 dark:text-white uppercase leading-none">
-        Help Center<span className="text-purple-600 dark:text-purple-500">.</span>
-    </h1>
-
-        {/* Description */}
-        <p className="text-zinc-500 font-bold text-sm leading-relaxed max-w-md mt-4">
-            Access system documentation nodes, troubleshoot logic failures, and synchronize with our technical relay team.
-        </p>
-    </div>
-
-</div>
-
-            {/* Search Section */}
-            <div className="relative group">
-                <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                    <Search className="h-5 w-5 text-neutral-500 group-focus-within:text-white light:group-focus-within:text-black transition-colors" />
+            {/* --- HEADER --- */}
+            <div className="flex flex-col md:flex-row md:items-end justify-between gap-8 mb-4 animate-in fade-in slide-in-from-top-4 duration-700">
+                <div className="space-y-1">
+                    <div className="flex items-center gap-2 mb-3">
+                        <Terminal size={14} className="text-purple-600" strokeWidth={3} />
+                        <span className="text-[10px] font-black uppercase tracking-[0.3em] text-zinc-400">
+                            Assistance / Developer Support Relay
+                        </span>
+                    </div>
+                    <h1 className="text-4xl md:text-5xl font-black tracking-tighter text-zinc-900 uppercase leading-none">
+                        Help Center<span className="text-purple-600">.</span>
+                    </h1>
+                    <p className="text-zinc-500 font-bold text-sm leading-relaxed max-w-md mt-4">
+                        Direct lines to our departments.
+                    </p>
                 </div>
-                <input
-                    type="text"
-                    placeholder="Search documentation, tutorials, and FAQs..."
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    className="bg-[#111] light:bg-white border border-[#222] light:border-gray-200 text-neutral-200 light:text-black text-sm rounded-xl block w-full pl-12 pr-4 py-4 placeholder-neutral-600 light:placeholder-neutral-400 focus:outline-none focus:border-neutral-500 focus:bg-[#161616] light:focus:bg-gray-50 focus:ring-1 focus:ring-neutral-500/20 transition-all shadow-lg light:shadow-md"
+            </div>
+
+            {/* --- COMPACT ROWS STACK --- */}
+            <div className="space-y-4">
+                
+                {/* Sales (Primary) */}
+                <ContactRow 
+                    isPrimary={true}
+                    icon={Zap}
+                    title="Sales & Enterprise"
+                    detail="sales@kaprydev.com"
+                    description="Enterprise features, volume pricing, and custom demos."
+                    linkText="Talk to Sales"
+                    delay={0}
+                />
+
+                {/* Support */}
+                <ContactRow 
+                    icon={Terminal}
+                    title="Technical Support"
+                    detail="support@kaprydev.com"
+                    description="Implementation help and troubleshooting. 24/7 availability."
+                    linkText="Contact Us"
+                    delay={0.1}
+                />
+
+                {/* Billing */}
+                <ContactRow 
+                    icon={FileText}
+                    title="Billing & Accounts"
+                    detail="billing@kaprydev.com"
+                    description="Invoices, subscription plans, and token analytics."
+                    linkText="View Billing Docs"
+                    delay={0.2}
+                />
+
+                {/* Press */}
+                <ContactRow 
+                    icon={Globe}
+                    title="Press & Media"
+                    detail="press@kaprydev.com"
+                    description="Media inquiries, brand assets, and interview requests."
+                    linkText="Media Kit"
+                    delay={0.3}
+                />
+
+                {/* Partnerships */}
+                <ContactRow 
+                    icon={ShieldCheck}
+                    title="Partnerships"
+                    detail="partners@kaprydev.com"
+                    description="Integrations and developer ecosystem program."
+                    linkText="Partner Program"
+                    delay={0.4}
                 />
             </div>
 
-            {/* Resources Grid */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <div className="bg-[#111111] light:bg-white border border-[#222] light:border-gray-200 rounded-xl p-5 hover:border-[#333] light:hover:border-gray-300 transition-colors group cursor-pointer shadow-sm light:shadow-md">
-                    <div className="w-10 h-10 bg-[#1a1a1a] light:bg-gray-50 rounded-lg flex items-center justify-center border border-[#2a2a2a] light:border-gray-200 mb-4 group-hover:scale-105 transition-transform">
-                        <Book className="w-5 h-5 text-neutral-400 light:text-neutral-500" />
+            {/* --- SECONDARY INFO BAR --- */}
+            <motion.div 
+                initial={{ opacity: 0, y: 30 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ duration: 0.8, ease: "easeOut" }}
+                className="mt-12 grid grid-cols-1 lg:grid-cols-3 gap-10 p-10 rounded-[32px] bg-gradient-to-br from-purple-600 via-purple-600 to-indigo-700 text-white relative overflow-hidden group shadow-2xl shadow-purple-900/20"
+            >
+                {/* Visual Accents */}
+                <div className="absolute inset-0 bg-[url('/grainy.png')] opacity-15 mix-blend-overlay pointer-events-none" />
+                <div className="absolute -right-20 -bottom-20 w-96 h-96 bg-purple-400 rounded-full blur-[100px] opacity-40 group-hover:opacity-60 transition-opacity duration-1000" />
+                <div className="absolute -left-20 -top-20 w-72 h-72 bg-indigo-400 rounded-full blur-[100px] opacity-20" />
+                
+                {/* Item 1: Response Time */}
+                <motion.div 
+                    initial={{ opacity: 0, x: -20 }}
+                    whileInView={{ opacity: 1, x: 0 }}
+                    transition={{ delay: 0.2, duration: 0.6 }}
+                    className="relative z-10 flex items-start gap-5"
+                >
+                    <div className="w-12 h-12 rounded-xl bg-white/10 border border-white/20 flex items-center justify-center shrink-0 backdrop-blur-xl group-hover:bg-white/20 group-hover:scale-110 transition-all duration-500 shadow-xl">
+                        <Clock size={20} className="text-white drop-shadow-md" strokeWidth={2.5} />
                     </div>
-                    <h3 className="text-sm font-medium text-white light:text-black mb-1">Documentation</h3>
-                    <p className="text-xs text-neutral-500 light:text-neutral-600 mb-4 leading-relaxed">
-                        Comprehensive guides and API references for developers.
-                    </p>
-                    <span className="text-xs font-medium text-neutral-300 light:text-neutral-700 flex items-center gap-1 group-hover:gap-2 transition-all">
-                        Browse Docs <ChevronRight size={12} />
-                    </span>
-                </div>
-
-                <div className="bg-[#111111] light:bg-white border border-[#222] light:border-gray-200 rounded-xl p-5 hover:border-[#333] light:hover:border-gray-300 transition-colors group cursor-pointer shadow-sm light:shadow-md">
-                    <div className="w-10 h-10 bg-[#1a1a1a] light:bg-gray-50 rounded-lg flex items-center justify-center border border-[#2a2a2a] light:border-gray-200 mb-4 group-hover:scale-105 transition-transform">
-                        <Layout className="w-5 h-5 text-neutral-400 light:text-neutral-500" />
+                    <div className="space-y-1">
+                        <div className="flex items-center gap-2 opacity-70">
+                            <span className="text-[9px] font-black uppercase tracking-[0.2em]">SLA Priority</span>
+                        </div>
+                        <h4 className="font-black text-lg tracking-tight">Response Time</h4>
+                        <p className="text-purple-50 text-xs leading-relaxed font-bold">
+                            Enterprise: <span className="font-black text-white decoration-purple-300 underline underline-offset-4 decoration-2">{"< 15 mins"}</span><br />
+                            Developer: <span className="opacity-70 font-black">{"< 4 hours"}</span>
+                        </p>
                     </div>
-                    <h3 className="text-sm font-medium text-white light:text-black mb-1">Tutorials</h3>
-                    <p className="text-xs text-neutral-500 light:text-neutral-600 mb-4 leading-relaxed">
-                        Step-by-step videos and walkthroughs to master the platform.
-                    </p>
-                    <span className="text-xs font-medium text-neutral-300 light:text-neutral-700 flex items-center gap-1 group-hover:gap-2 transition-all">
-                        Watch Tutorials <ChevronRight size={12} />
-                    </span>
-                </div>
+                </motion.div>
 
-                <div className="bg-[#111111] light:bg-white border border-[#222] light:border-gray-200 rounded-xl p-5 hover:border-[#333] light:hover:border-gray-300 transition-colors group cursor-pointer shadow-sm light:shadow-md">
-                    <div className="w-10 h-10 bg-[#1a1a1a] light:bg-gray-50 rounded-lg flex items-center justify-center border border-[#2a2a2a] light:border-gray-200 mb-4 group-hover:scale-105 transition-transform">
-                        <MessageSquare className="w-5 h-5 text-neutral-400 light:text-neutral-500" />
+                {/* Item 2: Office Hours */}
+                <motion.div 
+                    initial={{ opacity: 0, x: -20 }}
+                    whileInView={{ opacity: 1, x: 0 }}
+                    transition={{ delay: 0.3, duration: 0.6 }}
+                    className="relative z-10 flex items-start gap-5"
+                >
+                    <div className="w-12 h-12 rounded-xl bg-white/10 border border-white/20 flex items-center justify-center shrink-0 backdrop-blur-xl group-hover:bg-white/20 group-hover:scale-110 transition-all duration-500 shadow-xl">
+                        <Video size={20} className="text-white drop-shadow-md" strokeWidth={2.5} />
                     </div>
-                    <h3 className="text-sm font-medium text-white light:text-black mb-1">Community Forum</h3>
-                    <p className="text-xs text-neutral-500 light:text-neutral-600 mb-4 leading-relaxed">
-                        Connect with other users, ask questions, and share tips.
-                    </p>
-                    <span className="text-xs font-medium text-neutral-300 light:text-neutral-700 flex items-center gap-1 group-hover:gap-2 transition-all">
-                        Join Community <ChevronRight size={12} />
-                    </span>
-                </div>
-            </div>
-
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-
-                {/* Popular Articles Widget */}
-                <div className="lg:col-span-2">
-                    <PageWidget title="Popular Articles" icon={Zap}>
-                        <div className="divide-y divide-[#222] light:divide-gray-200 -mx-6 -my-2">
-                            {commonArticles.map((article) => (
-                                <a
-                                    key={article.id}
-                                    href="#"
-                                    className="flex items-center justify-between px-6 py-4 hover:bg-[#161616] light:hover:bg-gray-50 transition-colors group"
-                                >
-                                    <div className="flex items-start gap-3">
-                                        <div className="mt-0.5">
-                                            <FileText size={16} className="text-neutral-600 light:text-neutral-400 group-hover:text-neutral-400 light:group-hover:text-neutral-600 transition-colors" />
-                                        </div>
-                                        <div>
-                                            <h4 className="text-sm text-neutral-300 light:text-neutral-700 group-hover:text-white light:group-hover:text-black transition-colors font-medium">
-                                                {article.title}
-                                            </h4>
-                                            <span className="text-xs text-neutral-500 light:text-neutral-500 mt-0.5 block">
-                                                {article.category} • {article.readTime} read
-                                            </span>
-                                        </div>
-                                    </div>
-                                    <ChevronRight size={14} className="text-neutral-700 light:text-neutral-400 group-hover:text-neutral-500 light:group-hover:text-neutral-600 transition-colors" />
-                                </a>
-                            ))}
+                    <div className="space-y-1">
+                        <div className="flex items-center gap-2 opacity-70">
+                            <span className="text-[9px] font-black uppercase tracking-[0.2em]">Availability</span>
                         </div>
-                        <div className="mt-4 pt-4 border-t border-[#222] light:border-gray-200 text-center">
-                            <button className="text-xs font-medium text-neutral-400 light:text-neutral-600 hover:text-white light:hover:text-black transition-colors">
-                                View all 42 articles
-                            </button>
+                        <h4 className="font-black text-lg tracking-tight">Office Hours</h4>
+                        <p className="text-purple-50 text-xs leading-relaxed font-bold">
+                            Monday — Friday<br />
+                            <span className="font-black text-white">10:00 — 18:00</span> <span className="text-[10px] opacity-70">(UTC+1)</span>
+                        </p>
+                    </div>
+                </motion.div>
+
+                {/* Item 3: HQ Location */}
+                <motion.div 
+                    initial={{ opacity: 0, x: -20 }}
+                    whileInView={{ opacity: 1, x: 0 }}
+                    transition={{ delay: 0.4, duration: 0.6 }}
+                    className="relative z-10 flex items-start gap-5"
+                >
+                    <div className="w-12 h-12 rounded-xl bg-white/10 border border-white/20 flex items-center justify-center shrink-0 backdrop-blur-xl group-hover:bg-white/20 group-hover:scale-110 transition-all duration-500 shadow-xl">
+                        <MapPin size={20} className="text-white drop-shadow-md" strokeWidth={2.5} />
+                    </div>
+                    <div className="space-y-1">
+                        <div className="flex items-center gap-2 opacity-70">
+                            <span className="text-[9px] font-black uppercase tracking-[0.2em]">Headquarters</span>
                         </div>
-                    </PageWidget>
-                </div>
-
-                {/* Contact Widget */}
-                <div className="lg:col-span-1">
-                    <PageWidget title="Contact Support" icon={Mail}>
-                        <div className="space-y-4">
-                            <div className="bg-[#161616] light:bg-gray-50 rounded-lg p-4 border border-[#222] light:border-gray-200">
-                                <h4 className="text-sm font-medium text-white light:text-black mb-2">Technical Support</h4>
-                                <p className="text-xs text-neutral-500 light:text-neutral-600 mb-4">
-                                    For bugs, technical issues, and platform errors. Average response time: &lt; 2hrs.
-                                </p>
-                                <button
-                                    onClick={() => alert("Chat widget would open here")}
-                                    className="w-full py-2 bg-white light:bg-black hover:bg-neutral-200 light:hover:bg-neutral-800 text-black light:text-white text-xs font-semibold rounded-lg transition-colors flex items-center justify-center gap-2"
-                                >
-                                    <MessageSquare size={14} />
-                                    Start Live Chat
-                                </button>
-                            </div>
-
-                            <form onSubmit={handleTicketSubmit} className="space-y-3 pt-2">
-                                <p className="text-xs text-neutral-400 light:text-neutral-600 font-medium px-1">Or send us an email</p>
-
-                                <div className="space-y-2">
-                                    <select className="w-full bg-[#161616] light:bg-gray-50 border border-[#333] light:border-gray-200 rounded-lg text-xs text-neutral-300 light:text-neutral-700 px-3 py-2 focus:outline-none focus:border-neutral-500">
-                                        <option>General Inquiry</option>
-                                        <option>Billing Issue</option>
-                                        <option>Feature Request</option>
-                                        <option>Report a Bug</option>
-                                    </select>
-
-                                    <textarea
-                                        rows={3}
-                                        placeholder="Describe your issue..."
-                                        className="w-full bg-[#161616] light:bg-gray-50 border border-[#333] light:border-gray-200 rounded-lg text-xs text-neutral-300 light:text-neutral-700 px-3 py-2 focus:outline-none focus:border-neutral-500 resize-none placeholder-neutral-600 light:placeholder-neutral-400"
-                                    ></textarea>
-                                </div>
-
-                                <button
-                                    type="submit"
-                                    disabled={isSubmitting}
-                                    className="w-full py-2 bg-[#1a1a1a] light:bg-white hover:bg-[#222] light:hover:bg-gray-50 text-neutral-300 light:text-neutral-700 hover:text-white light:hover:text-black border border-[#2a2a2a] light:border-gray-200 hover:border-[#333] light:hover:border-gray-300 text-xs font-medium rounded-lg transition-colors flex items-center justify-center gap-2"
-                                >
-                                    {isSubmitting ? <Loader2 size={14} className="animate-spin" /> : <Mail size={14} />}
-                                    {isSubmitting ? "Sending..." : "Submit Ticket"}
-                                </button>
-                            </form>
-                        </div>
-                    </PageWidget>
-                </div>
-            </div>
+                        <h4 className="font-black text-lg tracking-tight">HQ Location</h4>
+                        <p className="text-purple-50 text-xs leading-relaxed font-bold">
+                            Via Dante<br />
+                            <span className="font-black text-white">Cremona, CR</span> 26100
+                        </p>
+                    </div>
+                </motion.div>
+            </motion.div>
         </div>
     );
 }

@@ -44,33 +44,30 @@ const Footer = ({ minimal = false }: FooterProps) => {
                     <div>
                         <h3 className="font-bold text-[#202124] mb-6">Product</h3>
                         <ul className="space-y-4 text-sm text-[#5f6368] font-medium">
-                            <li><a href="#" className="hover:text-[#202124] transition-colors">Features</a></li>
-                            <li><a href="#" className="hover:text-[#202124] transition-colors flex items-center gap-1">Changelog <ArrowUpRight size={14} className="opacity-50"/></a></li>
-                            <li><a href="#" className="hover:text-[#202124] transition-colors">Pricing</a></li>
+                            <li><a href="/" className="hover:text-[#202124] transition-colors">Features</a></li>
+                            <li><a href="/home/pricing" className="hover:text-[#202124] transition-colors">Pricing</a></li>
                         </ul>
                     </div>
                     <div>
                         <h3 className="font-bold text-[#202124] mb-6">Resources</h3>
                         <ul className="space-y-4 text-sm text-[#5f6368] font-medium">
-                            <li><a href="#" className="hover:text-[#202124] transition-colors">Documentation</a></li>
-                            <li><a href="#" className="hover:text-[#202124] transition-colors">Help Center</a></li>
+                            <li><a href="/home/contact" className="hover:text-[#202124] transition-colors">Help Center</a></li>
                         </ul>
                     </div>
                     <div>
                         <h3 className="font-bold text-[#202124] mb-6">Company</h3>
                         <ul className="space-y-4 text-sm text-[#5f6368] font-medium">
-                            <li><a href="#" className="hover:text-[#202124] transition-colors">About</a></li>
-                            <li><a href="#" className="hover:text-[#202124] transition-colors">Blog</a></li>
-                            <li><a href="#" className="hover:text-[#202124] transition-colors">Contact</a></li>
+                            <li><a href="/" className="hover:text-[#202124] transition-colors">About</a></li>
+                            <li><a href="/home/blog" className="hover:text-[#202124] transition-colors">Blog</a></li>
+                            <li><a href="/home/contact" className="hover:text-[#202124] transition-colors">Contact</a></li>
                         </ul>
                     </div>
                     <div>
                         <h3 className="font-bold text-[#202124] mb-6">Legal</h3>
                         <ul className="space-y-4 text-sm text-[#5f6368] font-medium">
-                            <li><a href="#" className="hover:text-[#202124] transition-colors">Privacy Policy</a></li>
-                            <li><a href="#" className="hover:text-[#202124] transition-colors">Terms of Service</a></li>
-                            <li><a href="#" className="hover:text-[#202124] transition-colors">European Union Compliance</a></li>
-                            <li><a href="#" className="hover:text-[#202124] transition-colors">Security</a></li>
+                            <li><a href="/home/legal/privacy-policy" className="hover:text-[#202124] transition-colors">Privacy Policy</a></li>
+                            <li><a href="/home/legal/tos" className="hover:text-[#202124] transition-colors">Terms of Service</a></li>
+                            <li><a href="/home/legal/european-union-compliance" className="hover:text-[#202124] transition-colors">European Union Compliance</a></li>
                         </ul>
                     </div>
                 </div>
@@ -97,9 +94,8 @@ const Footer = ({ minimal = false }: FooterProps) => {
                         </div>
 
                         <div className="flex gap-6 text-[#5f6368]">
-                            <a href="#" className="hover:text-[#202124] transition-colors"><Github size={20} /></a>
-                            <a href="#" className="hover:text-[#202124] transition-colors"><Twitter size={20} /></a>
-                            <a href="#" className="hover:text-[#202124] transition-colors"><Linkedin size={20} /></a>
+                            <a href="https://x.com/KapryDEV" className="hover:text-[#202124] transition-colors"><Twitter size={20} /></a>
+                            {/* <a href="#" className="hover:text-[#202124] transition-colors"><Linkedin size={20} /></a> */}
                         </div>
                     </div>
 
