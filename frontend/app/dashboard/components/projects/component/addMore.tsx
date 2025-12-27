@@ -183,7 +183,7 @@ export default function AddProjectButton() {
                 Expand Workspace
               </h3>
               <p className="text-xs font-bold text-zinc-400 dark:text-zinc-500 max-w-[200px] leading-relaxed">
-                Initialize a fresh project cluster to begin orchestrating your development assets and team nodes.
+                Initialize a fresh project to begin organizing your development assets and collaborators.
               </p>
             </div>
           </div>
@@ -226,7 +226,7 @@ export default function AddProjectButton() {
                   <Users size={18} className="text-purple-600" strokeWidth={2.5} />
                 </div>
                 <div>
-                  <div className="font-black text-[11px] uppercase tracking-widest text-zinc-900 dark:text-white">Join Protocol</div>
+                  <div className="font-black text-[11px] uppercase tracking-widest text-zinc-900 dark:text-white">Join Project</div>
                   <div className="text-[9px] font-bold text-zinc-400 uppercase mt-0.5 tracking-tight">Relay via UUID invitation</div>
                 </div>
               </button>
