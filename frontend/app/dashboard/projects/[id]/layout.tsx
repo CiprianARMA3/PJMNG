@@ -7,7 +7,7 @@ export default function ProjectLayout({
   params,
 }: {
   children: React.ReactNode;
-  params: { id: string };
+params: Promise<{ id: string }>; // Change this to a Promise
 }) {
   return (
     <ProjectAuthGuard>
