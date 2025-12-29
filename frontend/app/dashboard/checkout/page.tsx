@@ -1,8 +1,6 @@
-// frontend/app/dashboard/checkout/page.tsx
-
 "use client";
 
-import { useEffect, useState, useTransition } from "react";
+import { useEffect, useState, useTransition, Suspense } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { createSubscriptionCheckout, getCheckoutPreview } from "@/app/actions/stripe";
 import {
@@ -35,7 +33,7 @@ interface PriceDetails {
     message?: string;
 }
 
-export default function CheckoutPage() {
+function CheckoutContent() {
     const searchParams = useSearchParams();
     const router = useRouter();
 
@@ -100,8 +98,6 @@ export default function CheckoutPage() {
                 console.log(`📝 [CHECKOUT] Initiating subscription for ${planConfig.name} (${interval})...`);
                 await createSubscriptionCheckout(urlPlanId, interval, true);
             } catch (err: any) {
-                // Next.js redirect() throws a special error with digest 'NEXT_REDIRECT'
-                // We must re-throw it so the redirect can complete
                 if (err?.digest?.startsWith('NEXT_REDIRECT')) {
                     throw err;
                 }
@@ -176,11 +172,9 @@ export default function CheckoutPage() {
                 </button>
 
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-
                     {/* LEFT COLUMN: Order Summary */}
                     <div className="md:col-span-2 space-y-6">
                         <div className="bg-[#111111] light:bg-white border border-[#222] light:border-gray-200 rounded-xl overflow-hidden shadow-lg light:shadow-md">
-
                             {/* Header */}
                             <div className="px-6 py-4 border-b border-[#222] light:border-gray-200 bg-[#141414] light:bg-gray-50 flex items-center justify-between">
                                 <h2 className="text-sm font-medium text-white light:text-black tracking-wide">Order Summary</h2>
@@ -314,5 +308,17 @@ export default function CheckoutPage() {
                 </div>
             </div>
         </div>
+    );
+}
+
+export default function CheckoutPage() {
+    return (
+        <Suspense fallback={
+            <div role="status" className="flex justify-center items-center h-screen bg-[#0a0a0a] light:bg-white">
+                <Loader2 className="w-8 h-8 animate-spin text-neutral-400" />
+            </div>
+        }>
+            <CheckoutContent />
+        </Suspense>
     );
 }
