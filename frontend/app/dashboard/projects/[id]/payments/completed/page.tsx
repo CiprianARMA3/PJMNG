@@ -1,14 +1,14 @@
 "use client";
 
-import React, { useEffect, use, useState } from "react";
+import React, { useEffect, use, useState, Suspense } from "react";
 import { Check, ArrowRight, Package, Rocket, Loader2, AlertCircle } from "lucide-react";
 import Link from "next/link";
 import confetti from "canvas-confetti";
 import { useRouter, useSearchParams } from "next/navigation";
 import { verifyTokenPurchase } from "@/app/actions/stripe";
 
-export default function PaymentCompletedPage({ params }: { params: Promise<{ id: string }> }) {
-  const { id: projectId } = use(params);
+function PaymentCompletedContent({ params }: { params: { id: string } }) {
+  const { id: projectId } = params;
   const router = useRouter();
   const searchParams = useSearchParams();
   const sessionId = searchParams.get('session_id');
@@ -124,5 +124,21 @@ export default function PaymentCompletedPage({ params }: { params: Promise<{ id:
         </div>
       </div>
     </div>
+  );
+}
+
+export default function PaymentCompletedPage({ params }: { params: Promise<{ id: string }> }) {
+  const resolvedParams = use(params);
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-zinc-50 dark:bg-[#09090b] flex items-center justify-center p-4">
+        <div className="text-center">
+          <Loader2 size={40} className="animate-spin text-purple-600 mx-auto mb-4" />
+          <p className="text-zinc-600 dark:text-zinc-400 font-medium">Loading...</p>
+        </div>
+      </div>
+    }>
+      <PaymentCompletedContent params={resolvedParams} />
+    </Suspense>
   );
 }

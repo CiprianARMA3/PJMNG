@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import LandingBoxes from './components/landingPage/boxesLanding';
 import { motion, AnimatePresence } from "framer-motion";
@@ -388,7 +388,7 @@ const PricingSection = () => {
 };
 
 // --- Main Page Component ---
-export default function Page() {
+function HomeContent() {
   const searchParams = useSearchParams();
   const [notification, setNotification] = useState<string | null>(null);
 
@@ -471,5 +471,13 @@ export default function Page() {
       <PricingSection />
       <Footer />
     </main>
+  );
+}
+
+export default function Page() {
+  return (
+    <Suspense fallback={null}>
+      <HomeContent />
+    </Suspense>
   );
 }

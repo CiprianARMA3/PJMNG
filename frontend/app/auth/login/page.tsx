@@ -181,8 +181,7 @@ export default function LoginPage() {
           )}
 
           {/* Social Logins */}
-<div className="flex flex-col gap-3 w-full max-w-md mx-auto"> 
-  {/* Google Button */}
+{/* <div className="flex flex-col gap-3 w-full max-w-md mx-auto"> 
   <button
     onClick={() => handleOAuthLogin('google')}
     disabled={loading}
@@ -198,8 +197,6 @@ export default function LoginPage() {
     </div>
     <span>{loading ? 'Loading...' : 'Sign in with Google'}</span>
   </button>
-
-  {/* GitHub Button */}
   <button
     onClick={() => handleOAuthLogin('github')}
     disabled={loading}
@@ -211,7 +208,7 @@ export default function LoginPage() {
   <p className="mt-2 flex justify-center text-[10px] font-semibold uppercase tracking-[1px] text-zinc-400">
     Secure Authentication by Supabase
   </p>
-</div>
+</div> */}
 
           <div className="relative py-2">
             <div className="absolute inset-0 flex items-center"><div className="w-full border-t-2 border-zinc-50"></div></div>

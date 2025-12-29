@@ -175,8 +175,7 @@ export default function RegisterPage() {
             </motion.div>
           )}
 
-<div className="flex flex-col gap-3 w-full max-w-md mx-auto"> 
-  {/* Google Button */}
+{/* <div className="flex flex-col gap-3 w-full max-w-md mx-auto"> 
   <button
     onClick={() => handleOAuthLogin('google')}
     disabled={loading}
@@ -193,7 +192,6 @@ export default function RegisterPage() {
     <span>{loading ? 'Loading...' : 'Sign up with Google'}</span>
   </button>
 
-  {/* GitHub Button */}
   <button
     onClick={() => handleOAuthLogin('github')}
     disabled={loading}
@@ -205,7 +203,7 @@ export default function RegisterPage() {
 <p className="mt-2 flex justify-center text-[10px] font-semibold uppercase tracking-[1px] text-zinc-400">
     Secure Authentication by Supabase
   </p>
-  </div>
+  </div> */}
 
           <div className="relative py-2">
             <div className="absolute inset-0 flex items-center"><div className="w-full border-t-2 border-zinc-50"></div></div>
@@ -270,7 +268,7 @@ export default function RegisterPage() {
                   </div>
                 </div>
                 <span className="text-[11px] font-bold text-zinc-500 leading-tight">
-                  I adhere to the <Link href="/terms" className="text-purple-600 font-black hover:underline">Terms of Service</Link> and Security standards.
+                  I adhere to the <Link href="/home/legal/tos" className="text-purple-600 font-black hover:underline">Terms of Service</Link> and Security standards.
                 </span>
               </label>
 
@@ -287,7 +285,7 @@ export default function RegisterPage() {
                   </div>
                 </div>
                 <span className="text-[11px] font-bold text-zinc-500 leading-tight mb-5">
-                  I accept the <Link href="/cookies" className="text-purple-600 font-black hover:underline">Cookie Policy</Link> for session management.
+                  I accept the <Link href="/home/legal/privacy-policy" className="text-purple-600 font-black hover:underline">  Privacy Policy</Link> for session management.
                 </span>
               </label>
             </div>
