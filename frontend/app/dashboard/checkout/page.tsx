@@ -295,7 +295,7 @@ function CheckoutContent() {
 
                                 {priceDetails.message && (
                                     <p className="text-xs text-center text-yellow-500/90 mt-2 bg-yellow-500/5 p-2 rounded border border-yellow-500/10">
-                                        For payment issues contact both Stripe and Kapry.DEV Administration.
+                                        For payment issues contact both Stripe and Kapry DEV Administration.
                                     </p>
                                 )}
 

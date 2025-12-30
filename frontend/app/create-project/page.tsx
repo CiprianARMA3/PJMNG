@@ -452,7 +452,7 @@ export default function CreateProjectPage() {
                   <label className="text-[10px] font-black uppercase tracking-widest text-zinc-400">Primary Domain</label>
                   <div className="relative">
                     <Globe size={16} className="absolute left-6 top-1/2 -translate-y-1/2 text-zinc-400" />
-                    <input type="url" name="website_url" value={formData.website_url} onChange={handleInputChange} placeholder="HTTPS://KAPRY.DEV" className="w-full bg-zinc-50 dark:bg-zinc-900 border-2 border-zinc-100 dark:border-zinc-800 rounded-2xl pl-14 pr-6 py-4 text-xs font-black uppercase tracking-widest focus:outline-none focus:border-purple-600 transition-all" />
+                    <input type="url" name="website_url" value={formData.website_url} onChange={handleInputChange} placeholder="HTTPS://kaprydev.com" className="w-full bg-zinc-50 dark:bg-zinc-900 border-2 border-zinc-100 dark:border-zinc-800 rounded-2xl pl-14 pr-6 py-4 text-xs font-black uppercase tracking-widest focus:outline-none focus:border-purple-600 transition-all" />
                   </div>
                 </div>
               </div>

@@ -38,7 +38,7 @@ export const SUBSCRIPTION_PLANS = {
 
 export const getBaseUrl = () => {
   if (process.env.NEXT_PUBLIC_SITE_URL) return process.env.NEXT_PUBLIC_SITE_URL;
-  return 'http://localhost:3000';
+  return 'http://kaprydev.com';
 };
 
 // Only for client-side usage (tokens)

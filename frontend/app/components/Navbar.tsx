@@ -106,7 +106,7 @@ const Navbar = ({ className = "" }) => {
                 <motion.div layout className="flex items-center shrink-0">
                     <a href="/" className="flex items-center gap-1 group">
                         <span className="text-xl md:text-2xl font-normal tracking-tight text-[#202124]">
-                            KAPR<span className="text-purple-600 font-normal">Y</span><span className='font-black'>.DEV</span>
+                            KAPR<span className="text-purple-600 font-normal">Y</span><span className='font-black'> DEV</span>
                         </span>
                     </a>
                 </motion.div>

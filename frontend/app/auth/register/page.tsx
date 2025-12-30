@@ -285,7 +285,7 @@ export default function RegisterPage() {
                   </div>
                 </div>
                 <span className="text-[11px] font-bold text-zinc-500 leading-tight mb-5">
-                  I accept the <Link href="/home/legal/privacy-policy" className="text-purple-600 font-black hover:underline">  Privacy Policy</Link> for session management.
+                  I adhere to the <Link href="/home/legal/privacy-policy" className="text-purple-600 font-black hover:underline">  Privacy Policy</Link> for session management.
                 </span>
               </label>
             </div>

@@ -106,7 +106,7 @@ const SignatureModal = ({
                         Action Required
                     </h2>
                     <p className="text-sm font-bold text-zinc-500 dark:text-zinc-400 mb-8 max-w-sm">
-                        You must review and sign the <span className="text-zinc-900 dark:text-white underline">{agreement.document}</span> to continue using the Kapry.DEV platform.
+                        You must review and sign the <span className="text-zinc-900 dark:text-white underline">{agreement.document}</span> to continue using the Kapry DEV platform.
                     </p>
 
                     <div className="w-full bg-zinc-50 dark:bg-zinc-900/50 rounded-xl border-2 border-zinc-100 dark:border-zinc-800 p-4 mb-8">
@@ -411,7 +411,6 @@ export default function AgreementsPage() {
 
                 {/* US NODE */}
                 <motion.div variants={itemVariants} className="bg-white dark:bg-zinc-900/30 border-2 border-zinc-100 dark:border-zinc-800 rounded-[30px] p-8 min-h-[360px] flex flex-col relative overflow-hidden group hover:border-emerald-600/50 transition-all shadow-2xl shadow-zinc-200/50 dark:shadow-black/50">
-                    {/* US Flag SVG Background */}
                     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" className="absolute -top-8 -right-8 w-56 h-56 grayscale opacity-10 dark:opacity-20 group-hover:grayscale-0 group-hover:opacity-30 transition-all duration-500 pointer-events-none rounded-bl-3xl">
                         <path fill="#BD3D44" d="M0 0h512v512H0z" />
                         <path stroke="#FFF" strokeWidth="37" d="M0 55.5h512M0 129.5h512M0 203.5h512M0 277.5h512M0 351.5h512M0 425.5h512M0 499.5h512" />
@@ -586,7 +585,7 @@ export default function AgreementsPage() {
                 <div className="space-y-1">
                     <h4 className="text-xs font-black text-zinc-900 dark:text-white uppercase tracking-widest">Legal Disclaimer</h4>
                     <p className="text-[10px] text-zinc-500 dark:text-zinc-400 font-bold leading-relaxed max-w-4xl uppercase tracking-tight">
-                        The protocols provided above represent the legal logic binding the User and the Kapry.DEV Orchestration service. If you are using Kapry.DEV on behalf of a business entity, these agreements bind that entity. For Enterprise-grade custom agreements (MSAs), please contact your dedicated account manager.
+                        The protocols provided above represent the legal logic binding the User and the Kapry DEV Orchestration service. If you are using Kapry DEV on behalf of a business entity, these agreements bind that entity. For Enterprise-grade custom agreements (MSAs), please contact your dedicated account manager.
                     </p>
                 </div>
             </div>

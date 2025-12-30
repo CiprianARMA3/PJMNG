@@ -109,7 +109,7 @@ export default function DashboardPage() {
           <motion.div layout className="flex-1 flex justify-start">
             <a href="/" className="group flex items-center gap-1 leading-none">
               <span className="text-xl font-normal tracking-tight text-[#202124] dark:text-white">
-                KAPR<span className="text-purple-600">Y</span><span className="font-black">.DEV</span>
+                KAPR<span className="text-purple-600">Y</span><span className="font-black"> DEV</span>
               </span>
             </a>
           </motion.div>

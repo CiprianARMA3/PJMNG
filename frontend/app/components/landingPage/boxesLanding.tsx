@@ -210,7 +210,7 @@ const FeaturesSection = () => {
               </h3>
               {/* CHANGED: Font styling */}
               <p className="text-zinc-500 font-bold mb-6 leading-relaxed">
-                You won't need any 5 AI platforms for your project, with <span className="text-zinc-900 font-black">KAPRY.DEV</span> you'll have everything in one.
+                You won't need any 5 AI platforms for your project, with <span className="text-zinc-900 font-black">KAPRY DEV</span> you'll have everything in one.
               </p>
               <a href="#" className="group flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-purple-600 transition-colors">
                 Read more about AI
