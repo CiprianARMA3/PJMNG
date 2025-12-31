@@ -360,7 +360,6 @@ const BlogHero = () => (
       <p className="text-xl text-zinc-500 font-bold max-w-2xl mx-auto leading-relaxed mb-4">
         Deep dives into how we build Kapry.dev, tutorials on modern web development, and thoughts on the future of AI.
       </p>
-      <p className='text-xs font-black uppercase tracking-widest text-zinc-400 mt-2'>Login to see full creator info.</p>
     </div>
   </section>
 );

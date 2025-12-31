@@ -43,7 +43,11 @@ const Hero = () => (
             <span className="w-2 h-2 bg-purple-600 rounded-full"></span>
             <span className="absolute w-2 h-2 bg-purple-600 rounded-full animate-pulse"></span>
           </div>
-          <span className="text-[10px] font-bold text-purple-700 tracking-widest uppercase">Version 1.0 Launch</span>
+          <span className="text-[10px] font-bold text-purple-700 tracking-widest uppercase">
+            <a href="/home/blog/4">
+              KapryDEV Official Launch          
+            </a>
+          </span>
           <ArrowRight size={12} className="text-purple-400" />
         </div>
       </div>
