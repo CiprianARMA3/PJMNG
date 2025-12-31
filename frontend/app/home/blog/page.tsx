@@ -358,7 +358,7 @@ const BlogHero = () => (
         <span className="text-transparent bg-clip-text bg-gradient-to-r from-purple-600 to-indigo-600">Future Plans.</span>
       </h1>
       <p className="text-xl text-zinc-500 font-bold max-w-2xl mx-auto leading-relaxed mb-4">
-        Deep dives into how we build KapryDEV and thoughts on the future of AI in our systems also considering suggestions offered by customers.
+        Deep dives into how we build KapryDEV and thoughts on the future of AI in our systems also considering suggestions from our users.
       </p>
     </div>
   </section>
