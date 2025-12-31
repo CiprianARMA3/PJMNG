@@ -462,7 +462,7 @@ export default function AccountPage({ user }: AccountPageProps) {
                 disabled={isUploadingImage}
                 className={`flex items-center gap-2 px-4 py-2 text-xs font-semibold rounded-lg transition-all shadow-md ${isUploadingImage
                   ? 'bg-neutral-800 text-neutral-500 cursor-not-allowed'
-                  : 'bg-white light:bg-black text-black light:text-white hover:bg-neutral-200 light:hover:bg-neutral-800'
+                  : 'bg-white light:bg-black text-black light:text-white hover:bg-neutral-200 light:hover:bg-neutral-800 cursor-pointer hover:bg-gray-600'
                   }`}
               >
                 <Upload size={14} />

@@ -266,7 +266,7 @@ export default function AddProjectButton() {
                 <div className="w-14 h-14 bg-purple-50 dark:bg-purple-900/20 border-2 border-purple-100 dark:border-purple-900/30 rounded-2xl flex items-center justify-center mb-6">
                   <Cpu size={28} className="text-purple-600" strokeWidth={2.5} />
                 </div>
-                <span className="text-[10px] font-black uppercase tracking-[0.3em] text-purple-600 dark:text-purple-400 block mb-2">Project Access Relay</span>
+                <span className="text-[10px] font-black uppercase tracking-[0.3em] text-purple-600 dark:text-purple-400 block mb-2">Project Access Auth</span>
                 <h2 className="text-3xl font-black text-zinc-900 dark:text-white uppercase tracking-tighter">Authorize Join</h2>
                 <p className="text-xs font-bold text-zinc-400 dark:text-zinc-500 mt-4 leading-relaxed uppercase tracking-tight">
                   Enter the cryptographic UUID token shared by the cluster administrator to synchronize.

@@ -95,10 +95,7 @@ const FeaturesSection = () => {
         <p className="text-zinc-500 font-bold mb-6 leading-relaxed">
             Seamlessly manage your team's calendar and schedule with dual-view visualization for maximum clarity. Enhanced by a <span className="text-zinc-900 font-black">multi-role permission system</span> which let's you decide who can use what.
         </p>
-        <a href="#" className="group flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-purple-600 transition-colors mb-8">
-            Explore calendar features
-            <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" strokeWidth={3} />
-        </a>
+
     </div>
     
     {/* Professional Overlapping Calendar Layout */}
@@ -142,7 +139,7 @@ const FeaturesSection = () => {
               <p className="text-zinc-500 font-bold mb-6 leading-relaxed">
                 Both in a calendar and graph UI, you will be able to keep track of any changes made by your collaborators.
               </p>
-              <a href="#" className="group flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-purple-600 transition-colors">
+              <a href="/home/products/ai/repository-review" className="group flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-purple-600 transition-colors">
                 See more
                 <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" strokeWidth={3} />
               </a>
@@ -212,7 +209,7 @@ const FeaturesSection = () => {
               <p className="text-zinc-500 font-bold mb-6 leading-relaxed">
                 You won't need any 5 AI platforms for your project, with <span className="text-zinc-900 font-black">KAPRY DEV</span> you'll have everything in one.
               </p>
-              <a href="#" className="group flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-purple-600 transition-colors">
+              <a href="/home/products/ai" className="group flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-purple-600 transition-colors">
                 Read more about AI
                 <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" strokeWidth={3} />
               </a>

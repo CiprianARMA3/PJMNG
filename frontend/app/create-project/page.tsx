@@ -400,7 +400,7 @@ export default function CreateProjectPage() {
             <motion.section variants={itemVariants}>
               <div className="flex items-center gap-2 mb-8">
                 <Terminal size={14} className="text-purple-600" strokeWidth={3} />
-                <span className="text-[10px] font-black uppercase tracking-[0.3em] text-zinc-400">Section 01 / Identity Node</span>
+                <span className="text-[10px] font-black uppercase tracking-[0.3em] text-zinc-400">Section 01 / Project's Identity</span>
               </div>
 
               <div className="bg-white dark:bg-zinc-900/30 border-2 border-zinc-100 dark:border-zinc-800 rounded-[40px] overflow-hidden relative group shadow-2xl shadow-zinc-200/50">
@@ -413,7 +413,7 @@ export default function CreateProjectPage() {
                   ) : (
                     <div className="absolute inset-0 flex flex-col items-center justify-center text-zinc-400 gap-2 uppercase tracking-widest font-black text-[10px]">
                       <Upload size={24} strokeWidth={3} className="group-hover/banner:scale-110 transition-transform" />
-                      {uploadingBanner ? "Uploading Protocol..." : "Initialize Banner Relay"}
+                      {uploadingBanner ? "Uploading Protocol..." : "Initialize Banner  "}
                     </div>
                   )}
                 </div>
@@ -440,12 +440,12 @@ export default function CreateProjectPage() {
             <motion.section variants={itemVariants} className="space-y-10">
               <div className="flex items-center gap-2 mb-2">
                 <Settings size={14} className="text-purple-600" strokeWidth={3} />
-                <span className="text-[10px] font-black uppercase tracking-[0.3em] text-zinc-400">Section 02 / Metadata Logic</span>
+                <span className="text-[10px] font-black uppercase tracking-[0.3em] text-zinc-400">Section 02 / Metadata </span>
               </div>
               
               <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                 <div className="space-y-3">
-                  <label className="text-[10px] font-black uppercase tracking-widest text-zinc-400">Project Call-sign <span className="text-purple-600">*</span></label>
+                  <label className="text-[10px] font-black uppercase tracking-widest text-zinc-400">Project Name <span className="text-purple-600">*</span></label>
                   <input type="text" name="name" value={formData.name} onChange={handleInputChange} placeholder="E.G. PROJECT-AURORA" required className="w-full bg-zinc-50 dark:bg-zinc-900 border-2 border-zinc-100 dark:border-zinc-800 rounded-2xl px-6 py-4 text-xs font-black uppercase tracking-widest focus:outline-none focus:border-purple-600 transition-all" />
                 </div>
                 <div className="space-y-3">
@@ -458,16 +458,16 @@ export default function CreateProjectPage() {
               </div>
 
               <div className="space-y-3">
-                <label className="text-[10px] font-black uppercase tracking-widest text-zinc-400">Transmission Summary</label>
+                <label className="text-[10px] font-black uppercase tracking-widest text-zinc-400">Description</label>
                 <textarea name="description" value={formData.description} onChange={handleInputChange} rows={4} placeholder="ENTER DEPLOYMENT DESCRIPTION..." className="w-full bg-zinc-50 dark:bg-zinc-900 border-2 border-zinc-100 dark:border-zinc-800 rounded-2xl px-6 py-4 text-xs font-black uppercase tracking-widest focus:outline-none focus:border-purple-600 resize-none transition-all" />
               </div>
             </motion.section>
 
-            {/* 3. Asset Relays */}
+            {/* 3. Asset  s */}
             <motion.section variants={itemVariants} className="space-y-8">
               <div className="flex items-center gap-2 mb-2">
                 <Link2 size={14} className="text-purple-600" strokeWidth={3} />
-                <span className="text-[10px] font-black uppercase tracking-[0.3em] text-zinc-400">Section 03 / Asset Relays</span>
+                <span className="text-[10px] font-black uppercase tracking-[0.3em] text-zinc-400">Section 03 / Social Media Linking</span>
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                 <div className="md:col-span-2 space-y-3">
@@ -479,7 +479,7 @@ export default function CreateProjectPage() {
                 </div>
                 {['discord', 'twitter', 'linkedin', 'youtube'].map((platform) => (
                   <div key={platform} className="space-y-3">
-                    <label className="text-[10px] font-black uppercase tracking-widest text-zinc-400">{platform} Relay</label>
+                    <label className="text-[10px] font-black uppercase tracking-widest text-zinc-400">{platform}  </label>
                     <input type="url" value={(socialLinks as any)[platform]} onChange={(e) => handleSocialLinkChange(platform, e.target.value)} placeholder={`HTTPS://${platform.toUpperCase()}.COM/...`} className="w-full bg-zinc-50 dark:bg-zinc-900 border-2 border-zinc-100 dark:border-zinc-800 rounded-2xl px-6 py-4 text-xs font-black uppercase tracking-widest focus:outline-none focus:border-purple-600 transition-all" />
                   </div>
                 ))}

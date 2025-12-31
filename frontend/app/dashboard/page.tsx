@@ -11,6 +11,7 @@ import {
   Bell,
   LogOut,
   Loader2,
+  Menu, X, // Ensure these are imported
 } from "lucide-react";
 import { motion, AnimatePresence, useScroll, useMotionValueEvent } from "framer-motion";
 
@@ -43,6 +44,9 @@ export default function DashboardPage() {
   const [activeSection, setActiveSection] = useState(SECTIONS.HOME);
   const [userLoading, setUserLoading] = useState(true);
   const [isScrolled, setIsScrolled] = useState(false);
+  
+  // New state for mobile menu
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   const { scrollY } = useScroll();
   useMotionValueEvent(scrollY, "change", (latest) => setIsScrolled(latest > 20));
@@ -74,6 +78,12 @@ export default function DashboardPage() {
     router.push("/auth/login");
   }, [router]);
 
+  // Helper to change section and close menu
+  const handleMobileNav = (section: string) => {
+    setActiveSection(section);
+    setIsMobileMenuOpen(false);
+  };
+
   if (loading || userLoading || !user) {
     return (
       <div className="flex flex-col items-center justify-center h-screen bg-white dark:bg-[#0A0A0A]">
@@ -87,7 +97,7 @@ export default function DashboardPage() {
     <div className="min-h-screen bg-zinc-50 dark:bg-[#0A0A0A] text-[#202124] dark:text-zinc-100 font-sans selection:bg-purple-500/30">
       
       {/* --- FLOATING ISLAND NAVIGATION --- */}
-      <div className="fixed top-0 left-0 right-0 z-[100] flex justify-center pointer-events-none px-4">
+      <div className="fixed top-0 left-0 right-0 z-[100] flex flex-col items-center pointer-events-none px-4">
         <motion.nav
           layout
           initial={{ width: "100%", borderRadius: 0, y: 0 }}
@@ -98,7 +108,7 @@ export default function DashboardPage() {
           }}
           transition={{ type: "spring", stiffness: 200, damping: 25, mass: 0.8 }}
           className={`
-            pointer-events-auto flex items-center justify-between h-[64px] md:h-[76px] px-8 backdrop-blur-xl transition-all duration-300
+            pointer-events-auto flex items-center justify-between h-[64px] md:h-[76px] px-6 md:px-8 backdrop-blur-xl transition-all duration-300 relative z-50
             ${isScrolled 
               ? 'bg-white/80 dark:bg-[#0A0A0A]/80 border-2 border-zinc-200/50 dark:border-zinc-800 shadow-[0_8px_30px_rgb(0,0,0,0.08)]' 
               : 'bg-transparent border-b border-zinc-100 dark:border-zinc-900'
@@ -114,7 +124,7 @@ export default function DashboardPage() {
             </a>
           </motion.div>
 
-          {/* 2. CENTERED MENU (STARK WHITE ACTIVE STATE) */}
+          {/* 2. CENTERED MENU (Desktop only) */}
           <div className="hidden md:flex items-center gap-1 bg-zinc-100/50 dark:bg-zinc-900/50 p-1.5 rounded-2xl border border-zinc-200/50 dark:border-zinc-800">
             {MAIN_MENU.map(({ icon: Icon, label, section }) => {
               const isActive = activeSection === section;
@@ -137,8 +147,8 @@ export default function DashboardPage() {
             })}
           </div>
 
-          {/* 3. PROFILE & LOGOUT */}
-          <div className="flex-1 flex justify-end items-center gap-3">
+          {/* 3. PROFILE & LOGOUT (Desktop only) */}
+          <div className="hidden md:flex flex-1 justify-end items-center gap-3">
             <button
                 onClick={() => setActiveSection(SECTIONS.PROFILE)}
                 className="flex items-center gap-2 p-1 pr-4 bg-zinc-100/50 dark:bg-zinc-900/50 border border-zinc-200/50 dark:border-zinc-800 rounded-full hover:border-purple-600 dark:hover:border-purple-500 transition-all active:scale-95 group"
@@ -163,7 +173,79 @@ export default function DashboardPage() {
                 <LogOut size={16} strokeWidth={3} />
             </button>
           </div>
+
+          {/* 4. MOBILE HAMBURGER TOGGLE */}
+          <div className="flex md:hidden flex-1 justify-end">
+            <button
+              onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+              className="p-2 text-zinc-600 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-full transition-colors active:scale-90"
+            >
+              {isMobileMenuOpen ? <X size={24} /> : <Menu size={24} />}
+            </button>
+          </div>
         </motion.nav>
+
+        {/* --- MOBILE MENU DROPDOWN --- */}
+        <AnimatePresence>
+          {isMobileMenuOpen && (
+            <motion.div
+              initial={{ opacity: 0, y: -20, scale: 0.95 }}
+              animate={{ opacity: 1, y: isScrolled ? 30 : 10, scale: 1 }}
+              exit={{ opacity: 0, y: -20, scale: 0.95 }}
+              transition={{ duration: 0.2, ease: "easeOut" }}
+              className="pointer-events-auto md:hidden w-full max-w-[95%] bg-white/90 dark:bg-[#111]/90 backdrop-blur-2xl border border-zinc-200 dark:border-zinc-800 rounded-3xl p-4 shadow-2xl flex flex-col gap-2 mt-2"
+            >
+              {MAIN_MENU.map(({ icon: Icon, label, section }) => {
+                const isActive = activeSection === section;
+                return (
+                  <button
+                    key={section}
+                    onClick={() => handleMobileNav(section)}
+                    className={`
+                      flex items-center gap-4 px-4 py-4 rounded-2xl transition-all duration-200
+                      ${isActive 
+                        ? "bg-zinc-100 dark:bg-zinc-800 text-[#202124] dark:text-white font-medium" 
+                        : "text-zinc-500 dark:text-zinc-400 hover:bg-zinc-50 dark:hover:bg-zinc-800/50"
+                      }
+                    `}
+                  >
+                    <Icon size={20} strokeWidth={isActive ? 2.5 : 2} />
+                    <span className="text-sm font-bold uppercase tracking-widest">{label}</span>
+                  </button>
+                );
+              })}
+              
+              <div className="h-px bg-zinc-200 dark:bg-zinc-800 my-1" />
+
+              {/* Mobile Profile Link */}
+              <button
+                onClick={() => handleMobileNav(SECTIONS.PROFILE)}
+                className="flex items-center gap-4 px-4 py-3 rounded-2xl hover:bg-zinc-50 dark:hover:bg-zinc-800/50 transition-all"
+              >
+                <div className="relative">
+                   <Image 
+                      src={user.avatar_url} 
+                      alt="User" width={36} height={36} 
+                      className="rounded-full object-cover border border-zinc-200 dark:border-zinc-700" unoptimized 
+                    />
+                </div>
+                <div className="flex flex-col items-start">
+                  <span className="text-sm font-bold text-zinc-900 dark:text-zinc-200">{user.fullName}</span>
+                  <span className="text-[10px] uppercase text-zinc-400 tracking-wider">View Profile</span>
+                </div>
+              </button>
+
+              {/* Mobile Logout */}
+              <button
+                onClick={handleLogout}
+                className="flex items-center gap-4 px-4 py-4 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-2xl transition-all"
+              >
+                <LogOut size={20} strokeWidth={2} />
+                <span className="text-sm font-bold uppercase tracking-widest">Sign Out</span>
+              </button>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
 
       {/* --- CONTENT AREA --- */}
