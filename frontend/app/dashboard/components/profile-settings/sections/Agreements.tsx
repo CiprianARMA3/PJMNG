@@ -444,17 +444,7 @@ export default function AgreementsPage() {
                                 </span>
                                 <span className="font-bold text-zinc-900 dark:text-zinc-200">AES-256 (At Rest)</span>
                             </div>
-                            <div className="flex items-center justify-between text-xs py-2 border-b-2 border-zinc-50 dark:border-zinc-800/50">
-                                <span className="text-[10px] font-black uppercase text-zinc-400 tracking-widest flex items-center gap-2">
-                                    <FileText size={12} strokeWidth={3} /> Processors
-                                </span>
-                                <a href="#" className="font-bold text-zinc-900 dark:text-zinc-200 hover:text-purple-600 dark:hover:text-purple-400 underline decoration-zinc-300 dark:decoration-zinc-700">View List</a>
-                            </div>
                         </div>
-
-                        <button className="mt-auto w-full py-4 bg-white dark:bg-zinc-800 border-2 border-zinc-100 dark:border-zinc-700 text-zinc-900 dark:text-white hover:border-zinc-900 dark:hover:border-white rounded-xl font-black uppercase text-[10px] tracking-widest shadow-sm active:scale-95 transition-all">
-                            Configure Privacy
-                        </button>
                     </div>
                 </motion.div>
             </motion.div>

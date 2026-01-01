@@ -15,7 +15,7 @@ const Footer = ({ minimal = false }: FooterProps) => {
             <footer className="py-8 px-6 bg-white border-t border-gray-100">
                 <div className="max-w-[1400px] mx-auto flex flex-col md:flex-row items-center justify-between gap-4">
                     <span className="font-bold text-[#202124] tracking-tight">KAPRY DEV</span>
-                    <p className="text-sm text-[#5f6368]">© {currentYear} Kapry Inc.</p>
+                    <p className="text-sm text-[#5f6368]">© {currentYear} kaprydev.com</p>
                 </div>
             </footer>
         );
@@ -28,7 +28,7 @@ const Footer = ({ minimal = false }: FooterProps) => {
                 {/* 1. THE MASSIVE BRANDING */}
                 <div className="flex justify-center items-center py-12 md:py-24">
                     <h1 className="text-[13vw] leading-[0.8] font-extrabold tracking-tighter text-[#202124] select-none text-center">
-                        KAPRY DEV
+                        KAPRYDEV
                     </h1>
                 </div>
 

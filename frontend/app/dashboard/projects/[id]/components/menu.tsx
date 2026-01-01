@@ -57,7 +57,7 @@ export default function Menu({ project, user }: MenuProps) {
       title: "Development",
       items: [
         { label: "Tasks", icon: ClipboardCheck, href: `/dashboard/projects/${project.id}/development/tasks` },
-        { label: "Board", icon: KanbanSquare, href: `/dashboard/projects/${project.id}/development/board` },
+        { label: "Kanban Board", icon: KanbanSquare, href: `/dashboard/projects/${project.id}/development/board` },
         { label: "Events and Workflow", icon: Calendar, href: `/dashboard/projects/${project.id}/development/events-workflow` },
         { label: "Activity Overview", icon: Calendar, href: `/dashboard/projects/${project.id}/development/calendar` },
         { label: "Repository logs", icon: Logs, href: `/dashboard/projects/${project.id}/development/repository-logs` },
