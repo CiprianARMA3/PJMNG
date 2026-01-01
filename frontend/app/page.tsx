@@ -65,15 +65,16 @@ const Hero = () => (
       {/* Primary Buttons */}
       <div className="flex flex-col sm:flex-row items-center justify-center gap-4 pt-4 animate-in fade-in slide-in-from-bottom-10 duration-700 delay-150">
         {/* PRIMARY: LIVE DEMO */}
+                  <a href="https://www.youtube.com/watch?v=8tTgAktzRII">
+
         <button className="group relative w-full sm:w-auto px-10 py-5 bg-[#202124] text-white rounded-2xl font-black uppercase tracking-[0.3em] text-[11px] hover:bg-black transition-all duration-300 flex items-center justify-center gap-3 shadow-2xl shadow-zinc-900/20 active:scale-95 cursor-pointer overflow-hidden">
           {/* Subtle Inner Glow */}
           <div className="absolute inset-0 bg-gradient-to-tr from-purple-500/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
-          <a href="https://www.youtube.com/watch?v=8tTgAktzRII">
           <Play size={14} fill="currentColor" className="transition-transform group-hover:scale-110 group-hover:text-purple-400" />
           <span>Watch Demo</span>
-          </a>
+          
         </button>
-
+        </a>
         {/* SECONDARY: ARCHITECTURE */}
         <a href="#architecture" className="w-full sm:w-auto">
           <button className="w-full px-10 py-5 bg-white border-2 border-zinc-100 text-zinc-900 rounded-2xl font-black uppercase tracking-[0.3em] text-[11px] hover:border-purple-200 hover:bg-zinc-50 transition-all duration-300 flex items-center justify-center gap-3 active:scale-95 shadow-lg shadow-zinc-200/50 group">
