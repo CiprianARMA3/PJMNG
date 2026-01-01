@@ -68,9 +68,10 @@ const Hero = () => (
         <button className="group relative w-full sm:w-auto px-10 py-5 bg-[#202124] text-white rounded-2xl font-black uppercase tracking-[0.3em] text-[11px] hover:bg-black transition-all duration-300 flex items-center justify-center gap-3 shadow-2xl shadow-zinc-900/20 active:scale-95 cursor-pointer overflow-hidden">
           {/* Subtle Inner Glow */}
           <div className="absolute inset-0 bg-gradient-to-tr from-purple-500/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
-
+          <a href="https://www.youtube.com/watch?v=8tTgAktzRII">
           <Play size={14} fill="currentColor" className="transition-transform group-hover:scale-110 group-hover:text-purple-400" />
-          <span>Initialize Demo</span>
+          <span>Watch Demo</span>
+          </a>
         </button>
 
         {/* SECONDARY: ARCHITECTURE */}

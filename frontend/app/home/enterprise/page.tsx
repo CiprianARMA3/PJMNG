@@ -46,9 +46,11 @@ const EnterpriseHero = () => (
             <ArrowRight size={14} className="transition-transform duration-300 group-hover:translate-x-1" strokeWidth={3} />
           </button>
         </a>
+        <a href="https://www.youtube.com/watch?v=8tTgAktzRII">
         <button className="w-full sm:w-auto px-10 py-5 bg-white border-2 border-zinc-200 text-[#202124] rounded-2xl font-black uppercase tracking-[0.2em] text-xs hover:border-zinc-300 hover:bg-zinc-50 transition-all duration-200 flex items-center justify-center gap-2 active:scale-[0.98]">
           Watch Demo
         </button>
+        </a>
       </div>
     </div>
 
@@ -166,9 +168,11 @@ const BentoFeatures = () => (
             </div>
             
             {/* SUPERCHARGED BUTTON */}
+            <a href="/home/contact">
             <button className="bg-white text-purple-600 px-8 py-4 rounded-2xl font-black text-xs uppercase tracking-[0.2em] hover:bg-purple-50 transition-all whitespace-nowrap shadow-xl shadow-purple-900/20 active:scale-95">
-              View Docs
+              View Contacts
             </button>
+            </a>
           </div>
         </div>
       </div>
@@ -252,9 +256,11 @@ const ReadyToScale = () => (
             Contact Sales <ArrowRight size={16} strokeWidth={3} />
           </button>
         </a>
+        <a href="/">
         <button className="px-10 py-5 bg-zinc-50 border-2 border-zinc-100 text-[#202124] rounded-2xl font-black text-xs uppercase tracking-[0.2em] hover:bg-zinc-100 hover:border-zinc-200 transition-all active:scale-95">
-          View Documentation
+          See some more
         </button>
+        </a>
       </div>
     </div>
   </section>
