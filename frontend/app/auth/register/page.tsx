@@ -238,7 +238,7 @@ export default function RegisterPage() {
               <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-300 group-focus-within:text-purple-600 transition-colors" size={18} strokeWidth={2.5} />
               <input
                 type={showPassword ? "text" : "password"}
-                placeholder="CREATE SECURITY KEY"
+                placeholder="CREATE PASSWORD"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 disabled={loading}

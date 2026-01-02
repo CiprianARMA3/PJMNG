@@ -12,7 +12,8 @@ import {
     KanbanSquare,
     UserCog,
     ArrowRight,
-    Loader2
+    Loader2,
+    LogOut // Added this import for the new mobile menu
 } from 'lucide-react';
 import { createClient } from '@/utils/supabase/client';
 import { User } from '@supabase/supabase-js';
@@ -72,8 +73,14 @@ const Navbar = ({ className = "" }) => {
         checkUser();
     }, [supabase]);
 
+    const handleLogout = async () => {
+        await supabase.auth.signOut();
+        window.location.reload();
+    };
+
     return (
-        <div className="fixed top-0 left-0 right-0 z-[100] flex justify-center pointer-events-none p-4 md:p-0">
+        // Changed wrapper to flex-col items-center to stack the modal below nav
+        <div className="fixed top-0 left-0 right-0 z-[100] flex flex-col items-center pointer-events-none p-4 md:p-0">
             <motion.nav
                 layout
                 initial={{ width: "100%", borderRadius: 0, y: 0 }}
@@ -209,57 +216,78 @@ const Navbar = ({ className = "" }) => {
                 </button>
             </motion.nav>
 
-            {/* 5. MOBILE MENU OVERLAY */}
+            {/* 5. NEW FLOATING MOBILE MENU MODAL */}
             <AnimatePresence>
                 {isOpen && (
-                    <motion.div 
-                        initial={{ opacity: 0, y: -20 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        exit={{ opacity: 0, y: -20 }}
+                    <motion.div
+                        initial={{ opacity: 0, y: -20, scale: 0.95 }}
+                        animate={{ opacity: 1, y: 8, scale: 1 }}
+                        exit={{ opacity: 0, y: -20, scale: 0.95 }}
                         transition={{ duration: 0.2, ease: "easeOut" }}
-                        className="fixed inset-0 top-[80px] z-40 bg-white/95 backdrop-blur-md overflow-y-auto pointer-events-auto md:hidden"
+                        className="pointer-events-auto md:hidden w-full max-w-[95%] bg-white/95 backdrop-blur-2xl border-2 border-zinc-100 rounded-[32px] shadow-2xl overflow-hidden flex flex-col"
                     >
-                        {/* Mobile content remains same as original for usability */}
-                        <div className="p-6 flex flex-col gap-10 pb-20">
-                            <div>
-                                <div className="text-[10px] font-black text-zinc-400 uppercase tracking-[0.2em] mb-4 px-4">Platform</div>
-                                <div className="flex flex-col gap-2">
-                                    {PRODUCT_LINKS.map((item) => (
-                                        <a key={item.name} href={item.href} className="flex items-center gap-4 py-4 px-4 rounded-2xl hover:bg-zinc-50 border-2 border-transparent active:border-zinc-100 transition-all">
-                                            <div className="w-10 h-10 rounded-xl bg-zinc-50 flex items-center justify-center text-purple-600 shrink-0 border border-zinc-100">
-                                                <item.icon size={20} strokeWidth={2.5} />
-                                            </div>
-                                            <div>
-                                                <span className="text-sm font-bold text-[#202124]">{item.name}</span>
-                                                <p className="text-xs font-bold text-zinc-400 mt-0.5">{item.desc}</p>
-                                            </div>
+                         <div className="p-4 flex flex-col gap-2 max-h-[75vh] overflow-y-auto">
+                            
+                            {/* Mobile User Profile Section */}
+                            {user ? (
+                                <div className="flex items-center gap-4 px-4 py-3 rounded-2xl bg-zinc-50 border border-zinc-100">
+                                    <div className="relative w-10 h-10 rounded-full overflow-hidden border border-zinc-200 shrink-0">
+                                        <img src={avatarUrl || '/default-avatar.png'} alt="Profile" className="w-full h-full object-cover" />
+                                    </div>
+                                    <div className="flex flex-col items-start overflow-hidden">
+                                        <span className="text-sm font-bold text-zinc-900 truncate w-full">
+                                            {user.user_metadata?.full_name || user.email}
+                                        </span>
+                                        <a href="/dashboard" className="text-[10px] uppercase text-purple-600 font-bold tracking-wider flex items-center gap-1 hover:underline">
+                                            Go to Dashboard <ArrowRight size={10} />
                                         </a>
-                                    ))}
+                                    </div>
                                 </div>
-                            </div>
+                            ) : (
+                                <div className="grid grid-cols-2 gap-2 mb-2">
+                                    <a href="/auth/login" className="flex items-center justify-center py-3 rounded-2xl border border-zinc-200 font-bold text-xs uppercase tracking-wider hover:bg-zinc-50 transition-colors">Sign In</a>
+                                    <a href="/auth/register" className="flex items-center justify-center py-3 rounded-2xl bg-[#202124] text-white font-bold text-xs uppercase tracking-wider shadow-lg shadow-zinc-200/50">Get Started</a>
+                                </div>
+                            )}
+
+                            <div className="h-px bg-zinc-100 my-1 mx-2" />
+
+                            {/* Mobile Products List */}
                             <div>
-                                <div className="text-[10px] font-black text-zinc-400 uppercase tracking-[0.2em] mb-4 px-4">Company</div>
-                                <div className="flex flex-col gap-1">
-                                    {NAV_LINKS.map((link) => (
-                                        <a key={link.name} href={link.href} className="text-lg font-black tracking-tighter text-[#202124] py-3 px-4 rounded-2xl hover:bg-zinc-50 active:scale-[0.98] transition-all">
-                                            {link.name}
-                                        </a>
-                                    ))}
-                                </div>
-                            </div>
-                            <div className="pt-8 border-t border-zinc-100 flex flex-col gap-4">
-                                {!user ? (
-                                    <>
-                                        <a href="/auth/login" className="px-6 py-4 rounded-2xl border-2 border-zinc-100 text-center font-black uppercase tracking-[0.2em] text-sm text-[#202124] hover:bg-zinc-50">Sign In</a>
-                                        <a href="/auth/register" className="bg-[#202124] text-white px-6 py-4 rounded-2xl text-center font-black uppercase tracking-[0.2em] text-sm shadow-xl shadow-zinc-200">Get Started</a>
-                                    </>
-                                ) : (
-                                    <a href="/dashboard" className="bg-[#202124] text-white px-6 py-4 rounded-2xl text-center font-black uppercase tracking-[0.2em] text-sm flex items-center justify-center gap-2">
-                                        Go to Dashboard <ArrowRight size={18} strokeWidth={3} />
+                                <div className="px-4 py-2 text-[10px] font-black text-zinc-400 uppercase tracking-[0.2em]">Platform</div>
+                                {PRODUCT_LINKS.map((item) => (
+                                    <a key={item.name} href={item.href} className="flex items-center gap-4 px-4 py-3 rounded-2xl hover:bg-zinc-50 transition-all group">
+                                        <div className="w-8 h-8 rounded-lg bg-zinc-50 text-purple-600 flex items-center justify-center shrink-0 border border-zinc-100 group-hover:bg-purple-600 group-hover:text-white transition-colors">
+                                            <item.icon size={16} strokeWidth={2.5} />
+                                        </div>
+                                        <span className="text-sm font-bold text-zinc-700 group-hover:text-black">{item.name}</span>
                                     </a>
-                                )}
+                                ))}
                             </div>
-                        </div>
+
+                            <div className="h-px bg-zinc-100 my-1 mx-2" />
+
+                            {/* Mobile Nav Links */}
+                            <div>
+                                <div className="px-4 py-2 text-[10px] font-black text-zinc-400 uppercase tracking-[0.2em]">Company</div>
+                                {NAV_LINKS.map((link) => (
+                                    <a key={link.name} href={link.href} className="flex items-center gap-4 px-4 py-3 rounded-2xl hover:bg-zinc-50 transition-all">
+                                        <span className="text-sm font-bold text-zinc-700">{link.name}</span>
+                                    </a>
+                                ))}
+                            </div>
+
+                            {/* Mobile Logout */}
+                            {user && (
+                                <>
+                                    <div className="h-px bg-zinc-100 my-1 mx-2" />
+                                    <button onClick={handleLogout} className="flex items-center gap-3 px-4 py-3 text-red-500 hover:bg-red-50 rounded-2xl transition-all">
+                                        <LogOut size={18} strokeWidth={2.5} />
+                                        <span className="text-xs font-bold uppercase tracking-widest">Sign Out</span>
+                                    </button>
+                                </>
+                            )}
+                         </div>
                     </motion.div>
                 )}
             </AnimatePresence>
