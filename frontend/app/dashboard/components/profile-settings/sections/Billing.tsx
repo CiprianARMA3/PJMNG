@@ -417,9 +417,6 @@ export default function BillingPage() {
                             <p className="text-neutral-500 light:text-neutral-600 text-sm max-w-xs mx-auto mb-6">
                                 Subscribe to a plan to unlock projects, collaborators, and advanced analytics.
                             </p>
-                            <Link href="/dashboard" className="px-5 py-2 text-sm font-semibold bg-white light:bg-black text-black light:text-white rounded-lg hover:bg-neutral-200 light:hover:bg-neutral-800 transition-colors">
-                                View Plans
-                            </Link>
                         </div>
                     )}
                 </PageWidget>
