@@ -210,7 +210,7 @@ Harness the power of Gemini's top notch AI models like 2.5 and 3.0. Our speciali
                       </div>
                       <h4 className="font-black text-xl tracking-tight">Active Intelligence</h4>
                       <p className="text-purple-50 text-[15px] leading-relaxed font-bold">
-                          Deploy your <span className="text-white font-black">custom Gemini model</span> across your entire team workspace.
+                          Deploy your <span className="text-white font-black">Project</span> and use Gemini's AI across your entire team workspace.
                       </p>
                   </div>
               </motion.div>
