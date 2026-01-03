@@ -3,6 +3,7 @@
 import React, { useState, useEffect, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import LandingBoxes from './components/landingPage/boxesLanding';
+import { usePasswordRecoveryRedirect } from '@/hooks/usePasswordRecoveryRedirect';
 import { motion, AnimatePresence } from "framer-motion";
 import {
   ChevronDown,
@@ -395,6 +396,7 @@ const PricingSection = () => {
 
 // --- Main Page Component ---
 function HomeContent() {
+  usePasswordRecoveryRedirect();
   const searchParams = useSearchParams();
   const [notification, setNotification] = useState<string | null>(null);
 
