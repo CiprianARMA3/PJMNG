@@ -367,6 +367,7 @@ export default function UserSettingsPage() {
                                             <div>
                                                 <h2 className="text-lg font-semibold text-white light:text-black">Public Profile</h2>
                                                 <p className="text-sm text-zinc-500 light:text-gray-500 mt-1">Your identity within the <b>{project?.name} </b>workspace.</p>
+                                                <p className="text-sm text-zinc-500 light:text-gray-500 mt-1">To change your personal information please go to the Account Settings in the User Dashboard </p>
                                             </div>
 
                                             {/* PRIMARY INPUTS (GRIDDED) */}
